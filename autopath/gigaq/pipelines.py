@@ -167,8 +167,8 @@ def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool =
     
 
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_8020_TRAIN').build()"
-def gigapath_feature_bags_median_probe(name) -> FeatureBagMedianProbe:
-    return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name),),)
+def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size: int = 16) -> FeatureBagMedianProbe:
+    return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size),))
 
 
 # git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020').build()"
@@ -176,7 +176,7 @@ def gigapath_feature_bags_median_probe(name) -> FeatureBagMedianProbe:
 def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_size: int = 16) -> BipolarFeatureBagProbe:
     return BipolarFeatureBagProbe(
         spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TEST", n_devices=n_devices, gpu_batch_size=gpu_batch_size), 
-                  medianprobe=gigapath_feature_bags_median_probe(f"{name}_TRAIN"),
+                  medianprobe=gigapath_feature_bags_median_probe(f"{name}_TRAIN", n_devices=n_devices, gpu_batch_size=gpu_batch_size),
         ),
         devices=[f'cuda:{i}' for i in range(n_devices)],
     )
