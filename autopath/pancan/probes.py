@@ -463,6 +463,16 @@ class BipolarFeatureBagProbe(Datablock):
         bag_bipolar_feature_nonzeros: np.array
         label_bag_bipolar_feature_nonzeros: np.array
 
+    @dataclass
+    class LogisticEvaluationReports:
+        bag: dict
+        tile: dict
+
+    @dataclass
+    class Similarities:
+        bag: np.array
+        label: np.array
+
     def __init__(self, *args, devices=['cuda:0'], gpu_batch_size: int = 1024, **kwargs):
         super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, **kwargs)
 
@@ -871,11 +881,18 @@ class BipolarFeatureBagProbe(Datablock):
     def hamming_distance_stats(self):
         return self.read('stats_hamming_distances')
     
-    @functools.cache
+    @functools.cached_property
+    def similarities(self):
+        return self.Similarities(
+            bag=self.bag_similarities, 
+            label=self.label_similarities
+        )
+    
+    @functools.cached_property
     def bag_similarities(self):
         return self.read('bag_similarities')
     
-    @functools.cache
+    @functools.cached_property
     def label_similarities(self):
         return self.read('label_similarities')
     
