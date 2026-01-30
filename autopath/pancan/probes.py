@@ -1344,8 +1344,11 @@ class BipolarFeatureBag(Bag):
         return self.cfg.probe.bags[self.cfg.index]
 
     @property
-    def label(self):
+    def labels(self):
         return self.cfg.probe.bag_labels[self.cfg.index]
+
+    def __len__(self):
+        return self.cfg.probe.bag_bounds[self.cfg.index+1] - self.cfg.probe.bag_bounds[self.cfg.index]
 
 
 class BipolarFeatureBagClip(Clip):
@@ -1380,4 +1383,8 @@ class BipolarFeatureBagClip(Clip):
     @property
     def shards(self):
         return self.bags
+
+    @property
+    def shards_lens(self):
+        return np.array([len(bag) for bag in self.bags])
 
