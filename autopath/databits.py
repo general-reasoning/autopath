@@ -93,7 +93,7 @@ class Clip(Datablock):
     
     @property
     def n_shards(self):
-        return len(self.shard_lens)
+        return len(self.shards_lens)
     
     def UNSAFE_clear_shards(self):
         for shard in self.shards:
