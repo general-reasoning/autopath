@@ -31,7 +31,10 @@ from dbx import (
     TorchMultithreadingDatablocksBuilder,
     TorchMultiprocessingDatablocksBuilder,
     MultithreadingCallableExecutor,
+    MultiprocessingDatablockBuilder,
 )
+
+from autopath.databits import Bag, Clip
 
 from autopath import tools
 from autopath.features import FeatureBagClip
@@ -1309,3 +1312,72 @@ class Feature2NNDim(Datablock):
     @functools.cached_property
     def model(self):
         return self.read('model')
+
+
+class BipolarFeatureBag(Bag):
+    VERSION = 1
+    TOPICFILES = {'features': 'features.npy'}
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        probe: BipolarFeatureBagProbe
+        index: int
+
+    def __build__(self):
+        all_features = self.cfg.probe.tile_bipolar_features
+        lo = self.cfg.probe.bag_bounds[self.cfg.index]
+        hi = self.cfg.probe.bag_bounds[self.cfg.index+1]
+        my_features = all_features[lo:hi, :]
+        write_tensor(torch.tensor(my_features), self.path('features', ensure_dirpath=True))
+        return self
+
+    @property
+    def features(self):
+        return read_tensor(self.path('features'))
+    
+    @property
+    def tensor(self):
+        return self.features
+
+    @property
+    def name(self):
+        return self.cfg.probe.bags[self.cfg.index]
+
+    @property
+    def label(self):
+        return self.cfg.probe.bag_labels[self.cfg.index]
+
+
+class BipolarFeatureBagClip(Clip):
+    VERSION = 1
+    
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        probe: BipolarFeatureBagProbe
+
+    def __init__(self, *args, n_workers: int = 1, **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+
+    def __build__(self):
+        bags = self.bags
+        missing_bags = [bag for bag in bags if not bag.valid()]
+        self.log.verbose(f"Building {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
+        MultiprocessingDatablockBuilder(n_processes=self.n_workers, log=self.log).build_blocks(missing_bags)
+        self.log.verbose(f"Building {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
+        return self
+
+    @functools.cached_property
+    def bags(self):
+        n_bags = len(self.cfg.probe.bags) 
+        return [
+            BipolarFeatureBag(
+                root=self._root_,
+                spec=dict(probe=dbx.quote(self.cfg.probe), index=i)
+            )
+            for i in range(n_bags)
+        ]
+    
+    @property
+    def shards(self):
+        return self.bags
+

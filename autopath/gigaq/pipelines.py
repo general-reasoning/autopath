@@ -27,6 +27,7 @@ from autopath.pancan.probes import (
     LogisticFeatureBagProbe, 
     FeatureBagMedianProbe,
     BipolarFeatureBagProbe,
+    BipolarFeatureBagClip,
     #
     FeaturePairwiseDistances,
     FeatureSortedDistances,
@@ -179,6 +180,30 @@ def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_s
                   medianprobe=gigapath_feature_bags_median_probe(f"{name}_TRAIN", n_devices=n_devices, gpu_batch_size=gpu_batch_size),
         ),
         devices=[f'cuda:{i}' for i in range(n_devices)],
+    )
+ 
+
+def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 1, **kwargs) -> BipolarFeatureBagClip:
+    probe = gigapath_bipolar_feature_bags_probe(name, **kwargs)
+    return BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers)
+
+
+# git commit -am "gigaq: BipolarFeaturebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
+def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None, **kwargs) -> torch.utils.data.Dataset:
+    featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, **kwargs)
+    quoted_featureclip = dbx.quote(featureclip)
+    dbx.Logger().debug(f"===================> {featureclip=}\n{quoted_featureclip=}")
+    return featurebagset(quoted_featureclip, bags_shuffle_seed=shuffle_bags_seed)
+
+
+def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
+    featureset = gigapath_bipolar_featurebagset(name, root=root, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
+    return ClipDataLoaderBuilder(spec=dict(
+                            clip_dataset=featureset,
+                            batch_size=dataloader_kwargs.get('batch_size', None),
+                            shuffle=dataloader_kwargs.get('shuffle', False),
+                          ),  
+                          dataloader_kwargs=dataloader_kwargs,
     )
  
 
