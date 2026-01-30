@@ -600,23 +600,12 @@ class BipolarFeatureBagProbe(Datablock):
             tile_labels = self.tile_labels
             tile_bags = self.tile_bags
             bag_labels = self.bag_labels
+            tile_features = self.tile_features
             tile_bipolar_features = self.tile_bipolar_features
             bag_features = self.bag_features
             bag_bipolar_features = self.bag_bipolar_features
             bag_lens = self.bag_lens
             bag_bounds = self.bag_bounds
-            tile_feature_list = []
-            self.log.verbose(f"READING tile features from bags: BEGIN")
-            if self.verbose:
-                bagitor = tqdm.tqdm(self.cfg.featurebagclip.bags)
-            else:
-                bagitor = self.cfg.featurebagclip.bags
-            for featurebag in bagitor:
-                tile_feature_list.extend(featurebag.features)
-            self.log.verbose(f"READING tile features from bags: END")
-            tile_features = torch.stack(tile_feature_list, dim=0).numpy()
-            del tile_feature_list
-            gc.collect()
             #
             bag_uq = self.bag_uq
             bag_bipolar_uq = self.bag_bipolar_uq
@@ -822,6 +811,22 @@ class BipolarFeatureBagProbe(Datablock):
     @functools.cached_property
     def label_bags(self):
         return self.read('label_bags')
+
+    @functools.cached_property
+    def tile_features(self):
+        tile_feature_list = []
+        self.log.verbose(f"READING tile features from bags: BEGIN")
+        if self.verbose:
+            bagitor = tqdm.tqdm(self.cfg.featurebagclip.bags)
+        else:
+            bagitor = self.cfg.featurebagclip.bags
+        for featurebag in bagitor:
+            tile_feature_list.extend(featurebag.features)
+        self.log.verbose(f"READING tile features from bags: END")
+        tile_features = torch.stack(tile_feature_list, dim=0).numpy()
+        del tile_feature_list
+        gc.collect()
+        return tile_features
     
     @functools.cached_property
     def tile_bipolar_features(self):
