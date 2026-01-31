@@ -1372,15 +1372,16 @@ class BipolarFeatureBagClip(Clip):
     @functools.cached_property
     def bags(self):
         n_bags = len(self.cfg.probe.bags) 
-        self.log.verbose(f"FORMING {n_bags} BipolarFeatureBags: BEGIN)
-        return [
+        self.log.verbose(f"FORMING {n_bags} BipolarFeatureBags: BEGIN")
+        bags = [
             BipolarFeatureBag(
                 root=self._root_,
                 spec=dict(probe=dbx.quote(self.cfg.probe), index=i)
             )
             for i in range(n_bags)
         ]
-        self.log.verbose(f"FORMING {n_bags} BipolarFeatureBags: END)
+        self.log.verbose(f"FORMING {n_bags} BipolarFeatureBags: END")
+        return bags
     
     @property
     def shards(self):
