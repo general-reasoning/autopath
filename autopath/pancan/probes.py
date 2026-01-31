@@ -1372,15 +1372,17 @@ class BipolarFeatureBagClip(Clip):
     @functools.cached_property
     def bags(self):
         n_bags = len(self.cfg.probe.bags) 
-        self.log.verbose(f"FORMING {n_bags} BipolarFeatureBags: BEGIN")
+        if self.verbose:
+            bagitor = tqdm.tqdm(range(n_bags), desc="FORMING BIPOLAR FEATURE BAGS")
+        else:
+            bagitor = range(n_bags)
         bags = [
             BipolarFeatureBag(
                 root=self._root_,
                 spec=dict(probe=self.cfg.probe, index=i)
             )
-            for i in range(n_bags)
+            for i in bagitor
         ]
-        self.log.verbose(f"FORMING {n_bags} BipolarFeatureBags: END")
         return bags
     
     @property
