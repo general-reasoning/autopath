@@ -1364,9 +1364,9 @@ class BipolarFeatureBagClip(Clip):
     def __build__(self):
         bags = self.bags
         missing_bags = [bag for bag in bags if not bag.valid()]
-        self.log.verbose(f"Building {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
+        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
         MultiprocessingDatablockBuilder(n_processes=self.n_workers, log=self.log).build_blocks(missing_bags)
-        self.log.verbose(f"Building {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
+        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
         return self
 
     @functools.cached_property
