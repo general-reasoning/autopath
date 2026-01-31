@@ -1376,7 +1376,7 @@ class BipolarFeatureBagClip(Clip):
         bags = [
             BipolarFeatureBag(
                 root=self._root_,
-                spec=dict(probe=dbx.quote(self.cfg.probe), index=i)
+                spec=dict(probe=self.cfg.probe, index=i)
             )
             for i in range(n_bags)
         ]
