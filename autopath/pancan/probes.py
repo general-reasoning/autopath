@@ -32,6 +32,7 @@ from dbx import (
     TorchMultiprocessingDatablocksBuilder,
     MultithreadingCallableExecutor,
     MultiprocessingDatablockBuilder,
+    RemoteDatablocksBuilder,
 )
 
 from autopath.databits import Bag, Clip
@@ -1365,7 +1366,7 @@ class BipolarFeatureBagClip(Clip):
         bags = self.bags
         missing_bags = [bag for bag in bags if not bag.valid()]
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
-        MultiprocessingDatablockBuilder(n_processes=self.n_workers, log=self.log).build_blocks(missing_bags)
+        RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags)
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
         return self
 
@@ -1373,7 +1374,7 @@ class BipolarFeatureBagClip(Clip):
     def bags(self):
         n_bags = len(self.cfg.probe.bags) 
         if self.verbose:
-            bagitor = tqdm.tqdm(range(n_bags), desc="FORMING BIPOLAR FEATURE BAGS")
+            bagitor = tqdm.tqdm(range(n_bags), desc="FORMING BipolarFeatureBags")
         else:
             bagitor = range(n_bags)
         bags = [
