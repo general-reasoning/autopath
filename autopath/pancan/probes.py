@@ -942,7 +942,7 @@ class BipolarFeatureBag(Bag):
     TOPICFILES = {'features': 'features.npy'}
 
     @dataclass
-    class CONFIG(Datablock.CONFIG)[]:
+    class CONFIG(Datablock.CONFIG):
         probe: BipolarFeatureBagProbe
         index: int
 
