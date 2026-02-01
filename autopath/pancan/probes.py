@@ -937,6 +937,86 @@ class BipolarFeatureBagProbe(Datablock):
                 self.log.verbose(f"COMPUTING label similarities using {len(self.devices)} devices with gpu_batch_size {self.gpu_batch_size}: END")   
         
 
+class BipolarFeatureBag(Bag):
+    VERSION = 1
+    TOPICFILES = {'features': 'features.npy'}
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        probe: BipolarFeatureBagProbe
+        index: int
+
+    def __build__(self):
+        all_features = self.cfg.probe.tile_bipolar_features
+        lo = self.cfg.probe.bag_bounds[self.cfg.index]
+        hi = self.cfg.probe.bag_bounds[self.cfg.index+1]
+        my_features = all_features[lo:hi, :]
+        write_tensor(torch.tensor(my_features), self.path('features', ensure_dirpath=True))
+        return self
+
+    @property
+    def features(self):
+        return read_tensor(self.path('features'))
+    
+    @property
+    def tensor(self):
+        return self.features
+
+    @property
+    def name(self):
+        return self.cfg.probe.bags[self.cfg.index]
+
+    @property
+    def labels(self):
+        return self.cfg.probe.bag_labels[self.cfg.index]
+
+    def __len__(self):
+        return self.cfg.probe.bag_bounds[self.cfg.index+1] - self.cfg.probe.bag_bounds[self.cfg.index]
+
+
+class BipolarFeatureBagClip(Clip):
+    VERSION = 1
+    
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        probe: BipolarFeatureBagProbe
+
+    def __init__(self, *args, n_workers: int = 1, **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+
+    def __build__(self):
+        bags = self.bags
+        missing_bags = [bag for bag in bags if not bag.valid()]
+        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
+        RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags)
+        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
+        return self
+
+    @functools.cached_property
+    def bags(self):
+        n_bags = len(self.cfg.probe.bags) 
+        if self.verbose:
+            bagitor = tqdm.tqdm(range(n_bags), desc="FORMING BipolarFeatureBags")
+        else:
+            bagitor = range(n_bags)
+        bags = [
+            BipolarFeatureBag(
+                root=self._root_,
+                spec=dict(probe=self.cfg.probe, index=i)
+            )
+            for i in bagitor
+        ]
+        return bags
+    
+    @property
+    def shards(self):
+        return self.bags
+
+    @property
+    def shards_lens(self):
+        return np.array([len(bag) for bag in self.bags])
+
+
 class FeaturePairwiseDistancesShard(Datablock):
     VERSION = 5
     TOPICFILES = {
@@ -1313,84 +1393,3 @@ class Feature2NNDim(Datablock):
     @functools.cached_property
     def model(self):
         return self.read('model')
-
-
-class BipolarFeatureBag(Bag):
-    VERSION = 1
-    TOPICFILES = {'features': 'features.npy'}
-
-    @dataclass
-    class CONFIG(Datablock.CONFIG):
-        probe: BipolarFeatureBagProbe
-        index: int
-
-    def __build__(self):
-        all_features = self.cfg.probe.tile_bipolar_features
-        lo = self.cfg.probe.bag_bounds[self.cfg.index]
-        hi = self.cfg.probe.bag_bounds[self.cfg.index+1]
-        my_features = all_features[lo:hi, :]
-        write_tensor(torch.tensor(my_features), self.path('features', ensure_dirpath=True))
-        return self
-
-    @property
-    def features(self):
-        return read_tensor(self.path('features'))
-    
-    @property
-    def tensor(self):
-        return self.features
-
-    @property
-    def name(self):
-        return self.cfg.probe.bags[self.cfg.index]
-
-    @property
-    def labels(self):
-        return self.cfg.probe.bag_labels[self.cfg.index]
-
-    def __len__(self):
-        return self.cfg.probe.bag_bounds[self.cfg.index+1] - self.cfg.probe.bag_bounds[self.cfg.index]
-
-
-class BipolarFeatureBagClip(Clip):
-    VERSION = 1
-    
-    @dataclass
-    class CONFIG(Datablock.CONFIG):
-        probe: BipolarFeatureBagProbe
-
-    def __init__(self, *args, n_workers: int = 1, **kwargs):
-        super().__init__(*args, n_workers=n_workers, **kwargs)
-
-    def __build__(self):
-        bags = self.bags
-        missing_bags = [bag for bag in bags if not bag.valid()]
-        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
-        RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags)
-        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
-        return self
-
-    @functools.cached_property
-    def bags(self):
-        n_bags = len(self.cfg.probe.bags) 
-        if self.verbose:
-            bagitor = tqdm.tqdm(range(n_bags), desc="FORMING BipolarFeatureBags")
-        else:
-            bagitor = range(n_bags)
-        bags = [
-            BipolarFeatureBag(
-                root=self._root_,
-                spec=dict(probe=self.cfg.probe, index=i)
-            )
-            for i in bagitor
-        ]
-        return bags
-    
-    @property
-    def shards(self):
-        return self.bags
-
-    @property
-    def shards_lens(self):
-        return np.array([len(bag) for bag in self.bags])
-
