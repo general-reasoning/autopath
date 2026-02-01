@@ -173,7 +173,7 @@ def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size:
 
 
 # git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020').build()"
-# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020', n_devices=2, gpu_batch_size=1024).build_tree()"
+# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020', n_devices=2).build_tree()"
 def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_size: int = 16) -> BipolarFeatureBagProbe:
     return BipolarFeatureBagProbe(
         spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TEST", n_devices=n_devices, gpu_batch_size=gpu_batch_size), 
@@ -183,8 +183,8 @@ def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_s
     )
  
 
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020', n_workers=2).build()"
-def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 1, **kwargs) -> BipolarFeatureBagClip:
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020').build()"
+def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 0, **kwargs) -> BipolarFeatureBagClip:
     probe = gigapath_bipolar_feature_bags_probe(name, **kwargs)
     return BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers)
 

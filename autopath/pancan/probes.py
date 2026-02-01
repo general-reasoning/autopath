@@ -942,16 +942,18 @@ class BipolarFeatureBag(Bag):
     TOPICFILES = {'features': 'features.npy'}
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class CONFIG(Datablock.CONFIG)[]:
         probe: BipolarFeatureBagProbe
         index: int
 
-    def __build__(self):
-        all_features = self.cfg.probe.tile_bipolar_features
-        lo = self.cfg.probe.bag_bounds[self.cfg.index]
-        hi = self.cfg.probe.bag_bounds[self.cfg.index+1]
+    def __build__(self, probe):
+        self.log.debug(f" BipolarFeatureBag {self.cfg.index}: BEGIN")
+        all_features = probe.tile_bipolar_features
+        lo = probe.bag_bounds[self.cfg.index]
+        hi = probe.bag_bounds[self.cfg.index+1]
         my_features = all_features[lo:hi, :]
         write_tensor(torch.tensor(my_features), self.path('features', ensure_dirpath=True))
+        self.log.debug(f" BipolarFeatureBag {self.cfg.index}: END")
         return self
 
     @property
