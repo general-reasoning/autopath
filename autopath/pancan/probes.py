@@ -988,7 +988,15 @@ class BipolarFeatureBagClip(Clip):
         bags = self.bags
         missing_bags = [bag for bag in bags if not bag.valid()]
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
-        RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags)
+        if self.n_workers > 0:
+            RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags)
+        else:   
+            if self.verbose:
+                bagitor = tqdm.tqdm(missing_bags, desc="BUILDING BipolarFeatureBags")
+            else:
+                bagitor = missing_bags
+            for bag in bagitor:
+                bag.__build__()
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
         return self
 
