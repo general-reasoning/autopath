@@ -980,6 +980,8 @@ class BipolarFeatureBag(Bag):
 
 class BipolarFeatureBagClip(Clip):
     VERSION = 1
+
+    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -990,7 +992,13 @@ class BipolarFeatureBagClip(Clip):
 
     def __build__(self):
         bags = self.bags
-        missing_bags = [bag for bag in bags if not bag.valid()]
+        missing_bags = [] 
+        bag_lens = []
+        for bag in bags:
+            if not bag.valid():
+                missing_bags.append(bag)
+            bag_lens.append(len(bag))
+
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
         if self.n_workers > 0:
             RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
@@ -1001,8 +1009,12 @@ class BipolarFeatureBagClip(Clip):
                 bagitor = missing_bags
             for bag in bagitor:
                 bag.__build__(probe=self.cfg.probe)
+        write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
         return self
+
+    def __read__(self, topic=None):
+        return read_npz(self.path('bag_lens'))['bag_lens']
 
     @functools.cached_property
     def bags(self):
@@ -1024,9 +1036,21 @@ class BipolarFeatureBagClip(Clip):
     def shards(self):
         return self.bags
 
+    @functools.cached_property
+    def bag_lens(self):
+        return self.read_npz('bag_lens')['bag_lens']
+
     @property
-    def shards_lens(self):
-        return np.array([len(bag) for bag in self.bags])
+    def n_bags(self):
+        return len(self.bag_lens)
+
+    @property
+    def shard_lens(self):
+        return self.bag_lens
+
+    @property
+    def n_shards(self):
+        return self.n_bags
 
 
 class FeaturePairwiseDistancesShard(Datablock):
