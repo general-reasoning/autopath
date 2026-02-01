@@ -946,7 +946,9 @@ class BipolarFeatureBag(Bag):
         probe: BipolarFeatureBagProbe
         index: int
 
-    def __build__(self, probe):
+    def __build__(self, *, probe: BipolarFeatureBagProbe = None):
+        if probe is None:
+            probe = self.cfg.probe
         self.log.debug(f" BipolarFeatureBag {self.cfg.index}: BEGIN")
         all_features = probe.tile_bipolar_features
         lo = probe.bag_bounds[self.cfg.index]
@@ -991,14 +993,14 @@ class BipolarFeatureBagClip(Clip):
         missing_bags = [bag for bag in bags if not bag.valid()]
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
         if self.n_workers > 0:
-            RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags)
+            RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
         else:   
             if self.verbose:
                 bagitor = tqdm.tqdm(missing_bags, desc="BUILDING BipolarFeatureBags")
             else:
                 bagitor = missing_bags
             for bag in bagitor:
-                bag.__build__()
+                bag.__build__(probe=self.cfg.probe)
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
         return self
 
