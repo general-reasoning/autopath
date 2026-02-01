@@ -1013,8 +1013,8 @@ class BipolarFeatureBagClip(Clip):
         self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
         return self
 
-    def __read__(self, topic=None):
-        return read_npz(self.path('bag_lens'))['bag_lens']
+    def __read__(self, topic):
+        return read_npz(self.path(topic), topic)[topic]
 
     @functools.cached_property
     def bags(self):
@@ -1038,7 +1038,7 @@ class BipolarFeatureBagClip(Clip):
 
     @functools.cached_property
     def bag_lens(self):
-        return self.read()
+        return self.read('bag_lens')
 
     @property
     def n_bags(self):
