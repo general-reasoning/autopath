@@ -1038,7 +1038,7 @@ class BipolarFeatureBagClip(Clip):
 
     @functools.cached_property
     def bag_lens(self):
-        return self.read_npz('bag_lens')['bag_lens']
+        return read_npz('bag_lens')['bag_lens']
 
     @property
     def n_bags(self):
