@@ -130,7 +130,7 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_devices: in
 # git commit -am "gigaq: Featurebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset('GIGAPATH_BASELINE_CPTAC_9802_TEST')[0]"
 def gigapath_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
     featureclip = gigapath_feature_bag_clip(name, root=root)
-    dbx.Logger().debug(f"===================> {featureclip=}\n{quoted_featureclip=}")
+    dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip={dbx.quote(featureclip)}")
     return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
