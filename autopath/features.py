@@ -13,7 +13,13 @@ import numpy as np
 import torch
 
 import dbx
-from dbx import Datablock, MultithreadingCallableExecutor
+from dbx import (
+    Datablock, 
+    MultithreadingCallableExecutor,
+    RemoteDatablocksBuilder,
+    write_npz,
+    read_npz,
+)
 
 from autopath.databits import Shard, Bag, Clip, ClipDataset
 from .tiles import TileBag
@@ -204,7 +210,7 @@ class FeatureBagClip(Clip):
         return result
     
     def features(self):
-        self.log.debug(f"Reading features from {len(self.n_bags)} feature bags")
+        self.log.debug(f"Reading features from {self.n_bags} feature bags")
         feature_list = []
         for featurebag in self.bags:
             try:
@@ -219,7 +225,7 @@ class FeatureBagClip(Clip):
         return features
     
     def tiles(self):
-        self.log.debug(f"Reading tiles from {len(self.n_bags)} feature bags")
+        self.log.debug(f"Reading tiles from {self.n_bags} feature bags")
         tile_list = []
         for featurebag in self.bags:
             try:
@@ -301,7 +307,7 @@ class FeatureBagClip(Clip):
         return self.bag_lens
     
     def labels(self):
-        self.log.debug(f"Reading labels from {len(self.n_bags)} feature bags")
+        self.log.debug(f"Reading labels from {self.n_bags} feature bags")
         label_list = []
         for featurebag in self.bags:
             try:
@@ -463,8 +469,8 @@ class BipolarFeatureBag(Bag):
     def __build__(self, *, probe: BipolarFeatureBagProbe):
         assert self.cfg.probehandle == probe.handle, \
             f"Handle mismatch: {self.cfg.probehandle} != {probe.handle}"
-        assert self.cfg.featurebag.handle == self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle, \
-            f"Featurebag handle mismatch: {self.cfg.featurebag.handle} != {self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle}"
+        assert self.cfg.featurebag.handle == probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle, \
+            f"Featurebag handle mismatch: {self.cfg.featurebag.handle} != {probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle}"
         self.log.debug(f" BipolarFeatureBag {self.cfg.bag_index}: BEGIN")
         all_features = probe.tile_bipolar_features
         lo = probe.bag_bounds[self.cfg.bag_index]
@@ -515,25 +521,28 @@ class BipolarFeatureBagClip(Clip):
         from autopath.pancan.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
 
-    def __init__(self, *args, n_workers: int = 1, **kwargs):
-        super().__init__(*args, n_workers=n_workers, **kwargs)
+    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, **kwargs):
+        super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
 
     def __build__(self):
         bags = self.bags
         missing_bags = [] 
         bag_lens = []
-        if self.verbose:
-            bagitor = tqdm.tqdm(bags, desc="LOOKING for missing BipolarFeatureBags")
+        if self.build_missing_only:
+            if self.verbose:
+                bagitor = tqdm.tqdm(bags, desc="LOOKING for missing BipolarFeatureBags")
+            else:
+                bagitor = bags
+            for bag in bagitor:
+                if not bag.valid():
+                    missing_bags.append(bag)
+                bag_lens.append(len(bag))
         else:
-            bagitor = bags
-        for bag in bagitor:
-            if not bag.valid():
-                missing_bags.append(bag)
-            bag_lens.append(len(bag))
+            missing_bags = bags
 
-        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
+        self.log.verbose(f"BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: BEGIN")
         if self.n_workers > 0:
-            RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
+            missing_blocks = RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
         else:   
             if self.verbose:
                 bagitor = tqdm.tqdm(missing_bags, desc="BUILDING BipolarFeatureBags")
@@ -541,8 +550,10 @@ class BipolarFeatureBagClip(Clip):
                 bagitor = missing_bags
             for bag in bagitor:
                 bag.__build__(probe=self.cfg.probe)
+        if not self.build_missing_only:
+            bag_lens = [len(bag) for bag in bags]
         write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
-        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
+        self.log.verbose(f"BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: END")
         return self
 
     def __read__(self, topic):
