@@ -266,7 +266,7 @@ class FeatureBagClip(Clip):
     def bags(self):
         self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: BEGIN ")
         if self.verbose:
-            tilebagitor = tqdm.tqdm(self.cfg.tilebagclip.shards, desc="FORMING FeatureBags")
+            tilebagitor = tqdm.tqdm(self.cfg.tilebagclip.shards, desc=f"{self.anchor}: FORMING FeatureBags")
         else:
             tilebagitor = self.cfg.tilebagclip.shards
         bags = [
@@ -525,12 +525,13 @@ class BipolarFeatureBagClip(Clip):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
 
     def __build__(self):
+        self.log.verbose(f"BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes: BEGIN")
         bags = self.bags
         missing_bags = [] 
         bag_lens = []
         if self.build_missing_only:
             if self.verbose:
-                bagitor = tqdm.tqdm(bags, desc="LOOKING for missing BipolarFeatureBags")
+                bagitor = tqdm.tqdm(bags, desc=f"{self.anchor}: LOOKING for missing BipolarFeatureBags")
             else:
                 bagitor = bags
             for bag in bagitor:
@@ -545,7 +546,7 @@ class BipolarFeatureBagClip(Clip):
             missing_blocks = RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
         else:   
             if self.verbose:
-                bagitor = tqdm.tqdm(missing_bags, desc="BUILDING BipolarFeatureBags")
+                bagitor = tqdm.tqdm(missing_bags, desc=f"{self.anchor}: BUILDING BipolarFeatureBags")
             else:
                 bagitor = missing_bags
             for bag in bagitor:
@@ -563,7 +564,7 @@ class BipolarFeatureBagClip(Clip):
     def bags(self):
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
         if self.verbose:
-            bagitor = tqdm.tqdm(range(n_bags), desc="FORMING BipolarFeatureBags")
+            bagitor = tqdm.tqdm(range(n_bags), desc=f"{self.anchor}: FORMING BipolarFeatureBags")
         else:
             bagitor = range(n_bags)
         bags = [
