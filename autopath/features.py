@@ -260,7 +260,7 @@ class FeatureBagClip(Clip):
     def bags(self):
         self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: BEGIN ")
         if self.verbose:
-            tilebagitor = tqdm.tqdm(self.cfg.tilebagclip.shards)
+            tilebagitor = tqdm.tqdm(self.cfg.tilebagclip.shards, desc="FORMING FeatureBags")
         else:
             tilebagitor = self.cfg.tilebagclip.shards
         bags = [

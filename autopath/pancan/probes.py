@@ -1010,7 +1010,11 @@ class BipolarFeatureBagClip(Clip):
         bags = self.bags
         missing_bags = [] 
         bag_lens = []
-        for bag in bags:
+        if self.verbose:
+            bagitor = tqdm.tqdm(bags, desc="LOOKING for missing BipolarFeatureBags")
+        else:
+            bagitor = bags
+        for bag in bagitor:
             if not bag.valid():
                 missing_bags.append(bag)
             bag_lens.append(len(bag))
