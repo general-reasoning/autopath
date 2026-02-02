@@ -178,7 +178,7 @@ def gigapath_featurebagset_dataloader_builder(name, root: str = None, shuffle_ba
     )
 
 
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_9802_TEST', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', 10, batch_size=1, num_workers=1)"
 # git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 10, batch_size=1, num_workers=1)"
 # git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 20, batch_size=1, num_workers=2)"
 # git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1)"
