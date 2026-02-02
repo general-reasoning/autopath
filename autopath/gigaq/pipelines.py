@@ -130,9 +130,8 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_devices: in
 # git commit -am "gigaq: Featurebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset('GIGAPATH_BASELINE_CPTAC_9802_TEST')[0]"
 def gigapath_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
     featureclip = gigapath_feature_bag_clip(name, root=root)
-    quoted_featureclip = dbx.quote(featureclip)
     dbx.Logger().debug(f"===================> {featureclip=}\n{quoted_featureclip=}")
-    return featurebagset(quoted_featureclip, bags_shuffle_seed=shuffle_bags_seed)
+    return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
 # git commit -am "gigaq: FeatureShardClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_shard_clip('GIGAPATH_BASELINE_CPTAC', shard_size=32, n_threads=16).build()"
@@ -178,7 +177,7 @@ def gigapath_featurebagset_dataloader_builder(name, root: str = None, shuffle_ba
     )
 
 
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TEST', 10, batch_size=1, num_workers=1)"
 # git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 10, batch_size=1, num_workers=1)"
 # git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 20, batch_size=1, num_workers=2)"
 # git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1)"
