@@ -945,17 +945,19 @@ class BipolarFeatureBag(Bag):
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        probe: BipolarFeatureBagProbe
+        probehandle: str
         bag_index: int
         featurebag: FeatureBag
 
-    def __build__(self):
-        assert self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle == self.cfg.featurebag.handle, \
-            f"Handle mismatch: {self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle} != {self.cfg.featurebag.handle}"
+    def __build__(self, *, probe: BipolarFeatureBagProbe):
+        assert self.cfg.probehandle == probe.handle, \
+            f"Handle mismatch: {self.cfg.probehandle} != {probe.handle}"
+        assert self.cfg.featurebag.handle == self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle, \
+            f"Featurebag handle mismatch: {self.cfg.featurebag.handle} != {self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle}"
         self.log.debug(f" BipolarFeatureBag {self.cfg.bag_index}: BEGIN")
-        all_features = self.cfg.probe.tile_bipolar_features
-        lo = self.cfg.probe.bag_bounds[self.cfg.bag_index]
-        hi = self.cfg.probe.bag_bounds[self.cfg.bag_index+1]
+        all_features = probe.tile_bipolar_features
+        lo = probe.bag_bounds[self.cfg.bag_index]
+        hi = probe.bag_bounds[self.cfg.bag_index+1]
         my_features = all_features[lo:hi, :]
         write_npz(self.path('bipolar_features', ensure_dirpath=True), bipolar_features=my_features)
         self.log.debug(f" BipolarFeatureBag {self.cfg.bag_index}: END")
@@ -1041,9 +1043,9 @@ class BipolarFeatureBagClip(Clip):
             BipolarFeatureBag(
                 root=self._root_,
                 spec=dict(
-                    probe=dbx.quote(self.cfg.probe),
+                    probehandle=self.cfg.probe.handle,
                     bag_index=i,
-                    featurebag=dbx.quote(self.cfg.probe.cfg.featurebagclip.bags[i]),
+                    featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
                 )
             )
             for i in bagitor
