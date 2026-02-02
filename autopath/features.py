@@ -16,6 +16,7 @@ import dbx
 from dbx import Datablock, MultithreadingCallableExecutor
 
 from autopath.databits import Shard, Bag, Clip, ClipDataset
+from autopath.gigaq.probes import BipolarFeatureBagProbe
 from .tiles import TileBag
 
 
