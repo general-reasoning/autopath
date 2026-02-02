@@ -513,7 +513,7 @@ class BipolarFeatureBagClip(Clip):
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        probe: BipolarFeatureBagProbe
+        probe: BipolarFeatureBagClip.BipolarFeatureBagProbe
 
     def __init__(self, *args, n_workers: int = 1, **kwargs):
         super().__init__(*args, n_workers=n_workers, **kwargs)
