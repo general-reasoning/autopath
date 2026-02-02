@@ -993,7 +993,7 @@ class BipolarFeatureBag(Bag):
 
 
 class BipolarFeatureBagClip(Clip):
-    VERSION = 1
+    VERSION = 2
 
     TOPICFILES = {'bag_lens': 'bag_lens.npy'}
     
