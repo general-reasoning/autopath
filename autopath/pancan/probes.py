@@ -38,7 +38,7 @@ from dbx import (
 from autopath.databits import Bag, Clip
 
 from autopath import tools
-from autopath.features import FeatureBagClip
+from autopath.features import FeatureBag, FeatureBagClip
 
 
 class FeatureBagProber:
