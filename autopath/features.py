@@ -446,6 +446,151 @@ def featureshardset(featureshardclip: FeatureShardClip, *, transform=None):
     return ClipDataset(spec=dict(clip=featureshardclip, transform=transform))
 
 
+class BipolarFeatureBag(Bag):
+    from autopath.pancan.probes import BipolarFeatureBagProbe
+
+    VERSION = 1
+    TOPICFILES = {
+        'bipolar_features': 'bipolar_features.npy',
+    }
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        probehandle: str
+        bag_index: int
+        featurebag: FeatureBag
+
+    def __build__(self, *, probe: BipolarFeatureBagProbe):
+        assert self.cfg.probehandle == probe.handle, \
+            f"Handle mismatch: {self.cfg.probehandle} != {probe.handle}"
+        assert self.cfg.featurebag.handle == self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle, \
+            f"Featurebag handle mismatch: {self.cfg.featurebag.handle} != {self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle}"
+        self.log.debug(f" BipolarFeatureBag {self.cfg.bag_index}: BEGIN")
+        all_features = probe.tile_bipolar_features
+        lo = probe.bag_bounds[self.cfg.bag_index]
+        hi = probe.bag_bounds[self.cfg.bag_index+1]
+        my_features = all_features[lo:hi, :]
+        write_npz(self.path('bipolar_features', ensure_dirpath=True), bipolar_features=my_features)
+        self.log.debug(f" BipolarFeatureBag {self.cfg.bag_index}: END")
+        return self
+
+    def __read__(self, topic: str):
+        if topic == 'bipolar_features':
+            result = read_npz(self.path('bipolar_features'), 'bipolar_features')['bipolar_features']
+        else:
+            raise ValueError(f"Unknown {topic=}")
+        return result
+    
+    @property
+    def tensor(self):
+        return self.bipolar_features
+
+    @property
+    def bipolar_features(self):
+        return self.read('bipolar_features')
+
+    @property
+    def features(self):
+        return self.cfg.featurebag.features
+
+    @property
+    def name(self):
+        return self.cfg.featurebag.name
+
+    @property
+    def labels(self):
+        return self.cfg.featurebag.labels
+
+    def __len__(self):
+        return len(self.cfg.featurebag)
+
+
+class BipolarFeatureBagClip(Clip):
+    from autopath.pancan.probes import BipolarFeatureBagProbe
+    VERSION = 2
+
+    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+    
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        probe: BipolarFeatureBagProbe
+
+    def __init__(self, *args, n_workers: int = 1, **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+
+    def __build__(self):
+        bags = self.bags
+        missing_bags = [] 
+        bag_lens = []
+        if self.verbose:
+            bagitor = tqdm.tqdm(bags, desc="LOOKING for missing BipolarFeatureBags")
+        else:
+            bagitor = bags
+        for bag in bagitor:
+            if not bag.valid():
+                missing_bags.append(bag)
+            bag_lens.append(len(bag))
+
+        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: BEGIN")
+        if self.n_workers > 0:
+            RemoteDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
+        else:   
+            if self.verbose:
+                bagitor = tqdm.tqdm(missing_bags, desc="BUILDING BipolarFeatureBags")
+            else:
+                bagitor = missing_bags
+            for bag in bagitor:
+                bag.__build__(probe=self.cfg.probe)
+        write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
+        self.log.verbose(f"BUILDING {len(missing_bags)} missing BipolarFeatureBags using {self.n_workers} processes: END")
+        return self
+
+    def __read__(self, topic):
+        return read_npz(self.path(topic), topic)[topic]
+
+    @functools.cached_property
+    def bags(self):
+        n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
+        if self.verbose:
+            bagitor = tqdm.tqdm(range(n_bags), desc="FORMING BipolarFeatureBags")
+        else:
+            bagitor = range(n_bags)
+        bags = [
+            BipolarFeatureBag(
+                root=self._root_,
+                spec=dict(
+                    probehandle=self.cfg.probe.handle,
+                    bag_index=i,
+                    featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
+                )
+            )
+            for i in bagitor
+        ]
+        return bags
+    
+    @property
+    def shards(self):
+        return self.bags
+
+    @functools.cached_property
+    def bag_lens(self):
+        return self.read('bag_lens')
+
+    @property
+    def n_bags(self):
+        return len(self.bag_lens)
+
+    @property
+    def shard_lens(self):
+        return self.bag_lens
+
+    @property
+    def n_shards(self):
+        return self.n_bags
+    
+
+
+
 
         
 

@@ -21,13 +21,13 @@ from autopath.features import (
     featurebagset,
     FeatureShardClip,
     featureshardset,
+    BipolarFeatureBagClip,
 )
 
 from autopath.pancan.probes import (
     LogisticFeatureBagProbe, 
     FeatureBagMedianProbe,
     BipolarFeatureBagProbe,
-    BipolarFeatureBagClip,
     #
     FeaturePairwiseDistances,
     FeatureSortedDistances,
