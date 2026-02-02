@@ -506,14 +506,14 @@ class BipolarFeatureBag(Bag):
 
 
 class BipolarFeatureBagClip(Clip):
-    from autopath.pancan.probes import BipolarFeatureBagProbe
     VERSION = 2
 
     TOPICFILES = {'bag_lens': 'bag_lens.npy'}
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        probe: BipolarFeatureBagClip.BipolarFeatureBagProbe
+        from autopath.pancan.probes import BipolarFeatureBagProbe
+        probe: BipolarFeatureBagProbe
 
     def __init__(self, *args, n_workers: int = 1, **kwargs):
         super().__init__(*args, n_workers=n_workers, **kwargs)
