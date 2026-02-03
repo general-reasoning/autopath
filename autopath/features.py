@@ -503,7 +503,10 @@ class BipolarFeatureBag(Bag):
 
     @functools.cached_property
     def features(self):
-        return self.cfg.featurebag.features
+        self.log.selected(f"Reading features from {self.cfg.featurebag}: BEGIN")
+        result = self.cfg.featurebag.features
+        self.log.selected(f"Reading features from {self.cfg.featurebag}: END")
+        return result
 
     @property
     def name(self):
@@ -511,7 +514,10 @@ class BipolarFeatureBag(Bag):
 
     @functools.cached_property
     def labels(self):
-        return self.cfg.featurebag.labels
+        self.log.selected(f"Reading labels from {self.cfg.featurebag}: BEGIN")
+        result = self.cfg.featurebag.labels
+        self.log.selected(f"Reading labels from {self.cfg.featurebag}: END")
+        return result
 
     def __len__(self):
         if not hasattr(self, '_len'):
