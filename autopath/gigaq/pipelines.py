@@ -134,38 +134,6 @@ def gigapath_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = N
     return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
-# git commit -am "gigaq: FeatureShardClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_shard_clip('GIGAPATH_BASELINE_CPTAC', shard_size=32, n_threads=16).build()"
-def gigapath_feature_shard_clip(name: str = None, *, shard_size: int = 32, n_threads: int = 1) -> FeatureShardClip:
-    if name is None:
-        clip = FeatureShardClip
-    else:
-        try:
-            featureshardset=dbx.quote(gigapath_featureshardset, name)
-            clip = FeatureShardClip(spec=dict(featureset=featureshardset, shard_size=shard_size), n_threads=n_threads)
-        except Exception as e:
-            raise ValueError(f"Failed to instantiate gigapath_feature_shard_clip: {repr(name)}") from e
-    return clip
-
-
-# git commit -am "gigaq: Featureshardset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featureshardset('GIGAPATH_BASELINE_CPTAC_32')[0]"
-def gigapath_featureshardset(name) -> torch.utils.data.Dataset:
-    featureshardclip = gigapath_feature_shard_clip(name)
-    quoted_featureshardclip = dbx.quote(featureshardclip)
-    dbx.Logger().debug(f"===================> {featureshardclip=}\n{quoted_featureshardclip=}")
-    return featureshardset(quoted_featureshardclip)
-
-
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).build()"
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).read('evaluation_reports')"
-#
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, polarize=True).build()"
-#
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, aggregation='cdf').build()"
-
-def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool = False, aggregation: str = 'mean') -> LogisticFeatureBagProbe:
-    return LogisticFeatureBagProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name), n_bins=n_bins, polarize=polarize, aggregation=aggregation))
-    
-
 def gigapath_featurebagset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
     featureset = gigapath_featurebagset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
     return ClipDataLoaderBuilder(spec=dict(
@@ -205,6 +173,27 @@ def gigapath_featurebagset_dataloader_samples(name, n, root: str = None, shuffle
             break
     if return_last:
         return _
+
+
+# git commit -am "gigaq: FeatureShardClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_shard_clip('GIGAPATH_BASELINE_CPTAC', shard_size=32, n_threads=16).build()"
+def gigapath_feature_shard_clip(name: str = None, *, shard_size: int = 32, n_threads: int = 1) -> FeatureShardClip:
+    if name is None:
+        clip = FeatureShardClip
+    else:
+        try:
+            featureshardset=dbx.quote(gigapath_featureshardset, name)
+            clip = FeatureShardClip(spec=dict(featureset=featureshardset, shard_size=shard_size), n_threads=n_threads)
+        except Exception as e:
+            raise ValueError(f"Failed to instantiate gigapath_feature_shard_clip: {repr(name)}") from e
+    return clip
+
+
+# git commit -am "gigaq: Featureshardset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featureshardset('GIGAPATH_BASELINE_CPTAC_32')[0]"
+def gigapath_featureshardset(name) -> torch.utils.data.Dataset:
+    featureshardclip = gigapath_feature_shard_clip(name)
+    quoted_featureshardclip = dbx.quote(featureshardclip)
+    dbx.Logger().debug(f"===================> {featureshardclip=}\n{quoted_featureshardclip=}")
+    return featureshardset(quoted_featureshardclip)
 
 
 def gigapath_featureshardset_dataloader(name, *args, **kwargs):
@@ -400,11 +389,11 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 # git commit -am "gigaq: BipolarFeaturebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
 def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None, **kwargs) -> torch.utils.data.Dataset:
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, **kwargs)
-    quoted_featureclip = dbx.quote(featureclip)
-    dbx.Logger().debug(f"===================> {featureclip=}\n{quoted_featureclip=}")
-    return featurebagset(quoted_featureclip, bags_shuffle_seed=shuffle_bags_seed)
+    dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
+    return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
+# git commit -am "gigaq: BipolarFeaturebagsetDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TEST', 10, batch_size=1, num_workers=1)"
 def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
     featureset = gigapath_bipolar_featurebagset(name, root=root, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
     return ClipDataLoaderBuilder(spec=dict(
@@ -415,6 +404,29 @@ def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, sh
                           dataloader_kwargs=dataloader_kwargs,
     )
  
+
+def gigapath_bipolar_featurebagset_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
+    batch_size = dataloader_kwargs.get('batch_size', None)
+    dataloader_builder = gigapath_featurebagset_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
+    progress = tqdm(total=n)
+    for i, _ in enumerate(dataloader_builder.dataloader()):
+        progress.update(batch_size if batch_size is not None else 1)
+        if i*batch_size >= n-1:
+            break
+    if return_last:
+        return _
+
+
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).build()"
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).read('evaluation_reports')"
+#
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, polarize=True).build()"
+#
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, aggregation='cdf').build()"
+
+def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool = False, aggregation: str = 'mean') -> LogisticFeatureBagProbe:
+    return LogisticFeatureBagProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name), n_bins=n_bins, polarize=polarize, aggregation=aggregation))
+    
 
 # git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000').set(n_devices=3).build()"
 # git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000').set(n_devices=3).build()"
