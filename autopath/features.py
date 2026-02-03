@@ -467,7 +467,7 @@ class BipolarFeatureBag(Bag):
         featurebag: FeatureBag
 
     def __build__(self, *, probe: BipolarFeatureBagProbe):
-        assert self.cfg.probehandle == probe.handle, \
+        assert self.cfg.probehandle == probe.handle(), \
             f"Handle mismatch: {self.cfg.probehandle} != {probe.handle}"
         assert self.cfg.featurebag.handle == probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle, \
             f"Featurebag handle mismatch: {self.cfg.featurebag.handle} != {probe.cfg.featurebagclip.bags[self.cfg.bag_index].featurebag.handle}"
@@ -571,7 +571,7 @@ class BipolarFeatureBagClip(Clip):
             BipolarFeatureBag(
                 root=self._root_,
                 spec=dict(
-                    probehandle=self.cfg.probe.handle,
+                    probehandle=self.cfg.probe.handle(),
                     bag_index=i,
                     featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
                 )
