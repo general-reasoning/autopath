@@ -259,6 +259,6 @@ class ClipDataLoaderBuilder(Datablock):
         self.dataloader_kwargs['batch_size'] = self.spec['batch_size']
 
     def dataloader(self):
-        self.log.debug(f"--> Initializing ClipDataLoaderBuilder dataloader with kwargs: {self.dataloader_kwargs}")
+        self.log.debug(f"Initializing ClipDataLoaderBuilder dataloader with kwargs: {self.dataloader_kwargs}")
         return torch.utils.data.DataLoader(dataset=self.cfg.clip_dataset, **self.dataloader_kwargs)
 
