@@ -198,7 +198,7 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
 
     def __post_init__(self):
         self.n_shards = self.cfg.clip.n_shards
-        self.log.debug(f"Building dataset out of {self.n_shards} shards")
+        self.log.debug(f"INITIALIZING dataset using {self.n_shards} shards from clip {self.cfg.clip}: BEGIN")
         self._shard_indices = np.arange(self.n_shards)
         if self.cfg.shuffle_seed is not None:
             self.log.verbose(f"Shuffling shard indices with seed {self.cfg.shuffle_seed}")
@@ -213,6 +213,7 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
         self._shard = None
         self._shard_label = None
         self._shard_slide = None
+        self.log.debug(f"INITIALIZING dataset using {self.n_shards} shards from clip {self.cfg.clip}: END")
 
     @functools.lru_cache(maxsize=3)
     def shard(self, shard_idx):
