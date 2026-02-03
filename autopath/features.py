@@ -162,8 +162,10 @@ class FeatureBag(Bag):
     
     @property
     def labels(self):
-        self.log.selected(f"Assemblying labels from {self.cfg.tilebag}")
-        return list(zip(self.cfg.tilebag.labels, self.cfg.tilebag.tiles))
+        self.log.selected(f"Assemblying labels from {self.cfg.tilebag}: BEGIN")
+        labels = list(zip(self.cfg.tilebag.labels, self.cfg.tilebag.tiles))
+        self.log.selected(f"Assemblying labels from {self.cfg.tilebag}: END")
+        return labels
 
 
 class FeatureBagClip(Clip):
