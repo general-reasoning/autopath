@@ -231,14 +231,14 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
         shard_hi = self.shard_bounds[shard_idx]
         shard_len = self.shard_lens[shard_idx]
         idx = index - shard_lo
-        self.log.select(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
+        self.log.selected(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
         tensor = self.shard(shard_idx).tensor
         sample = tensor[idx]
         if self.cfg.transform is not None:
             sample = self.transform(sample)
         labels = self.shard(shard_idx).labels
         label = labels[idx]
-        self.log.select(f"APPLYING target_transform")
+        self.log.selected(f"APPLYING target_transform")
         if self.cfg.target_transform is not None:
             label = self.target_transform(label)
         return sample, label
