@@ -471,13 +471,14 @@ class BipolarFeatureBag(Bag):
             f"Handle mismatch: {self.cfg.probehandle} != {probe.handle}"
         assert self.cfg.featurebag.handle() == probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle(), \
             f"Featurebag handle mismatch: {self.cfg.featurebag.handle()} != {probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle()}"
-        self.log.debug(f" BipolarFeatureBag {self.cfg.bag_index}: BEGIN")
+        self.log.detailed(f" BipolarFeatureBag {self.cfg.bag_index}: build: BEGIN")
         all_features = probe.tile_bipolar_features
         lo = probe.bag_bounds[self.cfg.bag_index]
         hi = probe.bag_bounds[self.cfg.bag_index+1]
         my_features = all_features[lo:hi, :]
         write_npz(self.path('bipolar_features', ensure_dirpath=True), bipolar_features=my_features)
-        self.log.debug(f" BipolarFeatureBag {self.cfg.bag_index}: END")
+        self.log.detailed(f" BipolarFeatureBag {self.cfg.bag_index}: build:END")
+        self._len = hi - lo
         return self
 
     def __read__(self, topic: str):
@@ -508,7 +509,9 @@ class BipolarFeatureBag(Bag):
         return self.cfg.featurebag.labels
 
     def __len__(self):
-        return len(self.cfg.featurebag)
+        if not hasattr(self, '_len'):
+            self._len = len(self.cfg.featurebag)
+        return self._len
 
 
 class BipolarFeatureBagClip(Clip):
@@ -551,10 +554,16 @@ class BipolarFeatureBagClip(Clip):
                 bagitor = missing_bags
             for bag in bagitor:
                 bag.__build__(probe=self.cfg.probe)
-        if not self.build_missing_only:
-            bag_lens = [len(bag) for bag in bags]
-        write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         self.log.verbose(f"BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: END")
+        self.log.verbose(f"COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
+        if not self.build_missing_only:
+            if self.verbose:
+                    bagitor = tqdm.tqdm(bags, desc=f"{self.anchor}: COMPUTING bag_lens")
+            else:
+                bagitor = bags
+            bag_lens = [len(bag) for bag in bagitor]
+        self.log.verbose(f"COMPUTING bag_lens: for {len(bags)} bags: END")
+        write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         return self
 
     def __read__(self, topic):
