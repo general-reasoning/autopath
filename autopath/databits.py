@@ -225,7 +225,7 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
         return self.shard_bounds[-1]
 
     def __getitem__(self, index):
-        self.log.select(f"GETTING item {index} from dataset")
+        self.log.selected(f"GETTING item {index} from dataset")
         shard_idx = np.searchsorted(self.shard_bounds, index, side='right')
         shard_lo = self.shard_bounds[shard_idx-1] if shard_idx > 0 else 0
         shard_hi = self.shard_bounds[shard_idx]
