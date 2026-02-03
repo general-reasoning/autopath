@@ -4,6 +4,7 @@ import functools
 import gc
 import itertools
 import math
+import traceback as tb
 from typing import Callable
 
 import tqdm
@@ -145,6 +146,8 @@ class FeatureBag(Bag):
 
     @property
     def features(self):
+        #DEBUG
+        self.log.selected(f"features: {''.join(tb.format_stack())}")
         self.log.selected(f"Reading features from {self.path('features')}: BEGIN")
         features = self.read('features')
         self.log.selected(f"Reading features from {self.path('features')}: END")
