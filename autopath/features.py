@@ -145,7 +145,10 @@ class FeatureBag(Bag):
 
     @property
     def features(self):
-        return self.read('features')
+        self.log.selected(f"Reading features from {self.path('features')}: BEGIN")
+        features = self.read('features')
+        self.log.selected(f"Reading features from {self.path('features')}: END")
+        return features
     
     def sideband(self, layer):
         return self.read(f'sideband_{layer}')
@@ -159,7 +162,7 @@ class FeatureBag(Bag):
     
     @property
     def labels(self):
-        self.log.detailed(f"Assemblying labels from {self.cfg.tilebag}")
+        self.log.selected(f"Assemblying labels from {self.cfg.tilebag}")
         return list(zip(self.cfg.tilebag.labels, self.cfg.tilebag.tiles))
 
 
