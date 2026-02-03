@@ -492,7 +492,7 @@ class BipolarFeatureBag(Bag):
     def tensor(self):
         return self.bipolar_features
 
-    @property
+    @functools.cached_property
     def bipolar_features(self):
         return self.read('bipolar_features')
 
