@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import functools
 import math
+import traceback as tb
 from typing import Optional
 
 import tqdm
@@ -199,6 +200,7 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
     def __post_init__(self):
         self.n_shards = self.cfg.clip.n_shards
         self.log.debug(f"INITIALIZING dataset using {self.n_shards} shards from clip {self.cfg.clip}: BEGIN")
+        self.log.seletected(f"traceback:\n{''.join(tb.format_stack())}")
         self._shard_indices = np.arange(self.n_shards)
         if self.cfg.shuffle_seed is not None:
             self.log.verbose(f"Shuffling shard indices with seed {self.cfg.shuffle_seed}")
