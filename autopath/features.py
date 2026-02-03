@@ -512,7 +512,7 @@ class BipolarFeatureBag(Bag):
     def name(self):
         return self.cfg.featurebag.name
 
-    @functools.cached_property
+    @functools.cached_property 
     def labels(self):
         self.log.selected(f"Reading labels from {self.cfg.featurebag}: BEGIN")
         result = self.cfg.featurebag.labels
