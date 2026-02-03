@@ -496,7 +496,7 @@ class BipolarFeatureBag(Bag):
     def bipolar_features(self):
         return self.read('bipolar_features')
 
-    @property
+    @functools.cached_property
     def features(self):
         return self.cfg.featurebag.features
 
@@ -504,7 +504,7 @@ class BipolarFeatureBag(Bag):
     def name(self):
         return self.cfg.featurebag.name
 
-    @property
+    @functools.cached_property
     def labels(self):
         return self.cfg.featurebag.labels
 
