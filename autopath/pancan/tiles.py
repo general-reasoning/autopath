@@ -158,6 +158,20 @@ class PancanTileBagClip(Clip):
 			for bagpath in self.bagpaths
 		]
 
+	def bag(self, idx: int):
+		bagpath = self.bagpaths[idx]
+		bag = PancanTileBag(
+				root=self._root_,
+				spec=dict(source=bagpath,),
+				revision=self.revision,
+				verbose=self.verbose,
+				debug=self.debug,
+			)
+		return bag
+
+	def shard(self, idx: int):
+		return self.bag(idx)
+
 	@property
 	def bag_lens(self):
 		return self.read()

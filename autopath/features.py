@@ -287,6 +287,19 @@ class FeatureBagClip(Clip):
         ]
         self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: END")
         return bags
+
+    def bag(self, idx: int):
+        tilebag = self.cfg.tilebagclip.bag(idx)
+        bag = FeatureBag(
+            root=self._root_, 
+            spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor'],),
+            gpu_batch_size=self.gpu_batch_size,
+            revision=self.revision,
+        )
+        return bag
+
+    def shard(self, idx: int):
+        return self.bag(idx)
     
     @property
     def shards(self):
@@ -602,6 +615,20 @@ class BipolarFeatureBagClip(Clip):
             for i in bagitor
         ]
         return bags
+
+    def bag(self, idx: int):
+        bag = BipolarFeatureBag(
+            root=self._root_,
+            spec=dict(
+                probehandle=self.cfg.probe.handle(),
+                bag_index=idx,
+                featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
+            )
+        )
+        return bag
+
+    def shard(self, idx: int):
+        return self.bag(idx)
     
     @property
     def shards(self):

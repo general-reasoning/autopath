@@ -84,6 +84,9 @@ class Clip(Datablock):
         shard_lens = dbx.read_npz(self.path(), 'shard_lens')[0]
         return shard_lens
 
+    def shard(self, idx: int):
+        raise NotImplementedError
+
     @functools.cached_property
     def shards(self):
         raise NotImplementedError
@@ -159,14 +162,16 @@ class Split(Datablock):
         return tensor
 
     def shards(self, split):
-        shard_indices = self.read(f"{split}_shard_indices")
-        shards = [self.cfg.clip.shards[i] for i in shard_indices]
-        return shards 
+        return [self.cfg.clip.shards[i] for i in self.shard_indices(split)]
     
     def shard_lens(self, split):
-        shard_lens = self.read(f"{split}_shard_lens")
-        return shard_lens  	
+        return self.read(f"{split}_shard_lens")
 
+    def shard_indices(self, split):
+        return self.read(f"{split}_shard_indices")
+
+    def shard(self, split, idx: int):
+        return self.cfg.clip.shards[self.shard_indices(split)[idx]]
 
 class Fold(Clip):
     @dataclass
@@ -183,6 +188,9 @@ class Fold(Clip):
     @functools.cached_property
     def shards(self):
         return self.cfg.split.shards(self.cfg.fold)
+
+    def shard(self, idx: int):
+        return self.cfg.split.shard(self.cfg.fold, idx)
 
     @functools.cached_property
     def shard_lens(self):
@@ -221,7 +229,7 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
     def shard(self, shard_idx):
         if shard_idx != self._shard_idx:
             self._shard_idx = shard_idx
-            self._shard = self.cfg.clip.shards[self._shard_indices[self._shard_idx]]
+            self._shard = self.cfg.clip.shard(self._shard_indices[self._shard_idx])
         return self._shard
 
     def __len__(self):
