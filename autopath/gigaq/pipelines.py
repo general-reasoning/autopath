@@ -381,14 +381,14 @@ def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_s
  
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020', n_workers=4).build()"
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020').build()"
-def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 0, build_missing_only: bool = False, **kwargs) -> BipolarFeatureBagClip:
-    probe = gigapath_bipolar_feature_bags_probe(name, **kwargs)
+def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 0, build_missing_only: bool = False, n_devices: int = 1, gpu_batch_size: int = 16) -> BipolarFeatureBagClip:
+    probe = gigapath_bipolar_feature_bags_probe(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size)
     return BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers, build_missing_only=build_missing_only)
 
 
 # git commit -am "gigaq: BipolarFeaturebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
-def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None, **kwargs) -> torch.utils.data.Dataset:
-    featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, **kwargs)
+def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
+    featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
@@ -404,7 +404,7 @@ def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, sh
     )
  
 
-# git commit -am "gigaq: BipolarFeaturebagsetDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TEST', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: BipolarFeaturebagsetDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 10, batch_size=1, num_workers=1)"
 def gigapath_bipolar_featurebagset_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', None)
     dataloader_builder = gigapath_bipolar_featurebagset_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
