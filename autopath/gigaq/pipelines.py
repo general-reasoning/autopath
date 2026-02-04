@@ -404,9 +404,9 @@ def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, sh
     )
  
 
-# git commit -am "gigaq: BipolarFeaturebagsetDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: BipolarFeaturebagsetDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000, num_workers=1)"
 def gigapath_bipolar_featurebagset_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
-    batch_size = dataloader_kwargs.get('batch_size', None)
+    batch_size = dataloader_kwargs.get('batch_size', 1)
     dataloader_builder = gigapath_bipolar_featurebagset_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
     progress = tqdm(total=n, desc=f"READING SAMPLES")
     for i, _ in enumerate(dataloader_builder.dataloader()):
