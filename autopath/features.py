@@ -271,6 +271,7 @@ class FeatureBagClip(Clip):
     
     @functools.cached_property
     def bags(self):
+        self.log.selected(f"bags: traceback:\n{''.join(tb.format_stack())}")
         self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: BEGIN ")
         if self.verbose:
             tilebagitor = tqdm.tqdm(self.cfg.tilebagclip.shards, desc=f"{self.anchor}: FORMING FeatureBags")
