@@ -203,11 +203,13 @@ class PancanTileBagClip(Clip):
 
 
 class PancanTileBagSplit(Split):
-	...
+	def bag(self, idx: int):
+		return self.shard(idx)
 
 
 class PancanTileBagFold(Fold):
-	...
+	def bag(self, idx: int):
+		return self.shard(idx)
 
 
 def pancan_tilebagset(tileclip: PancanTileBagClip,
