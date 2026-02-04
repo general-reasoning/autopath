@@ -147,9 +147,9 @@ class FeatureBag(Bag):
     @functools.cached_property
     def features(self):
         self.log.silent(f"features: {''.join(tb.format_stack())}")
-        self.log.selected(f"Reading features from {self.path('features')}: BEGIN")
+        self.log.silent(f"Reading features from {self.path('features')}: BEGIN")
         features = self.read('features')
-        self.log.selected(f"Reading features from {self.path('features')}: END")
+        self.log.silent(f"Reading features from {self.path('features')}: END")
         return features
     
     def sideband(self, layer):
@@ -164,9 +164,9 @@ class FeatureBag(Bag):
     
     @functools.cached_property
     def labels(self):
-        self.log.selected(f"Assemblying labels from {self.cfg.tilebag}: BEGIN")
+        self.log.silent(f"Assemblying labels from {self.cfg.tilebag}: BEGIN")
         labels = list(zip(self.cfg.tilebag.labels, self.cfg.tilebag.tiles))
-        self.log.selected(f"Assemblying labels from {self.cfg.tilebag}: END")
+        self.log.silent(f"Assemblying labels from {self.cfg.tilebag}: END")
         return labels
 
 
@@ -519,9 +519,9 @@ class BipolarFeatureBag(Bag):
 
     @functools.cached_property
     def features(self):
-        self.log.selected(f"Reading features from {self.cfg.featurebag}: BEGIN")
+        self.log.silent(f"Reading features from {self.cfg.featurebag}: BEGIN")
         result = self.cfg.featurebag.features
-        self.log.selected(f"Reading features from {self.cfg.featurebag}: END")
+        self.log.silent(f"Reading features from {self.cfg.featurebag}: END")
         return result
 
     @property
@@ -530,9 +530,9 @@ class BipolarFeatureBag(Bag):
 
     @functools.cached_property    
     def labels(self):
-        self.log.selected(f"Reading labels from {self.cfg.featurebag}: BEGIN")
+        self.log.silent(f"Reading labels from {self.cfg.featurebag}: BEGIN")
         result = self.cfg.featurebag.labels
-        self.log.selected(f"Reading labels from {self.cfg.featurebag}: END")
+        self.log.silent(f"Reading labels from {self.cfg.featurebag}: END")
         return result
 
     def __len__(self):
