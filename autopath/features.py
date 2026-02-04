@@ -584,7 +584,7 @@ class BipolarFeatureBagClip(Clip):
 
     @functools.cached_property
     def bags(self):
-        self.log.selected(f"traceback:\n{''.join(tb.format_stack())}")
+        self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
         if self.verbose:
             bagitor = tqdm.tqdm(range(n_bags), desc=f"{self.anchor}: FORMING BipolarFeatureBags")
