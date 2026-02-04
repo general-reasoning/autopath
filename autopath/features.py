@@ -144,9 +144,8 @@ class FeatureBag(Bag):
     def read(self, topic):
         return dbx.read_tensor(self.path(topic))
 
-    @property
+    @functools.cached_property
     def features(self):
-        #DEBUG
         self.log.selected(f"features: {''.join(tb.format_stack())}")
         self.log.selected(f"Reading features from {self.path('features')}: BEGIN")
         features = self.read('features')
@@ -163,7 +162,7 @@ class FeatureBag(Bag):
     def tensor(self):
         return self.features
     
-    @property
+    @functools.cached_property
     def labels(self):
         self.log.selected(f"Assemblying labels from {self.cfg.tilebag}: BEGIN")
         labels = list(zip(self.cfg.tilebag.labels, self.cfg.tilebag.tiles))
