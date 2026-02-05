@@ -464,7 +464,7 @@ def gigapath_hydro(name, **kwargs):
 
 
 """
-git commit -am "gigaq: HYDRO: STILL: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_9802_TEST', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_9802_TEST', \\
     n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
 def gigapath_hydro_still(hydro_dataset_name = None, 
