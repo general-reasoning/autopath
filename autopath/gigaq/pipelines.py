@@ -493,8 +493,8 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         bits = hydroname_precision.split('_')
         precision = bits[-1].lower()
         hydroname = '_'.join(bits[:-1])
-        hydro, suffix = gigapath_hydro(hydroname)
-        tag = hydro_dataset_name if suffix is None else f"{hydro_dataset_name}_{suffix}"
+        hydro = gigapath_hydro(hydroname)
+        tag = f"{hydro.tag}_{hydro_dataset_name}"
         logsroot = logsroot or '/home/t-9dkarp/autopath/tensorboard/hydro'
 
         max_epochs = 1
