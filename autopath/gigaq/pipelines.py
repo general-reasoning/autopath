@@ -464,7 +464,7 @@ def gigapath_hydro(name, **kwargs):
 
 
 """
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_9802_TEST', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_8020', \\
     n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
 def gigapath_hydro_still(hydro_dataset_name = None, 
@@ -488,8 +488,8 @@ def gigapath_hydro_still(hydro_dataset_name = None,
     if hydro_dataset_name is None:
         still = HydroDecoderStill
     else:
-        hydroname_precision, _clipname = hydro_dataset_name.split('_BASELINE_CPTAC_')
-        clipname = "GIGAPATH_BASELINE_CPTAC_" + _clipname
+        hydroname_precision, _splitname = hydro_dataset_name.split('_BASELINE_CPTAC_')
+        splitname = "GIGAPATH_BASELINE_CPTAC_" + _splitname
         bits = hydroname_precision.split('_')
         precision = bits[-1].lower()
         hydroname = '_'.join(bits[:-1])
@@ -508,7 +508,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         gradient_clip_val = 10.0
         
         if use_bags:
-            featureloader_builder = dbx.quote(gigapath_bipolar_featurebagset_dataloader_builder, clipname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
+            featureloader_builder = dbx.quote(gigapath_bipolar_featurebagset_dataloader_builder, splitname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
         else:
             raise NotImplementedError(f"Shard dataloader_builder")
         
