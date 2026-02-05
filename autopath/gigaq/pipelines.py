@@ -49,6 +49,12 @@ from autopath.models.vred import (
     VariationalReEncoderDecoderStill,
 )
 
+from autopath.models.hydro import (
+    HydroDecoder,
+    HydroDecoderLightning,
+    HydroDecoderStill,
+)
+
 
 mp.set_start_method("spawn", force=True)
 
@@ -362,7 +368,7 @@ def gigapath_vred_still(vred_dataset_name = None,
             tag=tag,
         )
     return still
-    
+
 
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_8020_TRAIN').build()"
 def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size: int = 16) -> FeatureBagMedianProbe:
@@ -416,6 +422,116 @@ def gigapath_bipolar_featurebagset_dataloader_samples(name, n, root: str = None,
     if return_last:
         return _
 
+
+# git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_HYDRO_DEFAULT')"
+def gigapath_hydro(name, **kwargs):
+    """Create a HydroDecoder configuration by name.
+    
+    Args:
+        name: Configuration name (e.g., 'GIGAPATH_HYDRO_DEFAULT')
+        **kwargs: Override default parameters
+        
+    Returns:
+        Tuple of (HydroDecoder, optional_tag_suffix)
+    """
+    if name == "GIGAPATH_HYDRO_DEFAULT":
+        latent_dim = kwargs.get('latent_dim', 1536)
+        image_size = kwargs.get('image_size', 256)
+        initial_size = kwargs.get('initial_size', 8)
+        hidden_channels = kwargs.get('hidden_channels', 256)
+    elif name == "GIGAPATH_HYDRO_SMALL":
+        latent_dim = kwargs.get('latent_dim', 1536)
+        image_size = kwargs.get('image_size', 256)
+        initial_size = kwargs.get('initial_size', 8)
+        hidden_channels = kwargs.get('hidden_channels', 128)
+    elif name == "GIGAPATH_HYDRO_LARGE":
+        latent_dim = kwargs.get('latent_dim', 1536)
+        image_size = kwargs.get('image_size', 256)
+        initial_size = kwargs.get('initial_size', 8)
+        hidden_channels = kwargs.get('hidden_channels', 512)
+    else:
+        raise ValueError(f"Unknown gigapath_hydro: {name}")
+    
+    hydro = HydroDecoder(spec=dict(
+        latent_dim=latent_dim,
+        image_size=image_size,
+        initial_size=initial_size,
+        hidden_channels=hidden_channels,
+        use_batch_norm=kwargs.get('use_batch_norm', True),
+        loss_type=kwargs.get('loss_type', 'mse'),
+    ))
+    return hydro
+
+
+"""
+git commit -am "gigaq: HYDRO: STILL: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_9802_TEST', \\
+    n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+"""
+def gigapath_hydro_still(hydro_dataset_name = None, 
+                        *,  
+                        n_devices: int = 1,
+                        logsroot: str = None,
+                        **dataloader_kwargs,
+    ):
+    """Create a HydroDecoderStill training pipeline.
+    
+    Args:
+        hydro_dataset_name: Name in format 'GIGAPATH_HYDRO_<config>_<precision>_BASELINE_CPTAC_<split>'
+        dataroot: Root directory for data
+        n_devices: Number of GPU devices
+        logsroot: Root directory for tensorboard logs
+        **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
+        
+    Returns:
+        HydroDecoderStill instance
+    """
+    if hydro_dataset_name is None:
+        still = HydroDecoderStill
+    else:
+        hydroname_precision, _clipname = hydro_dataset_name.split('_BASELINE_CPTAC_')
+        clipname = "GIGAPATH_BASELINE_CPTAC_" + _clipname
+        bits = hydroname_precision.split('_')
+        precision = bits[-1].lower()
+        hydroname = '_'.join(bits[:-1])
+        hydro, suffix = gigapath_hydro(hydroname)
+        tag = hydro_dataset_name if suffix is None else f"{hydro_dataset_name}_{suffix}"
+        logsroot = logsroot or '/home/t-9dkarp/autopath/tensorboard/hydro'
+
+        max_epochs = 1
+        max_steps = None
+        ckpt_every_n_steps = 100
+        use_bags = True
+        shuffle_bags_seed = 42
+        learning_rate = 1e-4
+        scheduler = 'cosine'
+        gradient_clip_algorithm = 'norm'
+        gradient_clip_val = 10.0
+        
+        if use_bags:
+            featureloader_builder = dbx.quote(gigapath_bipolar_featurebagset_dataloader_builder, clipname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
+        else:
+            raise NotImplementedError(f"Shard dataloader_builder")
+        
+        lightning = HydroDecoderLightning(
+            spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler)
+        )
+
+        still = HydroDecoderStill(spec=dict(
+                    lightning=lightning, 
+                    dataloader=featureloader_builder,
+                    max_epochs=max_epochs,
+                    max_steps=max_steps,
+                    ckpt_every_n_steps=ckpt_every_n_steps,
+                    gradient_clip_val=gradient_clip_val,
+                    gradient_clip_algorithm=gradient_clip_algorithm,
+                    precision=precision,
+                ),
+            n_devices=n_devices,
+            logsroot=logsroot,
+            tag=tag,
+        )
+    return still
+    
 
 # git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).build()"
 # git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).read('evaluation_reports')"
