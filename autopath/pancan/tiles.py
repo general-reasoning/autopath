@@ -16,7 +16,7 @@ import torchvision
 import dbx
 from dbx import Logger, Datablock
 
-from autopath.databits import Clip, Split, Fold, ClipDataset
+from autopath.databits import Clip, Split, Partition, Fold, ClipDataset
 from autopath.tiles import TileShard, TileBag
 from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
 
