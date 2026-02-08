@@ -343,11 +343,14 @@ class FeatureBagClip(Clip):
         return labels
      
 
-class FeatureBagSetToFloat64:
+class FeatureBagSetToFloat:
+    def __init__(self, dtype=torch.float64):
+        self.dtype = dtype
+    
     def __call__(self, tensor_or_array):
         if isinstance(tensor_or_array, np.ndarray):
             tensor_or_array = torch.from_numpy(tensor_or_array)
-        return tensor_or_array.to(torch.float64).numpy()
+        return tensor_or_array.to(self.dtype).numpy()
         
 
 def featurebagset(featurebagclip: Clip, *, transform=None, bags_shuffle_seed: int = None):

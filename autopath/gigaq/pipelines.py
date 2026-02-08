@@ -398,7 +398,7 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
 
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
-    transform = dbx.quote(FeatureBagSetToFloat64)
+    transform = dbx.quote(FeatureBagSetToFloat, dtype='float64')
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     return featurebagset(dbx.quote(featureclip), transform=transform, bags_shuffle_seed=shuffle_bags_seed)
 
@@ -436,7 +436,7 @@ def gigapath_hydro(name, **kwargs):
         **kwargs: Override default parameters
         
     Returns:
-        Tuple of (HydroDecoder, optional_tag_suffix)
+        HydroDecoder
     """
     if name == "GIGAPATH_HYDRO_DEFAULT":
         latent_dim = kwargs.get('latent_dim', 1536)
