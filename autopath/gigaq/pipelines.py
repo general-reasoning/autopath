@@ -470,12 +470,15 @@ def gigapath_hydro(name, **kwargs):
 
 """
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_8020', \\
-    n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+    log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
 def gigapath_hydro_still(hydro_dataset_name = None, 
                         *,  
                         n_devices: int = 1,
                         logsroot: str = None,
+                        log_images: bool = False,
+                        log_image_interval: int = 100,
+                        from_scratch: bool = False,
                         **dataloader_kwargs,
     ):
     """Create a HydroDecoderStill training pipeline.
@@ -485,6 +488,9 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         dataroot: Root directory for data
         n_devices: Number of GPU devices
         logsroot: Root directory for tensorboard logs
+        log_images: Whether to log images during training
+        log_image_interval: Interval (in steps) to log images
+        from_scratch: Whether to restart training from scratch
         **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
         
     Returns:
@@ -518,7 +524,8 @@ def gigapath_hydro_still(hydro_dataset_name = None,
             raise NotImplementedError(f"Shard dataloader_builder")
         
         lightning = HydroDecoderLightning(
-            spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler)
+            spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler, 
+                     log_images=log_images, log_image_interval=log_image_interval)
         )
 
         still = HydroDecoderStill(spec=dict(
@@ -530,6 +537,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                     gradient_clip_val=gradient_clip_val,
                     gradient_clip_algorithm=gradient_clip_algorithm,
                     precision=precision,
+                    from_scratch=from_scratch,
                 ),
             n_devices=n_devices,
             logsroot=logsroot,
