@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import functools
 import math
 import traceback as tb
-from typing import Optional
+from typing import Optional, Union
 
 import tqdm
 
@@ -241,8 +241,8 @@ class Partition(Datablock):
 class Fold(Clip):
     @dataclass
     class CONFIG:
-        split: Split|Partition
-        fold: str|int
+        split: Union[Split, Partition]
+        fold: Union[str, int]
 
     def __post_init__(self):
         return self
