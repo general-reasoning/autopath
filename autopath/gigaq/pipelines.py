@@ -21,7 +21,7 @@ from autopath.features import (
     FeatureBagClip,
     featurebagset,
     FeatureShardClip,
-    FeatureBagSetTransform,
+    FeatureBagSetToFloat64,
     featureshardset,
     BipolarFeatureBagClip,
 )
@@ -398,7 +398,7 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
 
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
-    transform = dbx.quote(FeatureBagSetTransform)
+    transform = dbx.quote(FeatureBagSetToFloat64)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     return featurebagset(dbx.quote(featureclip), transform=transform, bags_shuffle_seed=shuffle_bags_seed)
 

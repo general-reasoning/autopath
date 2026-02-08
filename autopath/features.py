@@ -343,7 +343,7 @@ class FeatureBagClip(Clip):
         return labels
      
 
-class FeatureBagSetTransform:
+class FeatureBagSetToFloat64:
     def __call__(self, tensor_or_array):
         if isinstance(tensor_or_array, np.ndarray):
             tensor_or_array = torch.from_numpy(tensor_or_array)
