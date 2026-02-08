@@ -251,7 +251,7 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
         label = labels[idx]
         self.log.silent(f"APPLYING target_transform")
         if self.cfg.target_transform is not None:
-            label = self.target_transform(label)
+            label = self.cfg.target_transform(label)
         return sample, label
     
 
