@@ -348,9 +348,9 @@ class FeatureBagSetToFloat:
         self.dtype = dtype
     
     def __call__(self, tensor_or_array):
-        if isinstance(tensor_or_array, np.ndarray):
-            tensor_or_array = torch.from_numpy(tensor_or_array)
-        return tensor_or_array.to(self.dtype).numpy()
+        if isinstance(tensor_or_array, torch.tensor):
+            tensor_or_array = tensor_or_array.numpy()
+        return tensor_or_array.astype(self.dtype)
         
 
 def featurebagset(featurebagclip: Clip, *, transform=None, bags_shuffle_seed: int = None):
