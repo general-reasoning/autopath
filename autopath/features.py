@@ -343,7 +343,12 @@ class FeatureBagClip(Clip):
         return labels
      
 
-def featurebagset(featurebagclip: FeatureBagClip, *, transform=None, bags_shuffle_seed: int = None):
+class FeatureBagSetTransform:
+    def __call__(self, tensor):
+        return tensor.to(torch.float)
+        
+
+def featurebagset(featurebagclip: Clip, *, transform=None, bags_shuffle_seed: int = None):
     return ClipDataset(spec=dict(clip=featurebagclip, transform=transform, shuffle_seed=bags_shuffle_seed))
 
 
