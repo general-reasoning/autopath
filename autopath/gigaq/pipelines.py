@@ -400,15 +400,13 @@ def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed:
 
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
-    return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
+    transform = dbx.quote(FeaturesToFloat, dtype='float32')
+    target_transform = dbx.quote(FeaturesLabelToTile)
+    return featurebagset(dbx.quote(featureclip), transform=transform, target_transform=target_transform, bags_shuffle_seed=shuffle_bags_seed)
 
 
 def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
     featureset = gigapath_bipolar_featurebagset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
-    transform = dbx.quote(FeaturesToFloat, dtype='float32')
-    target_transform = dbx.quote(FeaturesLabelToTile)
-    dataloader_kwargs['transform'] = transform
-    dataloader_kwargs['target_transform'] = target_transform
     return ClipDataLoaderBuilder(spec=dict(
                             clip_dataset=featureset,
                             batch_size=dataloader_kwargs.get('batch_size', None),

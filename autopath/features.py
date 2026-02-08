@@ -360,8 +360,8 @@ class FeaturesLabelToTile:
     
         
 
-def featurebagset(featurebagclip: Clip, *, transform=None, bags_shuffle_seed: int = None):
-    return ClipDataset(spec=dict(clip=featurebagclip, transform=transform, shuffle_seed=bags_shuffle_seed))
+def featurebagset(featurebagclip: Clip, *, transform=None, target_transform=None, bags_shuffle_seed: int = None):
+    return ClipDataset(spec=dict(clip=featurebagclip, transform=transform, target_transform=target_transform, shuffle_seed=bags_shuffle_seed))
 
 
 class FeatureShard(Shard):
