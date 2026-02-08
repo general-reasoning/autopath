@@ -20,10 +20,8 @@ from autopath.features import (
     FeatureBag, 
     FeatureBagClip,
     featurebagset,
-    FeatureShardClip,
     FeaturesToFloat,
     FeaturesLabelTileToFloat,
-    featureshardset,
     BipolarFeatureBagClip,
 )
 
@@ -182,49 +180,6 @@ def gigapath_featurebagset_dataloader_samples(name, n, root: str = None, shuffle
             break
     if return_last:
         return _
-
-
-# git commit -am "gigaq: FeatureShardClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_shard_clip('GIGAPATH_BASELINE_CPTAC', shard_size=32, n_threads=16).build()"
-def gigapath_feature_shard_clip(name: str = None, *, shard_size: int = 32, n_threads: int = 1) -> FeatureShardClip:
-    if name is None:
-        clip = FeatureShardClip
-    else:
-        try:
-            featureshardset=dbx.quote(gigapath_featureshardset, name)
-            clip = FeatureShardClip(spec=dict(featureset=featureshardset, shard_size=shard_size), n_threads=n_threads)
-        except Exception as e:
-            raise ValueError(f"Failed to instantiate gigapath_feature_shard_clip: {repr(name)}") from e
-    return clip
-
-
-# git commit -am "gigaq: Featureshardset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featureshardset('GIGAPATH_BASELINE_CPTAC_32')[0]"
-def gigapath_featureshardset(name) -> torch.utils.data.Dataset:
-    featureshardclip = gigapath_feature_shard_clip(name)
-    quoted_featureshardclip = dbx.quote(featureshardclip)
-    dbx.Logger().debug(f"===================> {featureshardclip=}\n{quoted_featureshardclip=}")
-    return featureshardset(quoted_featureshardclip)
-
-
-def gigapath_featureshardset_dataloader(name, *args, **kwargs):
-    featureset = gigapath_featureshardset(name)
-    return torch.utils.data.DataLoader(featureset, *args, **kwargs)
-
-
-def gigapath_featureshardset_dataloader_samples(name, n, *args, return_last: bool = False, **kwargs):
-    dataloader = gigapath_featureshardset_dataloader(name, *args, **kwargs)
-    itor = tqdm(iter(dataloader), total=n)
-    for i, _ in enumerate(itor):
-        if i >= n-1:
-            break
-    if return_last:
-        return _
-
-
-def gigapath_featureshardset_dataloader_sample(name, *args, **kwargs):
-    featureset = gigapath_featureshardset(name)
-    dataloader = torch.utils.data.DataLoader(featureset, *args, **kwargs)
-    return next(iter(dataloader))
-
 
 # git commit -am "gigaq: VRED"; dbx.pprint "autopath.gigaq.pipelines.gigapath_vred('GIGAPATH_VRED_2HDN_100CLS_5CHN_LVAR1_0_VAR1_0_LOG')"
 # git commit -am "gigaq: VRED"; dbx.pprint "autopath.gigaq.pipelines.gigapath_vred('GIGAPATH_VRED_10HDN_1CLS_5CHN_LOG')"
