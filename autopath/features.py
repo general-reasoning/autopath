@@ -347,7 +347,7 @@ class FeatureBagSetTransform:
     def __call__(self, tensor_or_array):
         if isinstance(tensor_or_array, np.ndarray):
             tensor_or_array = torch.from_numpy(tensor_or_array)
-        return tensor_or_array.to(torch.float).numpy()
+        return tensor_or_array.to(torch.float64).numpy()
         
 
 def featurebagset(featurebagclip: Clip, *, transform=None, bags_shuffle_seed: int = None):
