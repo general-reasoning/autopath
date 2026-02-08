@@ -223,7 +223,8 @@ class Partition(Datablock):
         return self
     
     def __read__(self, topic):
-        tensor = dbx.read_npz(self.path(topic), topic)
+        keys = [f"{i}" for i in range(len(self.cfg.fold_fractions))]
+        tensor = dbx.read_npz(self.path(topic), *keys)
         return tensor
 
     def shards(self, fold):
