@@ -348,7 +348,7 @@ class FeatureBagSetToFloat:
         self.dtype = dtype
     
     def __call__(self, tensor_or_array):
-        if isinstance(tensor_or_array, torch.tensor):
+        if isinstance(tensor_or_array, torch.Tensor):
             tensor_or_array = tensor_or_array.numpy()
         return tensor_or_array.astype(self.dtype)
         
