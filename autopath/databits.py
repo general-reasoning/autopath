@@ -205,13 +205,14 @@ class Partition(Datablock):
         for fold, fraction in enumerate(fold_fraction_itor):
             k = int(math.ceil(N*fraction))
             Khi = min(Klo + k, N)
-            shard_indices[fold] = perm[Klo:Khi]
+            fold_key = str(fold)
+            shard_indices[fold_key] = perm[Klo:Khi]
             self.log.verbose(f"Computing shard lens for fold {fold}: BEGIN")
             if self.verbose:
-                shard_itor = tqdm.tqdm(shard_indices[fold])
+                shard_itor = tqdm.tqdm(shard_indices[fold_key])
             else:
-                shard_itor = shard_indices[fold]
-            shard_lens[fold] = np.array([len(self.cfg.clip.shards[i].dataset) for i in shard_itor])
+                shard_itor = shard_indices[fold_key]
+            shard_lens[fold_key] = np.array([len(self.cfg.clip.shards[i].dataset) for i in shard_itor])
             self.log.verbose(f"Computing shard lens for fold {fold}: END")
             Klo = Khi
         self.log.verbose(f"Computing shard indices and lens for {len(self.cfg.fold_fractions)} folds: END")

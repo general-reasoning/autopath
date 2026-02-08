@@ -119,6 +119,24 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_devices: in
     elif name == "GIGAPATH_BASELINE_CPTAC_8020_TRAIN":
         extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TRAIN')
+    elif name == "GIGAPATH_BASELINE_CPTAC_404020_CALIBRATE":
+        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_CALIBRATE')
+    elif name == "GIGAPATH_BASELINE_CPTAC_404020_TRAIN":
+        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TRAIN')
+    elif name == "GIGAPATH_BASELINE_CPTAC_404020_TEST":
+        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TEST')
+    elif name == "GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE":
+        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_CALIBRATE')
+    elif name == "GIGAPATH_BASELINE_CPTAC_400159_TRAIN":
+        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TRAIN')
+    elif name == "GIGAPATH_BASELINE_CPTAC_400159_TEST":
+        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TEST')
     elif name == "GIGAPATH_BASELINE_5B_CPTAC_8020_TEST":
         extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_5B_EVALUATOR')
         tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TEST')
