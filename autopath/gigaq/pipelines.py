@@ -397,11 +397,10 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 
 # git commit -am "gigaq: BipolarFeaturebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
 def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
-
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
-    target_transform = dbx.quote(FeaturesLabelToTile)
+    target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
     return featurebagset(dbx.quote(featureclip), transform=transform, target_transform=target_transform, bags_shuffle_seed=shuffle_bags_seed)
 
 

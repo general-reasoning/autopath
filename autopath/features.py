@@ -344,7 +344,7 @@ class FeatureBagClip(Clip):
      
 
 class FeaturesToFloat:
-    def __init__(self, dtype=torch.float64):
+    def __init__(self, dtype='float64'):
         self.dtype = dtype
     
     def __call__(self, tensor_or_array):
@@ -354,9 +354,12 @@ class FeaturesToFloat:
         return tensor_or_array.astype(self.dtype)
 
 
-class FeaturesLabelToTile:
+class FeaturesLabelTileToFloat:
+    def __init__(self, dtype='float64'):
+        self.dtype = dtype
+    
     def __call__(self, label):
-        return label[1]
+        return label[1].astype(self.dtype)
     
         
 
