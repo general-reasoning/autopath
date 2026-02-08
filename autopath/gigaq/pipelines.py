@@ -22,7 +22,7 @@ from autopath.features import (
     featurebagset,
     FeatureShardClip,
     FeaturesToFloat,
-    FeaturesLabelToTile,
+    FeaturesLabelTileToFloat,
     featureshardset,
     BipolarFeatureBagClip,
 )
