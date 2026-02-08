@@ -173,11 +173,76 @@ class Split(Datablock):
     def shard(self, split, idx: int):
         return self.cfg.clip.shards[self.shard_indices(split)[idx]]
 
+
+class Partition(Datablock):
+    TOPICFILES = {"shard_indices": "shard_indices.npz", 
+                  "shard_lens":    "shard_lens.npz",
+    }
+    @dataclass
+    class CONFIG:
+        clip: Clip
+        fold_fractions: list[float]
+        seed: int = 42
+
+    def __post_init__(self):
+        assert sum(self.cfg.fold_fractions) == 1.0, f"Fold fractions must sum to 1.0, got {self.cfg.fold_fractions}"
+        return self
+
+    def __build__(self):
+        self.log.info(f"Building partition out of {len(self.cfg.clip.shards)} shards using fold fractions {self.cfg.fold_fractions}")
+        N = len(self.cfg.clip.shards)
+        np.random.seed(self.cfg.seed) #TODO: localize in a generator
+        perm = np.random.permutation(N)
+
+        shard_indices = {}
+        shard_lens = {}
+        Klo = 0
+        self.log.verbose(f"Computing shard indices and lens for {len(self.cfg.fold_fractions)} folds: BEGIN")
+        if self.verbose:
+            fold_fraction_itor = tqdm.tqdm(self.cfg.fold_fractions)
+        else:
+            fold_fraction_itor = self.cfg.fold_fractions
+        for fold, fraction in enumerate(fold_fraction_itor):
+            k = int(math.ceil(N*fraction))
+            Khi = min(Klo + k, N)
+            shard_indices[fold] = perm[Klo:Khi]
+            self.log.verbose(f"Computing shard lens for fold {fold}: BEGIN")
+            if self.verbose:
+                shard_itor = tqdm.tqdm(shard_indices[fold])
+            else:
+                shard_itor = shard_indices[fold]
+            shard_lens[fold] = np.array([len(self.cfg.clip.shards[i].dataset) for i in shard_itor])
+            self.log.verbose(f"Computing shard lens for fold {fold}: END")
+            Klo = Khi
+        self.log.verbose(f"Computing shard indices and lens for {len(self.cfg.fold_fractions)} folds: END")
+        self.log.verbose(f"Writing shard indices and lens: BEGIN")
+        dbx.write_npz(self.path('shard_indices', ensure_dirpath=True), **shard_indices)
+        dbx.write_npz(self.path('shard_lens', ensure_dirpath=True), **shard_lens)
+        self.log.verbose(f"Writing shard indices and lens: END")
+        return self
+    
+    def __read__(self, topic):
+        tensor = dbx.read_npz(self.path(topic), topic)
+        return tensor
+
+    def shards(self, fold):
+        return [self.cfg.clip.shards[i] for i in self.shard_indices(fold)]
+    
+    def shard_lens(self, fold):
+        return self.read("shard_lens")[fold]
+
+    def shard_indices(self, fold):
+        return self.read("shard_indices")[fold]
+
+    def shard(self, fold, idx: int):
+        return self.cfg.clip.shards[self.shard_indices(fold)[idx]]
+
+
 class Fold(Clip):
     @dataclass
     class CONFIG:
-        split: Split
-        fold: str
+        split: Split|Partition
+        fold: str|int
 
     def __post_init__(self):
         return self

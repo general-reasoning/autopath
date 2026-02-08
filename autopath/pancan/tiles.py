@@ -202,7 +202,13 @@ class PancanTileBagClip(Clip):
 		return self.bag_lens
 
 
+#DEPRECATE in favor of PancanTileBagPartition
 class PancanTileBagSplit(Split):
+	def bag(self, idx: int):
+		return self.shard(idx)
+
+
+class PancanTileBagPartition(Partition):
 	def bag(self, idx: int):
 		return self.shard(idx)
 
