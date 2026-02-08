@@ -21,7 +21,8 @@ from autopath.features import (
     FeatureBagClip,
     featurebagset,
     FeatureShardClip,
-    FeatureBagSetToFloat,
+    FeaturesToFloat,
+    FeaturesLabelToTile,
     featureshardset,
     BipolarFeatureBagClip,
 )
@@ -398,13 +399,16 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
 
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
-    transform = dbx.quote(FeatureBagSetToFloat, dtype='float32')
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
-    return featurebagset(dbx.quote(featureclip), transform=transform, bags_shuffle_seed=shuffle_bags_seed)
+    return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
 def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
     featureset = gigapath_bipolar_featurebagset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
+    transform = dbx.quote(FeaturesToFloat, dtype='float32')
+    target_transform = dbx.quote(FeaturesLabelToTile)
+    dataloader_kwargs['transform'] = transform
+    dataloader_kwargs['target_transform'] = target_transform
     return ClipDataLoaderBuilder(spec=dict(
                             clip_dataset=featureset,
                             batch_size=dataloader_kwargs.get('batch_size', None),
