@@ -344,8 +344,10 @@ class FeatureBagClip(Clip):
      
 
 class FeatureBagSetTransform:
-    def __call__(self, tensor):
-        return tensor.to(torch.float)
+    def __call__(self, tensor_or_array):
+        if isinstance(tensor_or_array, np.ndarray):
+            tensor_or_array = torch.from_numpy(tensor_or_array)
+        return tensor_or_array.to(torch.float).numpy()
         
 
 def featurebagset(featurebagclip: Clip, *, transform=None, bags_shuffle_seed: int = None):
