@@ -358,8 +358,13 @@ class FeaturesLabelTileToFloat:
     def __init__(self, dtype='float64'):
         self.dtype = dtype
     
-    def __call__(self, label):
-        return label[1].astype(self.dtype)
+    def __call__(self, label_tuple_of_tensor_or_array):
+        tile = label_tuple_of_tensor_or_array[1]
+        if isinstance(tile, torch.Tensor):
+            tile = torch.tensor(tile.numpy().astype(self.dtype))
+        else:
+            tile = tile.astype(self.dtype)
+        return tile
     
         
 
