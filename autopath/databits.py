@@ -246,7 +246,7 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
         tensor = self.shard(shard_idx).tensor
         sample = tensor[idx]
         if self.cfg.transform is not None:
-            sample = self.transform(sample)
+            sample = self.cfg.transform(sample)
         labels = self.shard(shard_idx).labels
         label = labels[idx]
         self.log.silent(f"APPLYING target_transform")
