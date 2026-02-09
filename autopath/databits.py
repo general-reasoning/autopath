@@ -92,12 +92,12 @@ class Clip(Datablock):
         raise NotImplementedError
 
     @functools.cached_property
-    def shards_lens(self):
+    def shard_lens(self):
         return self.read()
     
     @property
     def n_shards(self):
-        return len(self.shards_lens)
+        return len(self.shard_lens)
     
     def UNSAFE_clear_shards(self):
         for shard in self.shards:
