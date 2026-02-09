@@ -218,7 +218,7 @@ class PancanTileBagFold(Fold):
 		return self.shard(idx)
 
 
-def pancan_tilebagset(clip: PancanTileBagClip,
+def pancan_tilebagset_builder(clip: PancanTileBagClip,
 				   transform: Optional[torchvision.transforms.Compose] = None,
 				   *,
 				   debug: bool = False,
@@ -227,8 +227,8 @@ def pancan_tilebagset(clip: PancanTileBagClip,
 ):
 		clip = dbx.eval_term(clip)
 		transform = dbx.eval_term(transform)
-		return ClipDataset(spec=dict(clip=clip, transform=transform,),
+		return ClipDatasetBuilder(spec=dict(clip=clip, transform=transform,),
 								  debug=debug, 
 								  verbose=verbose,
 								  log=log,
-		).dataset()
+		)

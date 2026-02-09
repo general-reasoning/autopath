@@ -19,7 +19,7 @@ from autopath.pancan.pipelines import (
 from autopath.features import (
     FeatureBag, 
     FeatureBagClip,
-    featurebagset,
+    featurebag_dataset,
     FeaturesToFloat,
     FeaturesLabelTileToFloat,
     BipolarFeatureBagClip,
@@ -157,17 +157,17 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: in
     )
 
 
-# git commit -am "gigaq: Featurebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset('GIGAPATH_BASELINE_CPTAC')[0]"
-# git commit -am "gigaq: Featurebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset('GIGAPATH_BASELINE_CPTAC_8020_TEST')[0]"
-# git commit -am "gigaq: Featurebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset('GIGAPATH_BASELINE_CPTAC_9802_TEST')[0]"
-def gigapath_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020_TEST')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_9802_TEST')[0]"
+def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
     featureclip = gigapath_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip={dbx.quote(featureclip)}")
-    return featurebagset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
+    return featurebag_dataset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
-def gigapath_featurebagset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
-    featureset = gigapath_featurebagset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
+def gigapath_featurebag_dataset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
+    featureset = gigapath_featurebag_dataset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
     return ClipDataLoaderBuilder(spec=dict(
                             clip_dataset=featureset,
                             batch_size=dataloader_kwargs.get('batch_size', None),
@@ -177,27 +177,27 @@ def gigapath_featurebagset_dataloader_builder(name, root: str = None, shuffle_ba
     )
 
 
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TEST', 10, batch_size=1, num_workers=1)"
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 10, batch_size=1, num_workers=1)"
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 20, batch_size=1, num_workers=2)"
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1)"
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2)"
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1, prefetch_factor=1)" 2.71s/it
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=4, prefetch_factor=1)" 2.61s/it
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=None)" 2.58s/it
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=1)" 2.47s/it
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=2)" 2.47s/it
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=1,)" 2.38s/it
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=4, prefetch_factor=1,)" 2.28s/it
-# git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=1, prefetch_factor=1,)" 2.25s/it
-# unset DBXREPO; git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=4, prefetch_factor=None)" 1.39s/it
-# unset DBXREPO; git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=8, prefetch_factor=1)" ~=
-# unset DBXREPO; git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=2, prefetch_factor=2)" ~>
-# unset DBXREPO; git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=2, prefetch_factor=1)" ~=
-# unset DBXREPO; git commit -am "gigaq: FeaturebagsetDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=8, num_workers=2, prefetch_factor=1)" ~=
-def gigapath_featurebagset_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TEST', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 20, batch_size=1, num_workers=2)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1, prefetch_factor=1)" 2.71s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=4, prefetch_factor=1)" 2.61s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=None)" 2.58s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=1)" 2.47s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=2)" 2.47s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=1,)" 2.38s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=4, prefetch_factor=1,)" 2.28s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=1, prefetch_factor=1,)" 2.25s/it
+# unset DBXREPO; git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=4, prefetch_factor=None)" 1.39s/it
+# unset DBXREPO; git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=8, prefetch_factor=1)" ~=
+# unset DBXREPO; git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=2, prefetch_factor=2)" ~>
+# unset DBXREPO; git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=4, num_workers=2, prefetch_factor=1)" ~=
+# unset DBXREPO; git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, root='/tmp/dmitry/datalake', batch_size=8, num_workers=2, prefetch_factor=1)" ~=
+def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', None)
-    dataloader_builder = gigapath_featurebagset_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
+    dataloader_builder = gigapath_featurebag_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
     progress = tqdm(total=n)
     for i, _ in enumerate(dataloader_builder.dataloader()):
         progress.update(batch_size if batch_size is not None else 1)
@@ -270,7 +270,7 @@ def gigapath_vred_evaluator(vred_dataset_name, *, use_bags: bool = True, shuffle
     clipname = "GIGAPATH_BASELINE_CPTAC_" + _clipname
     vred, suffix = gigapath_vred(vredname, log_mixture_distributions=log_mixture_distributions)
     if use_bags:
-        featureloader = gigapath_featurebagset_dataloader_builder(clipname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
+        featureloader = gigapath_featurebag_dataloader_builder(clipname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
     else:
         raise NotImplementedError(f"Shard dataloader_builder")
     vred_evaluator = VariationalReEncoderDecoderEvaluator(spec=dict(vred=vred, dataloader=featureloader))
@@ -325,7 +325,7 @@ def gigapath_vred_still(vred_dataset_name = None,
         ckpt: str = None
         
         if use_bags:
-            featureloader_builder = dbx.quote(gigapath_featurebagset_dataloader_builder, clipname, root=dataroot, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
+            featureloader_builder = dbx.quote(gigapath_featurebag_dataloader_builder, clipname, root=dataroot, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
         else:
             raise NotImplementedError(f"Shard dataloader_builder")
         lightning = VariationalReEncoderDecoderLightning( 
@@ -375,17 +375,17 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
     return BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers, build_missing_only=build_missing_only)
 
 
-# git commit -am "gigaq: BipolarFeaturebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
-def gigapath_bipolar_featurebagset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
+# git commit -am "gigaq: BipolarFeaturebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag('GIGAPATH_BASELINE_CPTAC_8020')[0]"
+def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
-    return featurebagset(dbx.quote(featureclip), transform=transform, target_transform=target_transform, bags_shuffle_seed=shuffle_bags_seed)
+    return featurebag_dataset(dbx.quote(featureclip), transform=transform, target_transform=target_transform, bags_shuffle_seed=shuffle_bags_seed)
 
 
-def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
-    featureset = gigapath_bipolar_featurebagset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
+def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
+    featureset = gigapath_bipolar_featurebag_dataset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
     return ClipDataLoaderBuilder(spec=dict(
                             clip_dataset=featureset,
                             batch_size=dataloader_kwargs.get('batch_size', None),
@@ -395,10 +395,10 @@ def gigapath_bipolar_featurebagset_dataloader_builder(name, root: str = None, sh
     )
  
 
-# git commit -am "gigaq: BipolarFeaturebagsetDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebagset_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
-def gigapath_bipolar_featurebagset_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
+def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', 1)
-    dataloader_builder = gigapath_bipolar_featurebagset_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
+    dataloader_builder = gigapath_bipolar_featurebag_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
     progress = tqdm(total=n, desc=f"READING SAMPLES")
     for i, _ in enumerate(dataloader_builder.dataloader()):
         progress.update(batch_size if batch_size is not None else 1)
@@ -499,7 +499,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         gradient_clip_val = 10.0
         
         if use_bags:
-            featureloader_builder = dbx.quote(gigapath_bipolar_featurebagset_dataloader_builder, splitname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
+            featureloader_builder = dbx.quote(gigapath_bipolar_featurebag_dataloader_builder, splitname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
         else:
             raise NotImplementedError(f"Shard dataloader_builder")
         

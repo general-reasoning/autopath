@@ -368,8 +368,8 @@ class FeaturesLabelTileToFloat:
     
         
 
-def featurebagset(featurebagclip: Clip, *, transform=None, target_transform=None, bags_shuffle_seed: int = None):
-    return ClipDataset(spec=dict(clip=featurebagclip, transform=transform, target_transform=target_transform, shuffle_seed=bags_shuffle_seed))
+def featurebag_dataset(featurebagclip: Clip, *, transform=None, target_transform=None, bags_shuffle_seed: int = None):
+    return ClipDatasetBuilder(spec=dict(clip=featurebagclip, transform=transform, target_transform=target_transform, shuffle_seed=bags_shuffle_seed)).dataset()
 
 
 class BipolarFeatureBag(Bag):
