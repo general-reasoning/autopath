@@ -97,25 +97,25 @@ def pancan_tile_bag_fold(name=None) -> PancanTileBagFold:
     if name is None:
         return PancanTileBagFold
     elif name == "CPTAC_8020_TEST":   
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_split, 'CPTAC_8020'), fold='test'))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_split, 'CPTAC_8020'), fold='test'))
     elif name == "CPTAC_8020_TRAIN":   
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_split, 'CPTAC_8020'), fold='train'))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_split, 'CPTAC_8020'), fold='train'))
     elif name == "CPTAC_9802_TEST":   
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_split, 'CPTAC_9802'), fold='test'))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_split, 'CPTAC_9802'), fold='test'))
     elif name == "CPTAC_9802_TRAIN":   
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_split, 'CPTAC_9802'), fold='train'))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_split, 'CPTAC_9802'), fold='train'))
     elif name == "CPTAC_404020_CALIBRATE":
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="0"))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="0"))
     elif name == "CPTAC_404020_TRAIN":
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="1"))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="1"))
     elif name == "CPTAC_404020_TEST":
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="2"))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="2"))
     elif name == "CPTAC_400159_CALIBRATE":
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="0"))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="0"))
     elif name == "CPTAC_400159_TRAIN":
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="1"))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="1"))
     elif name == "CPTAC_400159_TEST":
-        return PancanTileBagFold(spec=dict(split=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="2"))
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="2"))
     else:
         raise ValueError(f"Unknown tile_fold: {name}")
 
