@@ -313,20 +313,20 @@ class ClipDatasetBuilder(Datablock):
             return len(self.builder)
         
         def __getitem__(self, index):
-            self.log.silent(f"GETTING item {index} from dataset")
+            self.builder.log.silent(f"GETTING item {index} from dataset")
             shard_idx = np.searchsorted(self.builder.shard_bounds, index, side='right')
             shard_lo = self.builder.shard_bounds[shard_idx-1] if shard_idx > 0 else 0
             shard_hi = self.builder.shard_bounds[shard_idx]
             shard_len = self.builder.shard_lens[shard_idx]
             idx = index - shard_lo
-            self.log.silent(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
+            self.builder.log.silent(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
             tensor = self.builder.shard(shard_idx).tensor
             sample = tensor[idx]
             if self.builder.cfg.transform is not None:
                 sample = self.builder.cfg.transform(sample)
             labels = self.builder.shard(shard_idx).labels
             label = labels[idx]
-            self.log.silent(f"APPLYING target_transform")
+            self.builder.log.silent(f"APPLYING target_transform")
             if self.builder.cfg.target_transform is not None:
                 label = self.builder.cfg.target_transform(label)
             return sample, label
