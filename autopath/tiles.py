@@ -8,7 +8,7 @@ import torchvision
 import dbx
 from dbx import Logger
 
-from autopath.databits import Shard, Bag, Clip, ClipDataset
+from autopath.databits import Shard, Bag, Clip, ClipDatasetBuilder
 
 
 logger = Logger()
@@ -38,9 +38,8 @@ def tileset(tilebagclip: Clip,
 ):
     tilebagclip = dbx.eval_term(tilebagclip)
     transform = dbx.eval_term(transform)
-    return ClipDataset(clip=tilebagclip, 
-                       transform=transform, 
+    return ClipDatasetBuilder(spec=dict(clip=tilebagclip, transform=transform,), 
                        debug=debug, 
                        verbose=verbose,
                        log=log,
-    )
+    ).dataset()
