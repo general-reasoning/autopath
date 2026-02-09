@@ -267,7 +267,7 @@ class Fold(Clip):
         return self.cfg.partition.shard(self.cfg.fold, idx)
 
 
-class ClipDataset(Datablock, torch.utils.data.Dataset):
+class ClipDatasetBuilder(Datablock):
     @dataclass
     class CONFIG:
         clip: Clip
@@ -305,24 +305,34 @@ class ClipDataset(Datablock, torch.utils.data.Dataset):
     def __len__(self):
         return self.shard_bounds[-1]
 
-    def __getitem__(self, index):
-        self.log.silent(f"GETTING item {index} from dataset")
-        shard_idx = np.searchsorted(self.shard_bounds, index, side='right')
-        shard_lo = self.shard_bounds[shard_idx-1] if shard_idx > 0 else 0
-        shard_hi = self.shard_bounds[shard_idx]
-        shard_len = self.shard_lens[shard_idx]
-        idx = index - shard_lo
-        self.log.silent(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
-        tensor = self.shard(shard_idx).tensor
-        sample = tensor[idx]
-        if self.cfg.transform is not None:
-            sample = self.cfg.transform(sample)
-        labels = self.shard(shard_idx).labels
-        label = labels[idx]
-        self.log.silent(f"APPLYING target_transform")
-        if self.cfg.target_transform is not None:
-            label = self.cfg.target_transform(label)
-        return sample, label
+    class Dataset(torch.utils.data.Dataset):
+        def __init__(self, builder):
+            self.builder = builder
+        
+        def __len__(self):
+            return len(self.builder)
+        
+        def __getitem__(self, index):
+            self.log.silent(f"GETTING item {index} from dataset")
+            shard_idx = np.searchsorted(self.builder.shard_bounds, index, side='right')
+            shard_lo = self.builder.shard_bounds[shard_idx-1] if shard_idx > 0 else 0
+            shard_hi = self.builder.shard_bounds[shard_idx]
+            shard_len = self.builder.shard_lens[shard_idx]
+            idx = index - shard_lo
+            self.log.silent(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
+            tensor = self.builder.shard(shard_idx).tensor
+            sample = tensor[idx]
+            if self.builder.cfg.transform is not None:
+                sample = self.builder.cfg.transform(sample)
+            labels = self.builder.shard(shard_idx).labels
+            label = labels[idx]
+            self.log.silent(f"APPLYING target_transform")
+            if self.builder.cfg.target_transform is not None:
+                label = self.builder.cfg.target_transform(label)
+            return sample, label
+    
+    def dataset(self):
+        return self.Dataset(self)
     
 
 class ClipDataLoaderBuilder(Datablock):

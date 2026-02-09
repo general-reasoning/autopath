@@ -231,4 +231,4 @@ def pancan_tilebagset(clip: PancanTileBagClip,
 								  debug=debug, 
 								  verbose=verbose,
 								  log=log,
-		)
+		).dataset()
