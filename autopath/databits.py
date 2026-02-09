@@ -243,27 +243,30 @@ class Partition(Datablock):
 class Fold(Clip):
     @dataclass
     class CONFIG:
-        split: Union[Split, Partition]
+        partition: Partition
         fold: Union[str, int]
 
     def __post_init__(self):
         return self
     
     def valid(self):
-        return self.cfg.split.valid()
+        return self.cfg.partition.valid()
 
     @functools.cached_property
     def shards(self):
-        return self.cfg.split.shards(self.cfg.fold)
+        return self.cfg.partition.shards(self.cfg.fold)
 
     def shard(self, idx: int):
         return self.cfg.split.shard(self.cfg.fold, idx)
 
     @functools.cached_property
     def shard_lens(self):
-        return self.cfg.split.shard_lens(self.cfg.fold)
+        return self.cfg.partition.shard_lens(self.cfg.fold)
     
-            
+    def shard(self, idx: int):
+        return self.cfg.partition.shard(self.cfg.fold, idx)
+
+
 class ClipDataset(Datablock, torch.utils.data.Dataset):
     @dataclass
     class CONFIG:
