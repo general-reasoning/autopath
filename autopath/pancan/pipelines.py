@@ -7,7 +7,7 @@ from typing import Optional
 
 import dbx
 
-from autopath.databits import ClipDataset
+from autopath.databits import ClipDatasetBuilder
 from autopath.pancan.tiles import PancanTileBag, PancanTileBagClip, PancanTileBagSplit, PancanTileBagPartition, PancanTileBagFold, pancan_tilebagset
 
 PANCAN_CPTAC = os.environ.get("PANCAN_CPTAC", "/mnt/labshare/SLIDES/CPTAC_downloads")
