@@ -22,7 +22,7 @@ from dbx import (
     read_npz,
 )
 
-from autopath.databits import Shard, Bag, Clip, ClipDataset
+from autopath.databits import Shard, Bag, Clip, ClipDatasetBuilder
 from .tiles import TileBag
 
 
