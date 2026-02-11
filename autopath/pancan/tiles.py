@@ -201,6 +201,14 @@ class PancanTileBagClip(Clip):
 	def shard_lens(self):
 		return self.bag_lens
 
+	@property
+	def n_bags(self):
+		return len(self.bags)
+
+	@property
+	def n_shards(self):
+		return len(self.shards)
+
 
 #DEPRECATE in favor of PancanTileBagPartition
 class PancanTileBagSplit(Split):
