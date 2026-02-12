@@ -358,12 +358,12 @@ def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size:
     return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size),))
 
 
-# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020').build()"
-# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020', n_devices=2).build_tree()"
+# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
+# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', n_devices=2).build_tree()"
 def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_size: int = 16) -> BipolarFeatureBagProbe:
     return BipolarFeatureBagProbe(
-        spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TEST", n_devices=n_devices, gpu_batch_size=gpu_batch_size), 
-                  medianprobe=gigapath_feature_bags_median_probe(f"{name}_TRAIN", n_devices=n_devices, gpu_batch_size=gpu_batch_size),
+        spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TRAIN", n_devices=n_devices, gpu_batch_size=gpu_batch_size), 
+                  medianprobe=gigapath_feature_bags_median_probe(f"{name}_CALIBRATE", n_devices=n_devices, gpu_batch_size=gpu_batch_size),
         ),
         devices=[f'cuda:{i}' for i in range(n_devices)],
     )
@@ -375,7 +375,7 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
     return BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers, build_missing_only=build_missing_only)
 
 
-# git commit -am "gigaq: BipolarFeaturebagset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag('GIGAPATH_BASELINE_CPTAC_8020')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag('GIGAPATH_BASELINE_CPTAC_8020')[0]"
 def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
     featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
@@ -449,7 +449,7 @@ def gigapath_hydro(name, **kwargs):
 
 
 """
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_8020', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159', \\
     log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
 def gigapath_hydro_still(hydro_dataset_name = None, 
