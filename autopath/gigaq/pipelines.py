@@ -152,6 +152,7 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: in
     return FeatureBagClip(
         root=root, 
         spec=dict(extractor=extractor, tilebagclip=tilebagclip), 
+        n_workers=n_workers,
         devices=devices, 
         gpu_batch_size=gpu_batch_size,
     )
