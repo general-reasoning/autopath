@@ -202,8 +202,8 @@ class FeatureBagClip(Clip):
         self.log.detailed(f"Building bag_lens for bags with hashe paths {[bag.hashpath() for bag in bags]}")
         executor = MultithreadingCallableExecutor(n_threads=len(self.devices))
         executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
-        bag_lens_lists = executor.exec_callables(executables)
-        bag_lens = torch.tensor(list(itertools.chain.from_iterable(bag_lens_lists)))
+        bag_lens_list = executor.exec_callables(executables)
+        bag_lens = torch.tensor(bag_lens_list)
         self.log.debug(f"bag_lens: {bag_lens}")
         self.log.verbose(f"Building bag_lens: END")
         dbx.write_tensor(bag_lens, self.path("bag_lens", ensure_dirpath=True))
