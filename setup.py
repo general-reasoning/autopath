@@ -9,7 +9,8 @@ def readlines(fname: str) -> list:
     return [line.strip() for line in lines]
 
 def get_requirements():
-    requirements = '\n'.join(readlines('requirements.txt'))
+    lines = readlines('requirements.txt')
+    requirements = [line for line in lines if line and not line.startswith(('-', '#'))]
     return requirements
     
 
