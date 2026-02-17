@@ -15,7 +15,7 @@ def get_requirements():
 
 setuptools.setup(
     name="autopath",
-    version="0.1.1",
+    version="0.1.2",
     author="Dmitry Karpeyev",
     author_email="dmitry.karpeyev@gmail.com",
     description="Automated Pathology inference models",

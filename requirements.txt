@@ -5,8 +5,10 @@ scikit-learn==1.8.0
 scipy==1.16.3
 tfrecord==1.14.6
 timm==1.0.3
+
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
 tensorboard==2.8.0
-torch==2.8.0
-torchvision==0.23.0
 
 
