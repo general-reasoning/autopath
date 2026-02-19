@@ -361,6 +361,7 @@ def gigapath_vred_still(vred_dataset_name = None,
 
 
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_8020_TRAIN').build()"
+# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE').build()"
 def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size: int = 16) -> FeatureBagMedianProbe:
     return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size),))
 
