@@ -161,6 +161,9 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: in
 # git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC')[0]"
 # git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020_TEST')[0]"
 # git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_9802_TEST')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TRAIN')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TEST')[0]"
 def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
     featureclip = gigapath_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip={dbx.quote(featureclip)}")
