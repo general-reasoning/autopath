@@ -269,6 +269,7 @@ class Fold(Clip):
     def shard(self, idx: int):
         return self.cfg.partition.shard(self.cfg.fold, idx)
 
+    @functools.cached_property
     def n_shards(self):
         return self.cfg.partition.n_shards(self.cfg.fold)
 

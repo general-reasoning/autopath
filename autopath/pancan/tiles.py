@@ -225,6 +225,7 @@ class PancanTileBagFold(Fold):
 	def bag(self, idx: int):
 		return self.shard(idx)
 	
+	@functools.cached_property
 	def n_bags(self):
 		return self.n_shards
 
