@@ -224,6 +224,9 @@ class PancanTileBagPartition(Partition):
 class PancanTileBagFold(Fold):
 	def bag(self, idx: int):
 		return self.shard(idx)
+	
+	def n_bags(self):
+		return self.n_shards
 
 
 def pancan_tilebag_dataset_builder(

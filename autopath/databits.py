@@ -239,6 +239,9 @@ class Partition(Datablock):
     def shard(self, fold, idx: int):
         return self.cfg.clip.shards[self.shard_indices(fold)[idx]]
 
+    def n_shards(self, fold):
+        return len(self.shard_indices(fold))
+
 
 class Fold(Clip):
     @dataclass
@@ -265,6 +268,9 @@ class Fold(Clip):
     
     def shard(self, idx: int):
         return self.cfg.partition.shard(self.cfg.fold, idx)
+
+    def n_shards(self):
+        return self.cfg.partition.n_shards(self.cfg.fold)
 
 
 class ClipDatasetBuilder(Datablock):
