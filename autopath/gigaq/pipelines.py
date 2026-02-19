@@ -8,7 +8,7 @@ import torch.multiprocessing as mp
 
 import dbx
 
-from autopath.databits import ClipDataLoaderBuilder
+from autopath.databits import ClipDatasetBuilder, ClipDataLoaderBuilder
 
 from autopath.pancan.pipelines import (
     pancan_tile_bag,
@@ -171,9 +171,10 @@ def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: in
 
 
 def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
-    featureset = gigapath_featurebag_dataset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
+    featureclip = gigapath_feature_bag_clip(name, root=root)
+    clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), shuffle_seed=shuffle_bags_seed))
     return ClipDataLoaderBuilder(spec=dict(
-                            clip_dataset=featureset,
+                            clip_dataset_builder=clip_dataset_builder,
                             batch_size=dataloader_kwargs.get('batch_size', None),
                             shuffle=dataloader_kwargs.get('shuffle', False),
                           ),  
@@ -391,9 +392,12 @@ def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_
 
 
 def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
-    featureset = gigapath_bipolar_featurebag_dataset(name, root=root, shuffle_bags_seed=shuffle_bags_seed)
+    featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
+    transform = dbx.quote(FeaturesToFloat, dtype='float32')
+    target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
+    clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), transform=transform, target_transform=target_transform, shuffle_seed=shuffle_bags_seed))
     return ClipDataLoaderBuilder(spec=dict(
-                            clip_dataset=featureset,
+                            clip_dataset_builder=clip_dataset_builder,
                             batch_size=dataloader_kwargs.get('batch_size', None),
                             shuffle=dataloader_kwargs.get('shuffle', False),
                           ),  
