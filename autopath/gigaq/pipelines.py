@@ -399,10 +399,11 @@ def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_
     if 'SINGLE' in name:
         single = int(name.split('_')[-1])
         name = name.split('_SINGLE')[0]
+        dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> {single=}\n{name=}")
         featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single)
     else:
         featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
-    dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
+    dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
     return featurebag_dataset(dbx.quote(featureclip), transform=transform, target_transform=target_transform, bags_shuffle_seed=shuffle_bags_seed)
