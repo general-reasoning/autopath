@@ -544,8 +544,86 @@ class BipolarFeatureBagClip(Clip):
     @property
     def n_shards(self):
         return self.n_bags
-    
 
+
+class BipolarSingleFeatureBagClip(Clip):
+    """Like BipolarFeatureBagClip, but contains exactly one bag at index `idx`
+    from the given BipolarFeatureBagProbe."""
+
+    from autopath.pancan.probes import BipolarFeatureBagProbe
+
+    VERSION = 1
+
+    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        from autopath.pancan.probes import BipolarFeatureBagProbe
+        probe: BipolarFeatureBagProbe
+        idx: int
+
+    def __build__(self):
+        idx = self.cfg.idx
+        self.log.verbose(f"BUILDING single BipolarFeatureBag {idx} from {self.cfg.probe}: BEGIN")
+        bag = self.bag(0)
+        if not bag.valid():
+            bag.__build__(probe=self.cfg.probe)
+        bag_lens = [len(bag)]
+        self.log.verbose(f"BUILDING single BipolarFeatureBag {idx} from {self.cfg.probe}: END")
+        write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
+        return self
+
+    def __read__(self, topic):
+        return read_npz(self.path(topic), topic)[topic]
+
+    @functools.cached_property
+    def bags(self):
+        idx = self.cfg.idx
+        bag = BipolarFeatureBag(
+            root=self._root_,
+            spec=dict(
+                probehandle=self.cfg.probe.handle(),
+                bag_index=idx,
+                featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
+            )
+        )
+        return [bag]
+
+    def bag(self, idx: int = 0):
+        assert idx == 0, f"BipolarSingleFeatureBagClip contains exactly one bag, got {idx=}"
+        real_idx = self.cfg.idx
+        bag = BipolarFeatureBag(
+            root=self._root_,
+            spec=dict(
+                probehandle=self.cfg.probe.handle(),
+                bag_index=real_idx,
+                featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
+            )
+        )
+        return bag
+
+    def shard(self, idx: int):
+        return self.bag(idx)
+
+    @property
+    def shards(self):
+        return self.bags
+
+    @functools.cached_property
+    def bag_lens(self):
+        return self.read('bag_lens')
+
+    @property
+    def n_bags(self):
+        return 1
+
+    @property
+    def shard_lens(self):
+        return self.bag_lens
+
+    @property
+    def n_shards(self):
+        return self.n_bags
 
 
 
