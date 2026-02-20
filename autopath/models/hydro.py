@@ -406,7 +406,9 @@ class HydroStill(Datablock):
             name=self.tag
         )
         # Log the datablock quote to TensorBoard for traceability
-        logger.experiment.add_text("Datablock Quote", f"```python\n{self.bid.quote}\n```", global_step=0)
+        logger.experiment.add_text("HydroStill: quote", f"```python\n{self.bid.quote}\n```", global_step=0)
+        logger.experiment.add_text("HydroStill: handle", f"```python\n{self.bid.deslash('handle')}\n```", global_step=0)
+        
         default_root_dir = self.dirpath('ckpts')
         
         self.log.debug(f"Building trainer for {self.cfg.max_steps} steps using {self.cfg.lightning}")

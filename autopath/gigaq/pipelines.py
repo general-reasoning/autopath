@@ -344,6 +344,10 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopat
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+#
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
+    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+
 """
 def gigapath_hydro_still(hydro_dataset_name = None, 
                         *,  
@@ -388,7 +392,6 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         splitname = "GIGAPATH_BASELINE_CPTAC_" + _splitname
         bits = hydroname_precision.split('_')
         precision = bits[-1].lower()
-        hydroname = '_'.join(bits[:-1])
         hydroname = '_'.join(bits[:-1])
         hydro = gigapath_hydro(hydroname, 
                              loss_type=loss_type, 
