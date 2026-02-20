@@ -393,8 +393,15 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1')[0]"
 def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
-    featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
+    if 'SINGLE' in name:
+        single = int(name.split('_')[-1])
+        name = name.split('_SINGLE')[0]
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single)
+    else:
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
@@ -402,7 +409,12 @@ def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_
 
 
 def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
-    featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
+    if 'SINGLE' in name:
+        single = int(name.split('_')[-1])
+        name = name.split('_SINGLE')[0]
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single)
+    else:
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
     clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), transform=transform, target_transform=target_transform, shuffle_seed=shuffle_bags_seed))
@@ -417,6 +429,8 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
 
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
 def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', 1)
     dataloader_builder = gigapath_bipolar_featurebag_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
