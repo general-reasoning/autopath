@@ -114,6 +114,7 @@ class Hydro(Datablock):
                     out_channels=out_channels,
                     kernel_size=kernel_size,
                     use_batch_norm=use_batch_norm,
+                    use_skip_connection=False,
                     use_bilinear_upsampling=self.use_bilinear_upsampling,
                 )
                 self.up_layers.append(layer)
