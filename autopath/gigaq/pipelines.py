@@ -329,6 +329,7 @@ def gigapath_hydro(name, **kwargs):
         initial_size=initial_size,
         hidden_channels=hidden_channels,
         use_batch_norm=kwargs.get('use_batch_norm', True),
+        use_bilinear_upsampling=kwargs.get('use_bilinear_upsampling', True),
         loss_type=kwargs.get('loss_type', 'mse'),
     ))
     return hydro
@@ -361,6 +362,8 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         gradient_clip_algorithm: str = 'norm',
                         gradient_clip_val: float = 10.0,
                         loss_type: str = 'mse',
+                        use_batch_norm: bool = True,
+                        use_bilinear_upsampling: bool = False,
                         **dataloader_kwargs,
     ):
     """Create a HydroStill training pipeline.
@@ -386,7 +389,12 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         bits = hydroname_precision.split('_')
         precision = bits[-1].lower()
         hydroname = '_'.join(bits[:-1])
-        hydro = gigapath_hydro(hydroname, loss_type=loss_type)
+        hydroname = '_'.join(bits[:-1])
+        hydro = gigapath_hydro(hydroname, 
+                             loss_type=loss_type, 
+                             use_batch_norm=use_batch_norm, 
+                             use_bilinear_upsampling=use_bilinear_upsampling)
+        tag = hydro_dataset_name
         tag = hydro_dataset_name
         logsroot = logsroot or '/home/t-9dkarp/autopath/tensorboard/hydro'
         
