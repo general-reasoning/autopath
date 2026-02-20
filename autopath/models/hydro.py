@@ -46,7 +46,7 @@ class Hydro(Datablock):
         channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1)  # Channel mult per layer
         kernel_size: int = 3            # Convolution kernel size
         use_batch_norm: bool = True     # Whether to use batch normalization
-        use_skip_connection: bool = False  # Whether to use skip connections
+        use_bilinear_upsampling: bool = True  # Use bilinear upsampling instead of transposed conv
         
         # Loss parameters
         loss_type: str = "mse"          # Loss function: "mse" or "l1"
@@ -70,7 +70,7 @@ class Hydro(Datablock):
             channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1),
             kernel_size: int = 3,
             use_batch_norm: bool = True,
-            use_skip_connection: bool = False,
+            use_bilinear_upsampling: bool = False,
             loss_type: str = "mse",
             log: dbx.Logger = None,
         ):
@@ -82,7 +82,7 @@ class Hydro(Datablock):
             self.channel_multipliers = channel_multipliers
             self.kernel_size = kernel_size
             self.use_batch_norm = use_batch_norm
-            self.use_skip_connection = use_skip_connection
+            self.use_bilinear_upsampling = use_bilinear_upsampling
             self.loss_type = loss_type
             self.log = log or dbx.Logger(self.__class__.__name__)
 
@@ -114,7 +114,7 @@ class Hydro(Datablock):
                     out_channels=out_channels,
                     kernel_size=kernel_size,
                     use_batch_norm=use_batch_norm,
-                    use_skip_connection=self.use_skip_connection,
+                    use_bilinear_upsampling=self.use_bilinear_upsampling,
                 )
                 self.up_layers.append(layer)
                 in_channels = out_channels
@@ -152,9 +152,9 @@ class Hydro(Datablock):
                 x = up_layer(x, skip_features=None)
                 self.log.detailed(f"After up_layer {i}: {x.shape}")
 
-            # Final conv to RGB + sigmoid to [0, 255]
+            # Final conv to RGB, clamped to [0, 255]
             x = self.final_conv(x)
-            x = torch.sigmoid(x) * 255.0
+            x = torch.clamp(x, 0, 255)
             self.log.detailed(f"After final_conv: {x.shape}")
 
             return x
@@ -194,7 +194,7 @@ class Hydro(Datablock):
             channel_multipliers=self.cfg.channel_multipliers,
             kernel_size=self.cfg.kernel_size,
             use_batch_norm=self.cfg.use_batch_norm,
-            use_skip_connection=self.cfg.use_skip_connection,
+            use_bilinear_upsampling=self.cfg.use_bilinear_upsampling,
             loss_type=self.cfg.loss_type,
             log=self.log,
         )
