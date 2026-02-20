@@ -198,7 +198,7 @@ class HydroDecoderLightning(Datablock):
         learning_rate: float = 1e-3
         scheduler: str = "cosine"
         log_images: bool = False
-        log_image_interval: int = 100
+        log_images_interval: int = 100
 
     class Lightning(L.LightningModule):
         def __init__(
@@ -207,7 +207,7 @@ class HydroDecoderLightning(Datablock):
             learning_rate: float = 1e-3, 
             scheduler: str = "cosine",
             log_images: bool = False,
-            log_image_interval: int = 100,
+            log_images_interval: int = 100,
             log: dbx.Logger = None,
         ):
             super().__init__()
@@ -215,7 +215,7 @@ class HydroDecoderLightning(Datablock):
             self.learning_rate = learning_rate
             self.scheduler = scheduler
             self.log_images = log_images
-            self.log_image_interval = log_image_interval
+            self.log_images_interval = log_images_interval
             self.save_hyperparameters(ignore=['decoder'])
             self.log_ = log or dbx.Logger(name="HydroDecoderLightning")
 
@@ -229,7 +229,7 @@ class HydroDecoderLightning(Datablock):
             lr = scheduler.get_last_lr()[0]
             self.logger.experiment.add_scalar("Learning Rate", lr, self.global_step)
             
-            if self.log_images and self.global_step % self.log_image_interval == 0:
+            if self.log_images and self.global_step % self.log_images_interval == 0:
                 with torch.no_grad():
                     predicted = self.decoder(latents[:1])
                     # Clamp to valid image range
