@@ -274,7 +274,7 @@ class HydroDecoderLightning(Datablock):
             learning_rate=self.cfg.learning_rate,
             scheduler=self.cfg.scheduler,
             log_images=self.cfg.log_images,
-            log_image_interval=self.cfg.log_image_interval,
+            log_image_interval=self.cfg.log_images_interval,
             log=self.log,
         )
 
