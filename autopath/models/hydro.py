@@ -153,9 +153,9 @@ class Hydro(Datablock):
                 x = up_layer(x, skip_features=None)
                 self.log.detailed(f"After up_layer {i}: {x.shape}")
 
-            # Final conv to RGB, clamped to [0, 255]
+            # Final conv to RGB + sigmoid to [0, 255]
             x = self.final_conv(x)
-            x = torch.clamp(x, 0, 255)
+            x = torch.sigmoid(x) * 255.0
             self.log.detailed(f"After final_conv: {x.shape}")
 
             return x
