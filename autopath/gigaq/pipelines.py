@@ -500,7 +500,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         n_devices: int = 1,
                         logsroot: str = None,
                         log_images: bool = False,
-                        log_image_interval: int = 100,
+                        log_images_interval: int = 100,
                         from_scratch: bool = False,
                         max_epochs: int = 1,
                         max_steps: int = None,
@@ -521,7 +521,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         n_devices: Number of GPU devices
         logsroot: Root directory for tensorboard logs
         log_images: Whether to log images during training
-        log_image_interval: Interval (in steps) to log images
+        log_images_interval: Interval (in steps) to log images
         from_scratch: Whether to restart training from scratch
         **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
         
@@ -547,7 +547,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         
         lightning = HydroDecoderLightning(
             spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler, 
-                     log_images=log_images, log_image_interval=log_image_interval)
+                     log_images=log_images, log_images_interval=log_images_interval)
         )
 
         still = HydroDecoderStill(spec=dict(
