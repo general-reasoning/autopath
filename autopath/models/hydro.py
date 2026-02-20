@@ -46,7 +46,7 @@ class Hydro(Datablock):
         channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1)  # Channel mult per layer
         kernel_size: int = 3            # Convolution kernel size
         use_batch_norm: bool = True     # Whether to use batch normalization
-        use_skip_connection: bool = False, # Whether to use skip connections
+        use_skip_connection: bool = False  # Whether to use skip connections
         
         # Loss parameters
         loss_type: str = "mse"          # Loss function: "mse" or "l1"
