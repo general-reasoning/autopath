@@ -46,6 +46,7 @@ class Hydro(Datablock):
         channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1)  # Channel mult per layer
         kernel_size: int = 3            # Convolution kernel size
         use_batch_norm: bool = True     # Whether to use batch normalization
+        use_skip_connection: bool = False, # Whether to use skip connections
         
         # Loss parameters
         loss_type: str = "mse"          # Loss function: "mse" or "l1"
@@ -69,6 +70,7 @@ class Hydro(Datablock):
             channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1),
             kernel_size: int = 3,
             use_batch_norm: bool = True,
+            use_skip_connection: bool = False,
             loss_type: str = "mse",
             log: dbx.Logger = None,
         ):
@@ -80,6 +82,7 @@ class Hydro(Datablock):
             self.channel_multipliers = channel_multipliers
             self.kernel_size = kernel_size
             self.use_batch_norm = use_batch_norm
+            self.use_skip_connection = use_skip_connection
             self.loss_type = loss_type
             self.log = log or dbx.Logger(self.__class__.__name__)
 
@@ -111,7 +114,7 @@ class Hydro(Datablock):
                     out_channels=out_channels,
                     kernel_size=kernel_size,
                     use_batch_norm=use_batch_norm,
-                    use_skip_connection=False,
+                    use_skip_connection=self.use_skip_connection,
                 )
                 self.up_layers.append(layer)
                 in_channels = out_channels
@@ -149,8 +152,9 @@ class Hydro(Datablock):
                 x = up_layer(x, skip_features=None)
                 self.log.detailed(f"After up_layer {i}: {x.shape}")
 
-            # Final conv to RGB
+            # Final conv to RGB + sigmoid to [0, 255]
             x = self.final_conv(x)
+            x = torch.sigmoid(x) * 255.0
             self.log.detailed(f"After final_conv: {x.shape}")
 
             return x
@@ -190,6 +194,7 @@ class Hydro(Datablock):
             channel_multipliers=self.cfg.channel_multipliers,
             kernel_size=self.cfg.kernel_size,
             use_batch_norm=self.cfg.use_batch_norm,
+            use_skip_connection=self.cfg.use_skip_connection,
             loss_type=self.cfg.loss_type,
             log=self.log,
         )
@@ -231,6 +236,23 @@ class HydroLightning(Datablock):
             
             self.logger.experiment.add_scalar("Loss", loss, self.global_step)
             
+            # --- Diagnostics: NaN/Inf checks ---
+            if torch.isnan(loss) or torch.isinf(loss):
+                self.log_.warning(f"[step {self.global_step}] Loss is {loss.item()}!")
+            
+            # --- Diagnostics: output stats ---
+            with torch.no_grad():
+                predicted = self.decoder(latents)
+                self.logger.experiment.add_scalar("Output/min", predicted.min(), self.global_step)
+                self.logger.experiment.add_scalar("Output/max", predicted.max(), self.global_step)
+                self.logger.experiment.add_scalar("Output/mean", predicted.mean(), self.global_step)
+                self.logger.experiment.add_scalar("Target/min", targets.min(), self.global_step)
+                self.logger.experiment.add_scalar("Target/max", targets.max(), self.global_step)
+                self.logger.experiment.add_scalar("Target/mean", targets.mean(), self.global_step)
+
+                if torch.isnan(predicted).any():
+                    self.log_.warning(f"[step {self.global_step}] NaN in model output!")
+            
             scheduler = self.lr_schedulers()
             lr = scheduler.get_last_lr()[0]
             self.logger.experiment.add_scalar("Learning Rate", lr, self.global_step)
@@ -238,9 +260,8 @@ class HydroLightning(Datablock):
             if self.log_images and self.global_step % self.log_images_interval == 0:
                 with torch.no_grad():
                     predicted = self.decoder(latents[:1])
-                    # Clamp to valid image range
                     target = targets[:1]
-                    self.logger.experiment.add_image("Predicted", predicted[0].to(torch.uint8), self.global_step)
+                    self.logger.experiment.add_image("Predicted", predicted[0].clamp(0, 255).to(torch.uint8), self.global_step)
                     self.logger.experiment.add_image("Target", target[0].to(torch.uint8), self.global_step)
             
             return loss
