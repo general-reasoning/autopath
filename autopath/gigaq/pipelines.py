@@ -488,6 +488,12 @@ def gigapath_hydro(name, **kwargs):
 """
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159', \\
     log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+#
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_0', \\
+    log_images=True, log_images_interval=20, max_epochs=100n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+#
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_1', \\
+    log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
 def gigapath_hydro_still(hydro_dataset_name = None, 
                         *,  
@@ -496,6 +502,15 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         log_images: bool = False,
                         log_image_interval: int = 100,
                         from_scratch: bool = False,
+                        max_epochs: int = 1,
+                        max_steps: int = None,
+                        ckpt_every_n_steps: int = 100,
+                        use_bags: bool = True,
+                        shuffle_bags_seed: int = 42,
+                        learning_rate: float = 1e-4,
+                        scheduler: str = 'cosine',
+                        gradient_clip_algorithm: str = 'norm',
+                        gradient_clip_val: float = 10.0,
                         **dataloader_kwargs,
     ):
     """Create a HydroDecoderStill training pipeline.
@@ -524,16 +539,6 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         hydro = gigapath_hydro(hydroname)
         tag = hydro_dataset_name
         logsroot = logsroot or '/home/t-9dkarp/autopath/tensorboard/hydro'
-
-        max_epochs = 1
-        max_steps = None
-        ckpt_every_n_steps = 100
-        use_bags = True
-        shuffle_bags_seed = 42
-        learning_rate = 1e-4
-        scheduler = 'cosine'
-        gradient_clip_algorithm = 'norm'
-        gradient_clip_val = 10.0
         
         if use_bags:
             featureloader_builder = dbx.quote(gigapath_bipolar_featurebag_dataloader_builder, splitname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
