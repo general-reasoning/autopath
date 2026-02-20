@@ -49,7 +49,7 @@ class Hydro(Datablock):
         use_bilinear_upsampling: bool = True  # Use bilinear upsampling instead of transposed conv
         
         # Loss parameters
-        loss_type: str = "mse"          # Loss function: "mse" or "l1"
+        loss_type: str = "mse"          # Loss function: "mse", "l1", or "l0"
 
         # Version
         version: int = 0                # Model architecture version
@@ -176,6 +176,10 @@ class Hydro(Datablock):
                 loss = F.mse_loss(predicted, target)
             elif self.loss_type == "l1":
                 loss = F.l1_loss(predicted, target)
+            elif self.loss_type == "l0":
+                # Differentiable proxy for L0: log(1 + (x-y)^2 / epsilon)
+                epsilon = 1e-3
+                loss = torch.mean(torch.log(1 + (predicted - target)**2 / epsilon))
             else:
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             

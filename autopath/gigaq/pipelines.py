@@ -360,6 +360,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         scheduler: str = 'cosine',
                         gradient_clip_algorithm: str = 'norm',
                         gradient_clip_val: float = 10.0,
+                        loss_type: str = 'mse',
                         **dataloader_kwargs,
     ):
     """Create a HydroStill training pipeline.
@@ -385,7 +386,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         bits = hydroname_precision.split('_')
         precision = bits[-1].lower()
         hydroname = '_'.join(bits[:-1])
-        hydro = gigapath_hydro(hydroname)
+        hydro = gigapath_hydro(hydroname, loss_type=loss_type)
         tag = hydro_dataset_name
         logsroot = logsroot or '/home/t-9dkarp/autopath/tensorboard/hydro'
         
