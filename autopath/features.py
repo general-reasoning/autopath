@@ -564,12 +564,12 @@ class BipolarSingleFeatureBagClip(Clip):
 
     def __build__(self):
         idx = self.cfg.idx
-        self.log.verbose(f"BUILDING single BipolarFeatureBag {idx} from {self.cfg.probe}: BEGIN")
+        self.log.verbose(f"BUILDING single BipolarFeatureBag {repr(idx)} from {self.cfg.probe}: BEGIN")
         bag = self.bag(0)
         if not bag.valid():
             bag.__build__(probe=self.cfg.probe)
         bag_lens = [len(bag)]
-        self.log.verbose(f"BUILDING single BipolarFeatureBag {idx} from {self.cfg.probe}: END")
+        self.log.verbose(f"BUILDING single BipolarFeatureBag {repr(idx)} from {self.cfg.probe}: END")
         write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         return self
 
