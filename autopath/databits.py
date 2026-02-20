@@ -286,11 +286,12 @@ class ClipDatasetBuilder(Datablock):
         self.n_shards = self.cfg.clip.n_shards
         self.log.debug(f"INITIALIZING dataset using {self.n_shards} shards from clip {self.cfg.clip}: BEGIN")
         self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
-        self._shard_indices = np.arange(self.n_shards)
+        _shard_indices = np.arange(self.n_shards)
         if self.cfg.shuffle_seed is not None:
             self.log.verbose(f"Shuffling shard indices with seed {self.cfg.shuffle_seed}")
             rng = np.random.default_rng(self.cfg.shuffle_seed)
-            rng.shuffle(self._shard_indices)
+            rng.shuffle(_shard_indices)
+        self._shard_indices = [int(i) for i in _shard_indices]
         self.shard_lens = [self.cfg.clip.shard_lens[i] for i in self._shard_indices]
         self.log.debug(f"Computing shard_bounds...")
         self.shard_bounds = np.cumsum(self.shard_lens)
@@ -314,28 +315,28 @@ class ClipDatasetBuilder(Datablock):
 
     class Dataset(torch.utils.data.Dataset):
         def __init__(self, builder):
-            self.builder = builder
+            self.dataset_builder = builder
         
         def __len__(self):
-            return len(self.builder)
+            return len(self.dataset_builder)
         
         def __getitem__(self, index):
-            self.builder.log.silent(f"GETTING item {index} from dataset")
-            shard_idx = np.searchsorted(self.builder.shard_bounds, index, side='right')
-            shard_lo = self.builder.shard_bounds[shard_idx-1] if shard_idx > 0 else 0
-            shard_hi = self.builder.shard_bounds[shard_idx]
-            shard_len = self.builder.shard_lens[shard_idx]
+            self.dataset_builder.log.silent(f"GETTING item {index} from dataset")
+            shard_idx = np.searchsorted(self.dataset_builder.shard_bounds, index, side='right')
+            shard_lo = self.dataset_builder.shard_bounds[shard_idx-1] if shard_idx > 0 else 0
+            shard_hi = self.dataset_builder.shard_bounds[shard_idx]
+            shard_len = self.dataset_builder.shard_lens[shard_idx]
             idx = index - shard_lo
-            self.builder.log.silent(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
-            tensor = self.builder.shard(shard_idx).tensor
+            self.dataset_builder.log.silent(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
+            tensor = self.dataset_builder.shard(shard_idx).tensor
             sample = tensor[idx]
-            if self.builder.cfg.transform is not None:
-                sample = self.builder.cfg.transform(sample)
-            labels = self.builder.shard(shard_idx).labels
+            if self.dataset_builder.cfg.transform is not None:
+                sample = self.dataset_builder.cfg.transform(sample)
+            labels = self.dataset_builder.shard(shard_idx).labels
             label = labels[idx]
-            self.builder.log.silent(f"APPLYING target_transform")
-            if self.builder.cfg.target_transform is not None:
-                label = self.builder.cfg.target_transform(label)
+            self.dataset_builder.log.silent(f"APPLYING target_transform")
+            if self.dataset_builder.cfg.target_transform is not None:
+                label = self.dataset_builder.cfg.target_transform(label)
             return sample, label
     
     def dataset(self):
