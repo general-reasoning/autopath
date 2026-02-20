@@ -23,6 +23,7 @@ from autopath.features import (
     FeaturesToFloat,
     FeaturesLabelTileToFloat,
     BipolarFeatureBagClip,
+    BipolarFeatureBagClipSingle,
 )
 
 from autopath.pancan.probes import (
