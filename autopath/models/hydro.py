@@ -343,6 +343,17 @@ class HydroStill(Datablock):
         #TODO: Implement validation
         return False
 
+    def UNSAFE_clear_logs(self):
+        """Clear all TensorBoard logs from the logs directory."""
+        import shutil
+        logs = self.dirpath('logs')
+        if os.path.exists(logs):
+            shutil.rmtree(logs)
+            self.log.info(f"Cleared TensorBoard logs at {logs}")
+        os.makedirs(logs, exist_ok=True)
+        self.linklogs()
+        return self
+
     def linklogs(self):
         # Link the logs directory to the provided location (e.g., for Tensorboard to pick up the logs)
         if self.logs is not None:
