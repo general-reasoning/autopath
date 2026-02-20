@@ -343,8 +343,12 @@ class HydroStill(Datablock):
         #TODO: Implement validation
         return False
 
-    def UNSAFE_clear_logs(self):
+    def UNSAFE_clear_logs(self, *, OVERRIDE: bool = False):
         """Clear all TensorBoard logs from the logs directory."""
+        if not OVERRIDE:
+            response = input("ARE YOU SURE YOU WANT TO EXECUTE 'UNSAFE_clear_logs'? [y/N]")
+            if response.lower() != 'y':
+                return self
         import shutil
         logs = self.dirpath('logs')
         if os.path.exists(logs):
