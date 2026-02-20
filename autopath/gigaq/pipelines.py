@@ -52,9 +52,9 @@ from autopath.models.vred import (
 )
 
 from autopath.models.hydro import (
-    HydroDecoder,
-    HydroDecoderLightning,
-    HydroDecoderStill,
+    Hydro,
+    HydroLightning,
+    HydroStill,
 )
 
 
@@ -447,14 +447,14 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
 
 # git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_HYDRO_DEFAULT')"
 def gigapath_hydro(name, **kwargs):
-    """Create a HydroDecoder configuration by name.
+    """Create a Hydro configuration by name.
     
     Args:
         name: Configuration name (e.g., 'GIGAPATH_HYDRO_DEFAULT')
         **kwargs: Override default parameters
         
     Returns:
-        HydroDecoder
+        Hydro
     """
     if name == "GIGAPATH_HYDRO_DEFAULT":
         latent_dim = kwargs.get('latent_dim', 1536)
@@ -474,7 +474,7 @@ def gigapath_hydro(name, **kwargs):
     else:
         raise ValueError(f"Unknown gigapath_hydro: {name}")
     
-    hydro = HydroDecoder(spec=dict(
+    hydro = Hydro(spec=dict(
         latent_dim=latent_dim,
         image_size=image_size,
         initial_size=initial_size,
@@ -513,7 +513,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         gradient_clip_val: float = 10.0,
                         **dataloader_kwargs,
     ):
-    """Create a HydroDecoderStill training pipeline.
+    """Create a HydroStill training pipeline.
     
     Args:
         hydro_dataset_name: Name in format 'GIGAPATH_HYDRO_<config>_<precision>_BASELINE_CPTAC_<split>'
@@ -526,10 +526,10 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
         
     Returns:
-        HydroDecoderStill instance
+        HydroStill instance
     """
     if hydro_dataset_name is None:
-        still = HydroDecoderStill
+        still = HydroStill
     else:
         hydroname_precision, _splitname = hydro_dataset_name.split('_BASELINE_CPTAC_')
         splitname = "GIGAPATH_BASELINE_CPTAC_" + _splitname
@@ -545,12 +545,12 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         else:
             raise NotImplementedError(f"Shard dataloader_builder")
         
-        lightning = HydroDecoderLightning(
+        lightning = HydroLightning(
             spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler, 
                      log_images=log_images, log_images_interval=log_images_interval)
         )
 
-        still = HydroDecoderStill(spec=dict(
+        still = HydroStill(spec=dict(
                     lightning=lightning, 
                     dataloader=featureloader_builder,
                     max_epochs=max_epochs,

@@ -1,4 +1,4 @@
-"""HydroDecoder: Latent vector to image decoder.
+"""Hydro: Latent vector to image decoder.
 
 Reconstructs NxN RGB images from K-length latent vectors using a 
 deconvolutional architecture.
@@ -27,7 +27,7 @@ from autopath.databits import ClipDataLoaderBuilder
 from .layers import UpLayer, ConvBlock
 
 
-class HydroDecoder(Datablock):
+class Hydro(Datablock):
     """Datablock wrapper for a latent-to-image decoder.
     
     Reconstructs NxN RGB images from K-length latent vectors using a 
@@ -50,7 +50,10 @@ class HydroDecoder(Datablock):
         # Loss parameters
         loss_type: str = "mse"          # Loss function: "mse" or "l1"
 
-    class Module(nn.Module):
+        # Version
+        version: int = 0                # Model architecture version
+
+    class Model_0(nn.Module):
         """Inner nn.Module implementing the deconvolutional decoder architecture.
         
         Architecture: latent (B, K) → Linear → reshape → UpLayer × N → Conv2d → RGB
@@ -120,7 +123,7 @@ class HydroDecoder(Datablock):
                 kernel_size=1,
             )
 
-            self.log.debug(f"Built HydroDecoder.Module: {latent_dim}→{image_size}x{image_size} "
+            self.log.debug(f"Built Hydro.Model_0: {latent_dim}→{image_size}x{image_size} "
                           f"with {self.n_upsample} upsample layers")
 
         def forward(self, latent: torch.Tensor) -> torch.Tensor:
@@ -174,9 +177,12 @@ class HydroDecoder(Datablock):
             self.log.detailed(f"Loss ({self.loss_type}): {loss.item():.6f}")
             return loss
 
+    Model = {0: Model_0}
+
     def model(self) -> nn.Module:
-        """Create and return the decoder Module."""
-        return self.Module(
+        """Create and return the decoder model for the configured version."""
+        ModelClass = self.Model[self.cfg.version]
+        return ModelClass(
             latent_dim=self.cfg.latent_dim,
             image_size=self.cfg.image_size,
             initial_size=self.cfg.initial_size,
@@ -189,12 +195,12 @@ class HydroDecoder(Datablock):
         )
 
 
-class HydroDecoderLightning(Datablock):
-    """Lightning wrapper for training HydroDecoder."""
+class HydroLightning(Datablock):
+    """Lightning wrapper for training Hydro."""
 
     @dataclass
     class CONFIG:
-        hydro: HydroDecoder
+        hydro: Hydro
         learning_rate: float = 1e-3
         scheduler: str = "cosine"
         log_images: bool = False
@@ -203,7 +209,7 @@ class HydroDecoderLightning(Datablock):
     class Lightning(L.LightningModule):
         def __init__(
             self, 
-            decoder: HydroDecoder.Module, 
+            decoder: nn.Module, 
             learning_rate: float = 1e-3, 
             scheduler: str = "cosine",
             log_images: bool = False,
@@ -217,7 +223,7 @@ class HydroDecoderLightning(Datablock):
             self.log_images = log_images
             self.log_images_interval = log_images_interval
             self.save_hyperparameters(ignore=['decoder'])
-            self.log_ = log or dbx.Logger(name="HydroDecoderLightning")
+            self.log_ = log or dbx.Logger(name="HydroLightning")
 
         def training_step(self, batch, batch_idx):
             latents, targets = batch
@@ -279,8 +285,8 @@ class HydroDecoderLightning(Datablock):
         )
 
 
-class HydroDecoderStill(Datablock):
-    """Full training pipeline for HydroDecoder, similar to VariationalReEncoderDecoderStill."""
+class HydroStill(Datablock):
+    """Full training pipeline for Hydro, similar to VariationalReEncoderDecoderStill."""
     
     VERSION = 1
     TOPICFILES = {
@@ -290,7 +296,7 @@ class HydroDecoderStill(Datablock):
 
     @dataclass
     class CONFIG:
-        lightning: HydroDecoderLightning
+        lightning: HydroLightning
         dataloader: ClipDataLoaderBuilder  # DataLoader or DataLoaderBuilder with .dataloader() method
         init_ckpt_path_or_anchor: str = None
         from_scratch: bool = False
