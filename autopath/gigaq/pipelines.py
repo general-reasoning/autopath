@@ -385,6 +385,7 @@ def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_s
 def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 0, build_missing_only: bool = False, n_devices: int = 1, gpu_batch_size: int = 16, single: int|None = None) -> BipolarFeatureBagClip:
     probe = gigapath_bipolar_feature_bags_probe(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size)
     if single is not None:
+        dbx.Logger(name='gigapath_bipolar_feature_bag_clip').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
         clip = BipolarSingleFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe), idx=single))
     else:
         clip = BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers, build_missing_only=build_missing_only)
@@ -399,7 +400,7 @@ def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_
     if 'SINGLE' in name:
         single = int(name.split('_')[-1])
         name = name.split('_SINGLE')[0]
-        dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> {single=}\n{name=}")
+        dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
         featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single)
     else:
         featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
