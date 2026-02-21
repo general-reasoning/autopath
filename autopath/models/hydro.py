@@ -407,7 +407,8 @@ class HydroStill(Datablock):
             _, basename = os.path.split(ckpt)
             name, _ = basename.split('.')
             _, stepstr = name.split('step=')
-            step = int(stepstr)
+            # Handle versioned checkpoints (e.g., '100-v1') by taking the first part
+            step = int(stepstr.split('-')[0])
             steps.append(step)
         if len(steps) == 0:
             ckpt = None
