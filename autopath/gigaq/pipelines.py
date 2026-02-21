@@ -348,7 +348,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopat
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
-    loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True, tag='l1').build()"
+    loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 
 """
 def gigapath_hydro_still(hydro_dataset_name = None, 
@@ -402,9 +402,8 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                              loss_type=loss_type, 
                              use_batch_norm=use_batch_norm, 
                              use_bilinear_upsampling=use_bilinear_upsampling)
-        tag = hydro_dataset_name
-        tag = hydro_dataset_name
-        logsroot = logsroot or '/home/t-9dkarp/autopath/tensorboard/hydro'
+        tag = f"{hydro_dataset_name}/{loss_type}"
+        logsroot = logsroot or f'{os.environ["HOME"]}/autopath/tensorboard/hydro'
         
         if use_bags:
             featureloader_builder = dbx.quote(gigapath_bipolar_featurebag_dataloader_builder, splitname, shuffle_bags_seed=shuffle_bags_seed, **dataloader_kwargs)
