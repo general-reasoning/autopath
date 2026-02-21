@@ -352,9 +352,14 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopat
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
-    #
+#
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
-    loss_type='l1', use_residual_upsampling=True, use_attention_gates=False, use_feature_modulation=False, suffix='resup_nosag_nofmod_l1', \\
+    loss_type='l1', use_residual_upsampling=True, use_spatial_attention_gates=False, use_feature_modulation=False, suffix='resup_nosag_nofmod_l1', \\
+    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+#
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \\
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
+    loss_type='l1', use_residual_upsampling=True, use_spatial_attention_gates=True, use_feature_modulation=True, suffix='resup_sag_fmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 
 """
