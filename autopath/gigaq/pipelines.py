@@ -294,29 +294,29 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
         return _
 
 
-# git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_HYDRO_DEFAULT')"
+# git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_BIPOLAR_HYDRO')"
 def gigapath_hydro(name, *, model: int = 0, **kwargs):
     """Create a Hydro configuration by name.
     
     Args:
-        name: Configuration name (e.g., 'GIGAPATH_HYDRO_DEFAULT')
+        name: Configuration name (e.g., 'GIGAPATH_BIPOLAR_HYDRO')
         model: Model architecture identifier (e.g., 0 selects Model_0)
         **kwargs: Override default parameters
         
     Returns:
         Hydro
     """
-    if name == "GIGAPATH_HYDRO_DEFAULT":
+    if name == "GIGAPATH_BIPOLAR_HYDRO":
         latent_dim = kwargs.get('latent_dim', 1536)
         image_size = kwargs.get('image_size', 256)
         cnn_initial_size = kwargs.get('cnn_initial_size', 8)
         cnn_hidden_channels = kwargs.get('cnn_hidden_channels', 256)
-    elif name == "GIGAPATH_HYDRO_SMALL":
+    elif name == "GIGAPATH_BIPOLAR_HYDRO_SMALL":
         latent_dim = kwargs.get('latent_dim', 1536)
         image_size = kwargs.get('image_size', 256)
         cnn_initial_size = kwargs.get('cnn_initial_size', 8)
         cnn_hidden_channels = kwargs.get('cnn_hidden_channels', 128)
-    elif name == "GIGAPATH_HYDRO_LARGE":
+    elif name == "GIGAPATH_BIPOLAR_HYDRO_LARGE":
         latent_dim = kwargs.get('latent_dim', 1536)
         image_size = kwargs.get('image_size', 256)
         cnn_initial_size = kwargs.get('cnn_initial_size', 8)
@@ -346,29 +346,29 @@ def gigapath_hydro(name, *, model: int = 0, **kwargs):
 
 
 """
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159', \\
     log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_1', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=False, cnn_use_feature_modulation=False, suffix='cnn_resup_nosag_nofmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
@@ -402,7 +402,7 @@ hydro_dataset_name = None,
     """Create a HydroStill training pipeline.
     
     Args:
-        hydro_dataset_name: Name in format 'GIGAPATH_HYDRO_<config>_<precision>_BASELINE_CPTAC_<split>'
+        hydro_dataset_name: Name in format 'GIGAPATH_BIPOLAR_HYDRO_<precision>_CPTAC_<split>'
         dataroot: Root directory for data
         n_devices: Number of GPU devices
         logsroot: Root directory for tensorboard logs
@@ -418,11 +418,18 @@ hydro_dataset_name = None,
     if hydro_dataset_name is None:
         still = HydroStill
     else:
-        hydroname_precision, _splitname = hydro_dataset_name.split('_BASELINE_CPTAC_')
+        hydroname_precision, _splitname = hydro_dataset_name.split('_CPTAC_')
         splitname = "GIGAPATH_BASELINE_CPTAC_" + _splitname
         bits = hydroname_precision.split('_')
-        precision = bits[-1].lower()
-        hydroname = '_'.join(bits[:-1])
+        # GIGAPATH_BIPOLAR_HYDRO_MEDIUM -> bits = ['GIGAPATH', 'BIPOLAR', 'HYDRO', 'MEDIUM']
+        # GIGAPATH_BIPOLAR_HYDRO -> bits = ['GIGAPATH', 'BIPOLAR', 'HYDRO']
+        if bits[-1] in ['MEDIUM', 'HIGHEST']:
+            precision = bits[-1].lower()
+            hydroname = '_'.join(bits[:-1])
+        else:
+            precision = 'medium'
+            hydroname = hydroname_precision
+
         hydro = gigapath_hydro(hydroname, 
                              model=model,
                              loss_type=loss_type, 
