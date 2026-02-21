@@ -333,7 +333,7 @@ def gigapath_hydro(name, *, model: int = 0, **kwargs):
         use_batch_norm=kwargs.get('use_batch_norm', True),
         use_bilinear_upsampling=kwargs.get('use_bilinear_upsampling', True),
         use_residual_upsampling=kwargs.get('use_residual_upsampling', False),
-        use_attention_gates=kwargs.get('use_attention_gates', False),
+        use_spatial_attention_gates=kwargs.get('use_spatial_attention_gates', False),
         use_feature_modulation=kwargs.get('use_feature_modulation', False),
         loss_type=kwargs.get('loss_type', 'mse'),
     ))
@@ -354,7 +354,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopat
     loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
     #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
-    loss_type='l1', use_residual_upsampling=True, use_attention_gates=False, use_feature_modulation=False, suffix='res_noatt_nofm_l1', \\
+    loss_type='l1', use_residual_upsampling=True, use_attention_gates=False, use_feature_modulation=False, suffix='resup_nosag_nofmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 
 """
@@ -378,7 +378,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         use_batch_norm: bool = True,
                         use_bilinear_upsampling: bool = False,
                         use_residual_upsampling: bool = False,
-                        use_attention_gates: bool = False,
+                        use_spatial_attention_gates: bool = False,
                         use_feature_modulation: bool = False,
                         model: int = 0,
                         suffix: str|None = None,
@@ -414,7 +414,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                              use_batch_norm=use_batch_norm, 
                              use_bilinear_upsampling=use_bilinear_upsampling,
                              use_residual_upsampling=use_residual_upsampling,
-                             use_attention_gates=use_attention_gates,
+                             use_spatial_attention_gates=use_spatial_attention_gates,
                              use_feature_modulation=use_feature_modulation)
         tag = f"{hydro_dataset_name}/{suffix}" if suffix is not None else f"{hydro_dataset_name}"
 
@@ -429,7 +429,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
             spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler, 
                      log_images=log_images, log_images_interval=log_images_interval,
                      use_residual_upsampling=use_residual_upsampling,
-                     use_attention_gates=use_attention_gates,
+                     use_spatial_attention_gates=use_spatial_attention_gates,
                      use_feature_modulation=use_feature_modulation)
         )
 
@@ -444,7 +444,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                     precision=precision,
                     from_scratch=from_scratch,
                     use_residual_upsampling=use_residual_upsampling,
-                    use_attention_gates=use_attention_gates,
+                    use_spatial_attention_gates=use_spatial_attention_gates,
                     use_feature_modulation=use_feature_modulation,
                 ),
             n_devices=n_devices,

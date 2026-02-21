@@ -76,7 +76,7 @@ class Hydro(Datablock):
         
         # Architectural improvements (optional)
         use_residual_upsampling: bool = False
-        use_attention_gates: bool = False
+        use_spatial_attention_gates: bool = False
         use_feature_modulation: bool = False
         
         # Loss parameters
@@ -103,7 +103,7 @@ class Hydro(Datablock):
             use_batch_norm: bool = True,
             use_bilinear_upsampling: bool = False,
             use_residual_upsampling: bool = False,
-            use_attention_gates: bool = False,
+            use_spatial_attention_gates: bool = False,
             use_feature_modulation: bool = False,
             loss_type: str = "mse",
             log: dbx.Logger = None,
@@ -118,7 +118,7 @@ class Hydro(Datablock):
             self.use_batch_norm = use_batch_norm
             self.use_bilinear_upsampling = use_bilinear_upsampling
             self.use_residual_upsampling = use_residual_upsampling
-            self.use_attention_gates = use_attention_gates
+            self.use_spatial_attention_gates = use_spatial_attention_gates
             self.use_feature_modulation = use_feature_modulation
             self.loss_type = loss_type
             self.log = log or dbx.Logger(self.__class__.__name__)
@@ -170,7 +170,7 @@ class Hydro(Datablock):
                         self.modulators = nn.ModuleList()
                     self.modulators.append(FeatureModulation(latent_dim, out_channels))
                 
-                if self.use_attention_gates:
+                if self.use_spatial_attention_gates:
                     if not hasattr(self, 'attention_gates'):
                         self.attention_gates = nn.ModuleList()
                     self.attention_gates.append(SpatialAttentionGate(out_channels))
@@ -220,7 +220,7 @@ class Hydro(Datablock):
                 if self.use_feature_modulation:
                     x = self.modulators[i](x, latent)
                 
-                if self.use_attention_gates:
+                if self.use_spatial_attention_gates:
                     x = self.attention_gates[i](x)
 
                 self.log.detailed(f"After up_layer {i}: {x.shape}")
@@ -273,7 +273,7 @@ class Hydro(Datablock):
             use_batch_norm=self.cfg.use_batch_norm,
             use_bilinear_upsampling=self.cfg.use_bilinear_upsampling,
             use_residual_upsampling=self.cfg.use_residual_upsampling,
-            use_attention_gates=self.cfg.use_attention_gates,
+            use_spatial_attention_gates=self.cfg.use_spatial_attention_gates,
             use_feature_modulation=self.cfg.use_feature_modulation,
             loss_type=self.cfg.loss_type,
             log=self.log,
@@ -293,7 +293,7 @@ class HydroLightning(Datablock):
         
         # Architectural improvements (optional, hoisted from Hydro)
         use_residual_upsampling: bool = False,
-        use_attention_gates: bool = False,
+        use_spatial_attention_gates: bool = False,
         use_feature_modulation: bool = False,
 
     class Lightning(L.LightningModule):
@@ -384,8 +384,8 @@ class HydroLightning(Datablock):
         # Propagate hoisted flags to hydro config if ellos son True
         if self.cfg.use_residual_upsampling:
             self.hydro.cfg.use_residual_upsampling = True
-        if self.cfg.use_attention_gates:
-            self.hydro.cfg.use_attention_gates = True
+        if self.cfg.use_spatial_attention_gates:
+            self.hydro.cfg.use_spatial_attention_gates = True
         if self.cfg.use_feature_modulation:
             self.hydro.cfg.use_feature_modulation = True
 
@@ -425,7 +425,7 @@ class HydroStill(Datablock):
         
         # Architectural improvements (optional, hoisted from Hydro)
         use_residual_upsampling: bool = False,
-        use_attention_gates: bool = False,
+        use_spatial_attention_gates: bool = False,
         use_feature_modulation: bool = False,
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
@@ -518,8 +518,8 @@ class HydroStill(Datablock):
         # Propagate hoisted flags to lightning config if ellos son True
         if self.cfg.use_residual_upsampling:
             self.cfg.lightning.cfg.use_residual_upsampling = True
-        if self.cfg.use_attention_gates:
-            self.cfg.lightning.cfg.use_attention_gates = True
+        if self.cfg.use_spatial_attention_gates:
+            self.cfg.lightning.cfg.use_spatial_attention_gates = True
         if self.cfg.use_feature_modulation:
             self.cfg.lightning.cfg.use_feature_modulation = True
 

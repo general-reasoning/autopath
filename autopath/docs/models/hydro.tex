@@ -23,7 +23,38 @@
 
 \section{Overview}
 
-The \texttt{Hydro} datablock provides a flexible framework for latent-to-image decoders. It is designed to invert feature extractors (e.g., GigaPath) by mapping their embeddings back to the original image space. The system supports multiple architectural versions, dispatched via the \texttt{version} parameter in the model configuration.
+The \texttt{Hydro} datablock provides a flexible framework for latent-to-image decoders. It is designed to invert feature extractors (e.g., GigaPath) by mapping their embeddings back to the original image space. 
+
+\subsection{Large-scale System Architecture}
+In the context of the overall pipeline, \texttt{Hydro} serves as the generative component that transforms compressed semantic embeddings into spatial reconstructions. The global latent vector $\mathbf{z}$ is the primary interface between the large-scale encoder and the decoder.
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={draw, rounded corners=3pt, minimum height=0.8cm, minimum width=2.4cm,
+                  font=\small\sffamily, thick, text=white},
+    arrow/.style={->, thick, color=gray!70},
+    label/.style={font=\scriptsize\sffamily, color=gray!60!black},
+    node distance=1.5cm
+]
+    \node[block, fill=bg, text=black] (image) {Input Patch $\mathbf{I}$};
+    \node[block, fill=conv, right=of image] (encoder) {GigaPath Encoder};
+    \node[block, fill=proj, right=of encoder] (latent) {Latent Workspace $\mathbf{z}$};
+    \node[block, fill=up, below=of latent] (decoder) {Hydro Decoder};
+    \node[block, fill=bg, left=of decoder, text=black] (recon) {Reconstruction $\hat{\mathbf{I}}$};
+
+    \draw[arrow] (image) -- (encoder);
+    \draw[arrow] (encoder) -- (latent);
+    \draw[arrow] (latent) -- (decoder);
+    \draw[arrow] (decoder) -- (recon);
+
+    \node[label, above=2pt of latent] {$(B, K)$};
+    \node[label, above=2pt of image] {Patch Size};
+    \node[label, below=2pt of recon] {Image Size};
+\end{tikzpicture}
+\end{center}
+
+The latent vector $\mathbf{z}$ is produced by a fixed (or fine-tuned) backbone that summarizes the semantic content of a histology slide or patch. This vector provides the global context used by \texttt{Hydro} features like Feature Modulation to inform the progressive upsampling process.
 
 \section{Model\_0: Deconvolutional Decoder}
 
@@ -71,10 +102,17 @@ The \texttt{Hydro} datablock provides a flexible framework for latent-to-image d
 
 \subsection{Architectural Improvements to Combat Blur}
 
-To address the blurriness observed in \texttt{Model\_0} outputs, several optional components can be enabled. These features prioritize the preservation and enhancement of high-frequency information.
+To address the blurriness observed in \texttt{Model\_0} outputs, several optional components can be enabled. These features prioritize the preservation and enhancement of high-frequency information and are situated within the progressive upsampling loop.
 
-\subsubsection{Spatial Attention Gates}
-The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial features (e.g., edges and textures) while suppressing redundant background information. 
+\subsubsection{Overview of Improved Upsampling Path}
+The decoding process begins with a global latent vector $\mathbf{z} \in \mathbb{R}^K$, which represents a compressed semantic summary of the input slide (extracted via a large-scale encoder like GigaPath). When enabled, the optional components are applied sequentially after each base \texttt{UpLayer}. The data flow for a single upsampling stage $i$ is:
+\[
+    \mathbf{x}_{i-1} \xrightarrow{\text{Residual/UpLayer}} \mathbf{\hat{x}}_i \xrightarrow{\text{Modulation}(\mathbf{z})} \mathbf{\tilde{x}}_i \xrightarrow{\text{Attention}} \mathbf{x}_i
+\]
+where $\mathbf{x}_i \in \mathbb{R}^{C_i \times H_i \times W_i}$.
+
+\subsubsection{Spatial Attention Gates (SAG)}
+The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial features (e.g., edges and textures). It is situated at the end of each upsampling stage to refine the newly generated spatial details.
 
 \begin{center}
 \begin{tikzpicture}[
@@ -95,7 +133,7 @@ The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial feat
     
     % Multiply
     \node[op] (mult) at (10.5, 0) {$\odot$};
-    \node (out) at (12, 0) [font=\small] {Output};
+    \node (out) at (12, 0) [font=\small] {Output $\mathbf{y}$};
 
     \draw[arrow] (in) -- (split);
     \draw[arrow] (split) |- (c1);
@@ -106,11 +144,17 @@ The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial feat
     \draw[arrow] (sig) -| (mult);
     \draw[arrow] (mult) -- (out);
     
-    \node[font=\tiny, color=gray] at (9, 1.5) {Mask $\mathbf{M} \in [0, 1]$};
+    \node[font=\tiny, color=gray] at (9, 1.5) {Mask $\mathbf{M} \in \mathbb{R}^{1 \times H \times W}$};
 \end{tikzpicture}
 \end{center}
 
-By applying a learned spatial mask $\mathbf{M}$, the model focuses its representational capacity on sharp edge transitions, effectively reducing the ``halos'' and washed-out textures typical of standard deconvolutional decoders.
+The gate receives the upsampled feature map $\mathbf{x} \in \mathbb{R}^{C \times H \times W}$. While the gate itself employs $1\times1$ (pointwise) convolutions, it effectively learns to identify spatial transitions by interpreting the local neighborhood information that has already been ``collapsed'' into the channel dimension by the preceding $3\times3$ convolutions in the \texttt{UpLayer}. 
+
+The mask generator sub-network learns a **pixelwise** spatial mask $\mathbf{M}$ where each value $\in [0, 1]$. This single-channel mask is shared across all $C$ channels. The output is computed via the Hadamard product (element-wise multiplication $\odot$) with broadcasting:
+\[
+    \mathbf{y}_{c,h,w} = \mathbf{x}_{c,h,w} \times \mathbf{M}_{1,h,w}
+\]
+By focusing representational capacity on these spatially-encoded transitions, SAG effectively reduces the smoothing artifacts.
 
 \subsubsection{Feature Modulation}
 Feature modulation allows the global latent vector $\mathbf{z}$ to dynamically scale the intensity of intermediate feature maps. This provides a mechanism for the latent representation to globally influence spatial details at every upsampling stage.
@@ -244,7 +288,7 @@ The \texttt{Hydro} datablock uses a shared configuration dataclass:
 \texttt{num\_layers} & 12 & Number of layers (Transformer blocks) for Model\_1 \\
 \texttt{version} & 0 & Model architecture version (0 or 1) \\
 \texttt{use\_residual\_upsampling} & \texttt{False} & Enable residual skip connections in Model\_0 \\
-\texttt{use\_attention\_gates} & \texttt{False} & Enable spatial attention in Model\_0 \\
+\texttt{use\_spatial\_attention\_gates} & \texttt{False} & Enable spatial attention in Model\_0 \\
 \texttt{use\_feature\_modulation} & \texttt{False} & Enable latent-based feature modulation in Model\_0 \\
 \texttt{loss\_type} & \texttt{mse} & MSE, L1, L0, or LPIPS reconstruction loss \\
 \bottomrule
