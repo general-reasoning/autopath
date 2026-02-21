@@ -390,6 +390,8 @@ class HydroStill(Datablock):
 
             # Create the symlink
             try:
+                # Ensure parent directory exists (needed if tag contains slashes)
+                os.makedirs(os.path.dirname(self.logslink), exist_ok=True)
                 os.symlink(self.logs, self.logslink)
                 self.log.debug(f"os.symlink({self.logs}, {self.logslink})")
             except Exception as e:
