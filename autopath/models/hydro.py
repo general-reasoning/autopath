@@ -337,7 +337,8 @@ class HydroStill(Datablock):
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
         super().__init__(*args, n_devices=n_devices, logsroot=logsroot, **kwargs)
-        self.logs = os.path.join(self.logsroot, self.tag) if self.logsroot is not None else None
+        self.logs = self.dirpath('logs', ensure=True)
+        self.logslink = os.path.join(self.logsroot, self.tag) if self.logsroot is not None else None
 
     def __pre_build__(self):
         super().__pre_build__()
@@ -355,26 +356,24 @@ class HydroStill(Datablock):
             if response.lower() != 'y':
                 return self
         import shutil
-        logs = self.dirpath('logs')
-        if os.path.exists(logs):
-            shutil.rmtree(logs)
-            self.log.info(f"Cleared TensorBoard logs at {logs}")
-        os.makedirs(logs, exist_ok=True)
+        if os.path.exists(self.logs):
+            shutil.rmtree(self.logs)
+            self.log.info(f"Cleared TensorBoard logs at {self.logs}")
+        os.makedirs(self.logs, exist_ok=True)
         self.linklogs()
         return self
 
     def linklogs(self):
         # Link the logs directory to the provided location (e.g., for Tensorboard to pick up the logs)
-        if self.logs is not None:
-            self.log.verbose(f"---------------------- Linking logs to {self.logs}----------------------------")
-            try:  # os.path.exists(self.logs) can sometimes return False when the link actually exists
-                self.log.debug(f"Removing {self.logs} link")
-                os.remove(self.logs)
-            except:
-                pass
-            logs = self.dirpath('logs', ensure=True)
-            os.symlink(logs, self.logs)
-            self.log.debug(f"os.symlink({logs}, {self.logs})")
+        if self.logslink is not None:
+            self.log.verbose(f"---------------------- Linking logs to {self.logslink}----------------------------")
+            # Create a symlink only if self.logslink does not already point to self.logs
+            if not os.path.islink(self.logslink) or os.readlink(self.logslink) != self.logs:
+                # If it's a file or dir but not a link, we might still need to handle it, 
+                # but the user said "do no more os.remove".
+                # To be safe, we'll try to symlink and let it fail if it's a real file/dir.
+                os.symlink(self.logs, self.logslink)
+                self.log.debug(f"os.symlink({self.logs}, {self.logslink})")
         return self
 
     def ckpt(self):
@@ -401,7 +400,7 @@ class HydroStill(Datablock):
         import os
         
         logger = L.pytorch.loggers.TensorBoardLogger(
-            save_dir=self.dirpath('logs'), 
+            save_dir=self.logs, 
             default_hp_metric=False, 
             name=self.tag
         )
