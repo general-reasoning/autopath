@@ -374,12 +374,9 @@ class HydroStill(Datablock):
         if self.logslink is not None:
             self.log.verbose(f"---------------------- Linking logs to {self.logslink}----------------------------")
             
-            # Point the link to the tag-specific subdirectory to avoid double-nesting
-            target = os.path.join(self.logs, self.tag)
-            
             # Create a symlink only if self.logslink does not already point to target
             if os.path.lexists(self.logslink):
-                if os.path.islink(self.logslink) and os.readlink(self.logslink) == target:
+                if os.path.islink(self.logslink) and os.readlink(self.logslink) == self.logs:
                     return self # Correct link already exists
                 
                 # It exists but is NOT the correct link.
@@ -393,10 +390,10 @@ class HydroStill(Datablock):
 
             # Create the symlink
             try:
-                os.symlink(target, self.logslink)
-                self.log.debug(f"os.symlink({target}, {self.logslink})")
+                os.symlink(self.logs, self.logslink)
+                self.log.debug(f"os.symlink({self.logs}, {self.logslink})")
             except Exception as e:
-                self.log.warning(f"Failed to create symlink {self.logslink} -> {target}: {e}")
+                self.log.warning(f"Failed to create symlink {self.logslink} -> {self.logs}: {e}")
         return self
 
     def ckpt(self):
