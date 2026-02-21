@@ -373,9 +373,13 @@ class HydroStill(Datablock):
         # Link the logs directory to the provided location (e.g., for Tensorboard to pick up the logs)
         if self.logslink is not None:
             self.log.verbose(f"---------------------- Linking logs to {self.logslink}----------------------------")
-            # Create a symlink only if self.logslink does not already point to self.logs
+            
+            # Point the link to the tag-specific subdirectory to avoid double-nesting
+            target = os.path.join(self.logs, self.tag)
+            
+            # Create a symlink only if self.logslink does not already point to target
             if os.path.lexists(self.logslink):
-                if os.path.islink(self.logslink) and os.readlink(self.logslink) == self.logs:
+                if os.path.islink(self.logslink) and os.readlink(self.logslink) == target:
                     return self # Correct link already exists
                 
                 # It exists but is NOT the correct link.
@@ -389,10 +393,10 @@ class HydroStill(Datablock):
 
             # Create the symlink
             try:
-                os.symlink(self.logs, self.logslink)
-                self.log.debug(f"os.symlink({self.logs}, {self.logslink})")
+                os.symlink(target, self.logslink)
+                self.log.debug(f"os.symlink({target}, {self.logslink})")
             except Exception as e:
-                self.log.warning(f"Failed to create symlink {self.logslink} -> {self.logs}: {e}")
+                self.log.warning(f"Failed to create symlink {self.logslink} -> {target}: {e}")
         return self
 
     def ckpt(self):
