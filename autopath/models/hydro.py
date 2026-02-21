@@ -27,6 +27,32 @@ from autopath.databits import ClipDataLoaderBuilder
 from .layers import UpLayer, ConvBlock
 
 
+class SpatialAttentionGate(nn.Module):
+    """Simple spatial attention mechanism to focus on sharp transitions."""
+    def __init__(self, in_channels: int):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels // 4, kernel_size=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels // 4, 1, kernel_size=1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * self.conv(x)
+
+
+class FeatureModulation(nn.Module):
+    """Latent-conditioned feature modulation (simple scaling)."""
+    def __init__(self, latent_dim: int, out_channels: int):
+        super().__init__()
+        self.scale_fc = nn.Linear(latent_dim, out_channels)
+        
+    def forward(self, x: torch.Tensor, latent: torch.Tensor) -> torch.Tensor:
+        scale = self.scale_fc(latent).unsqueeze(-1).unsqueeze(-1)
+        return x * (1.0 + torch.tanh(scale))
+
+
 class Hydro(Datablock):
     """Datablock wrapper for a latent-to-image decoder.
     
@@ -47,6 +73,11 @@ class Hydro(Datablock):
         kernel_size: int = 3            # Convolution kernel size
         use_batch_norm: bool = True     # Whether to use batch normalization
         use_bilinear_upsampling: bool = True  # Use bilinear upsampling instead of transposed conv
+        
+        # Architectural improvements (optional)
+        use_residual_upsampling: bool = False
+        use_attention_gates: bool = False
+        use_feature_modulation: bool = False
         
         # Loss parameters
         loss_type: str = "mse"          # Loss function: "mse", "l1", or "l0"
@@ -71,6 +102,9 @@ class Hydro(Datablock):
             kernel_size: int = 3,
             use_batch_norm: bool = True,
             use_bilinear_upsampling: bool = False,
+            use_residual_upsampling: bool = False,
+            use_attention_gates: bool = False,
+            use_feature_modulation: bool = False,
             loss_type: str = "mse",
             log: dbx.Logger = None,
         ):
@@ -83,6 +117,9 @@ class Hydro(Datablock):
             self.kernel_size = kernel_size
             self.use_batch_norm = use_batch_norm
             self.use_bilinear_upsampling = use_bilinear_upsampling
+            self.use_residual_upsampling = use_residual_upsampling
+            self.use_attention_gates = use_attention_gates
+            self.use_feature_modulation = use_feature_modulation
             self.loss_type = loss_type
             self.log = log or dbx.Logger(self.__class__.__name__)
 
@@ -118,6 +155,26 @@ class Hydro(Datablock):
                     use_bilinear_upsampling=self.use_bilinear_upsampling,
                 )
                 self.up_layers.append(layer)
+
+                if self.use_residual_upsampling:
+                    if not hasattr(self, 'residual_projs'):
+                        self.residual_projs = nn.ModuleList()
+                    if in_channels != out_channels:
+                        proj = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+                    else:
+                        proj = nn.Identity()
+                    self.residual_projs.append(proj)
+                
+                if self.use_feature_modulation:
+                    if not hasattr(self, 'modulators'):
+                        self.modulators = nn.ModuleList()
+                    self.modulators.append(FeatureModulation(latent_dim, out_channels))
+                
+                if self.use_attention_gates:
+                    if not hasattr(self, 'attention_gates'):
+                        self.attention_gates = nn.ModuleList()
+                    self.attention_gates.append(SpatialAttentionGate(out_channels))
+
                 in_channels = out_channels
 
             # Final conv to RGB
@@ -150,7 +207,22 @@ class Hydro(Datablock):
 
             # Progressive upsampling
             for i, up_layer in enumerate(self.up_layers):
-                x = up_layer(x, skip_features=None)
+                if self.use_residual_upsampling:
+                    # Identity path: upsample input to match resolution
+                    identity = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
+                    identity = self.residual_projs[i](identity)
+                    
+                    x = up_layer(x, skip_features=None)
+                    x = x + identity
+                else:
+                    x = up_layer(x, skip_features=None)
+
+                if self.use_feature_modulation:
+                    x = self.modulators[i](x, latent)
+                
+                if self.use_attention_gates:
+                    x = self.attention_gates[i](x)
+
                 self.log.detailed(f"After up_layer {i}: {x.shape}")
 
             # Final conv to RGB + sigmoid to [0, 255]
@@ -200,6 +272,9 @@ class Hydro(Datablock):
             kernel_size=self.cfg.kernel_size,
             use_batch_norm=self.cfg.use_batch_norm,
             use_bilinear_upsampling=self.cfg.use_bilinear_upsampling,
+            use_residual_upsampling=self.cfg.use_residual_upsampling,
+            use_attention_gates=self.cfg.use_attention_gates,
+            use_feature_modulation=self.cfg.use_feature_modulation,
             loss_type=self.cfg.loss_type,
             log=self.log,
         )
@@ -213,8 +288,13 @@ class HydroLightning(Datablock):
         hydro: Hydro
         learning_rate: float = 1e-3
         scheduler: str = "cosine"
-        log_images: bool = False
-        log_images_interval: int = 100
+        log_images: bool = False,
+        log_images_interval: int = 100,
+        
+        # Architectural improvements (optional, hoisted from Hydro)
+        use_residual_upsampling: bool = False,
+        use_attention_gates: bool = False,
+        use_feature_modulation: bool = False,
 
     class Lightning(L.LightningModule):
         def __init__(
@@ -301,6 +381,14 @@ class HydroLightning(Datablock):
 
     @functools.cached_property
     def lightning_module(self):
+        # Propagate hoisted flags to hydro config if ellos son True
+        if self.cfg.use_residual_upsampling:
+            self.hydro.cfg.use_residual_upsampling = True
+        if self.cfg.use_attention_gates:
+            self.hydro.cfg.use_attention_gates = True
+        if self.cfg.use_feature_modulation:
+            self.hydro.cfg.use_feature_modulation = True
+
         return self.Lightning(
             decoder=self.hydro.model(),
             learning_rate=self.cfg.learning_rate,
@@ -332,8 +420,13 @@ class HydroStill(Datablock):
         log_interval: int = 10
         gradient_clip_val: float = 1.0
         gradient_clip_algorithm: str = "norm"
-        ckpt_every_n_steps: int = None
-        precision: str = None
+        ckpt_every_n_steps: int = None,
+        precision: str = None,
+        
+        # Architectural improvements (optional, hoisted from Hydro)
+        use_residual_upsampling: bool = False,
+        use_attention_gates: bool = False,
+        use_feature_modulation: bool = False,
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
         super().__init__(*args, n_devices=n_devices, logsroot=logsroot, **kwargs)
@@ -422,6 +515,14 @@ class HydroStill(Datablock):
     def __build__(self):
         import os
         
+        # Propagate hoisted flags to lightning config if ellos son True
+        if self.cfg.use_residual_upsampling:
+            self.cfg.lightning.cfg.use_residual_upsampling = True
+        if self.cfg.use_attention_gates:
+            self.cfg.lightning.cfg.use_attention_gates = True
+        if self.cfg.use_feature_modulation:
+            self.cfg.lightning.cfg.use_feature_modulation = True
+
         logger = L.pytorch.loggers.TensorBoardLogger(
             save_dir=self.logs, 
             default_hp_metric=False, 

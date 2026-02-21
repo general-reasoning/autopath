@@ -27,7 +27,7 @@ The \texttt{Hydro} datablock provides a flexible framework for latent-to-image d
 
 \section{Model\_0: Deconvolutional Decoder}
 
-\texttt{Model\_0} is the baseline architecture, using progressive upsampling via transposed convolutions or bilinear interpolation to reconstruct $N \times N$ RGB images from $K$-dimensional latent vectors.
+\texttt{Model\_0} is the baseline architecture, using progressive upsampling to reconstruct $N \times N$ RGB images from $K$-dimensional latent vectors.
 
 \begin{center}
 \begin{tikzpicture}[
@@ -69,91 +69,168 @@ The \texttt{Hydro} datablock provides a flexible framework for latent-to-image d
 \end{tikzpicture}
 \end{center}
 
-\subsection{Architecture Details}
+\subsection{Architectural Improvements to Combat Blur}
 
-\subsubsection{Initial Projection}
-The latent vector $\mathbf{z} \in \mathbb{R}^K$ is projected to a spatial feature map:
-\[
-    \mathbf{z} \xrightarrow{\text{Linear}} \mathbb{R}^{C_0 \cdot S^2}
-    \xrightarrow{\text{Reshape}} \mathbb{R}^{C_0 \times S \times S}
-    \xrightarrow{\text{ReLU}} \mathbf{F}_0
-\]
-where $S$ is the \texttt{initial\_size} (default 8) and $C_0 = H \cdot m_0$ with $H$ = \texttt{hidden\_channels} and $m_0$ the first channel multiplier.
+To address the blurriness observed in \texttt{Model\_0} outputs, several optional components can be enabled. These features prioritize the preservation and enhancement of high-frequency information.
 
-\subsubsection{Progressive Upsampling}
-The number of upsample layers is $N_{\text{up}} = \log_2(N / S)$. Each \texttt{UpLayer} doubles spatial resolution:
+\subsubsection{Spatial Attention Gates}
+The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial features (e.g., edges and textures) while suppressing redundant background information. 
 
 \begin{center}
 \begin{tikzpicture}[
     >=Stealth,
-    block/.style={draw, rounded corners=2pt, minimum height=0.7cm, minimum width=1.6cm,
-                  font=\scriptsize\sffamily, thick, text=white},
+    block/.style={draw, rounded corners=2pt, minimum height=0.6cm, minimum width=1.5cm, font=\scriptsize\sffamily, thick, text=white},
     arrow/.style={->, thick, color=gray!70},
-    label/.style={font=\scriptsize\sffamily, color=gray!50!black, align=center},
+    dot/.style={circle, fill=gray!70, inner sep=1.5pt},
+    op/.style={circle, draw, thick, inner sep=2pt, font=\small},
 ]
-    \node[block, fill=up] (upsample) {Upsample $\times2$};
-    \node[block, fill=conv, right=0.6cm of upsample] (conv1x1) {Conv$_{1\times1}$};
-    \node[block, fill=act, right=0.6cm of conv1x1] (relu1) {ReLU};
-    \node[block, fill=conv, right=0.6cm of relu1] (conv3a) {Conv$_{k}$};
-    \node[block, fill=act, right=0.6cm of conv3a] (relu2) {ReLU};
-    \node[block, fill=conv, right=0.6cm of relu2] (conv3b) {Conv$_{k}$};
-    \node[block, fill=act, right=0.6cm of conv3b] (relu3) {ReLU};
+    \node (in) at (0,0) [font=\small] {Input $\mathbf{x}$};
+    \node[dot] (split) at (1.5,0) {};
+    
+    % Mask path
+    \node[block, fill=conv] (c1) at (3, 1) {Conv$_{1\times1}$};
+    \node[block, fill=act] (r1) at (5, 1) {ReLU};
+    \node[block, fill=conv] (c2) at (7, 1) {Conv$_{1\times1}$};
+    \node[block, fill=act] (sig) at (9, 1) {Sigmoid};
+    
+    % Multiply
+    \node[op] (mult) at (10.5, 0) {$\odot$};
+    \node (out) at (12, 0) [font=\small] {Output};
 
-    \draw[arrow] (upsample) -- (conv1x1);
-    \draw[arrow] (conv1x1) -- (relu1);
-    \draw[arrow] (relu1) -- (conv3a);
-    \draw[arrow] (conv3a) -- (relu2);
-    \draw[arrow] (relu2) -- (conv3b);
-    \draw[arrow] (conv3b) -- (relu3);
-
-    % Labels
-    \node[label, above=4pt of upsample] {Bilinear\\(or TransConv)};
-    \node[label, above=4pt of conv3a] {ConvBlock};
-
-    % Brace for ConvBlock
-    \begin{scope}[on background layer]
-        \node[draw=gray!40, dashed, rounded corners=4pt,
-              fit=(conv3a)(relu3), inner sep=4pt] {};
-    \end{scope}
+    \draw[arrow] (in) -- (split);
+    \draw[arrow] (split) |- (c1);
+    \draw[arrow] (split) -- (mult);
+    \draw[arrow] (c1) -- (r1);
+    \draw[arrow] (r1) -- (c2);
+    \draw[arrow] (c2) -- (sig);
+    \draw[arrow] (sig) -| (mult);
+    \draw[arrow] (mult) -- (out);
+    
+    \node[font=\tiny, color=gray] at (9, 1.5) {Mask $\mathbf{M} \in [0, 1]$};
 \end{tikzpicture}
 \end{center}
 
-Two upsampling modes are available, controlled by \texttt{use\_bilinear\_upsampling}:
-\begin{itemize}
-    \item \textbf{Bilinear} (default): bilinear interpolation $\times2$ followed by $1\times1$ conv + ReLU.
-    \item \textbf{Transposed convolution}: \texttt{ConvTranspose2d} with $2\times2$ kernel and stride 2.
-\end{itemize}
+By applying a learned spatial mask $\mathbf{M}$, the model focuses its representational capacity on sharp edge transitions, effectively reducing the ``halos'' and washed-out textures typical of standard deconvolutional decoders.
 
-\subsubsection{Output Head}
-A $1\times1$ convolution maps the final feature channels to 3 (RGB), followed by sigmoid activation and scaling:
-\[
-    \mathbf{I} = \text{sigmoid}\!\big(\text{Conv}_{1\times1}(\mathbf{F}_{N_\text{up}})\big) \times 255
-\]
-
-\subsection{Tensor Dimensions (Default Config)}
-With $K=1536$, $N=256$, $S=8$, $H=256$, multipliers $(8,4,2,1,1)$:
+\subsubsection{Feature Modulation}
+Feature modulation allows the global latent vector $\mathbf{z}$ to dynamically scale the intensity of intermediate feature maps. This provides a mechanism for the latent representation to globally influence spatial details at every upsampling stage.
 
 \begin{center}
-\small
-\begin{tabular}{lccc}
-\toprule
-\textbf{Stage} & \textbf{Channels} & \textbf{Spatial} & \textbf{Tensor Shape} \\
-\midrule
-Input latent     & ---  & --- & $(B, 1536)$ \\
-After projection & 2048 & $8$  & $(B, 2048, 8, 8)$ \\
-UpLayer 0        & 2048 & $16$ & $(B, 2048, 16, 16)$ \\
-UpLayer 1        & 1024 & $32$ & $(B, 1024, 32, 32)$ \\
-UpLayer 2        & 512  & $64$ & $(B, 512, 64, 64)$ \\
-UpLayer 3        & 256  & $128$ & $(B, 256, 128, 128)$ \\
-UpLayer 4        & 256  & $256$ & $(B, 256, 256, 256)$ \\
-Final conv       & 3    & $256$ & $(B, 3, 256, 256)$ \\
-\bottomrule
-\end{tabular}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={draw, rounded corners=2pt, minimum height=0.6cm, minimum width=1.5cm, font=\scriptsize\sffamily, thick, text=white},
+    arrow/.style={->, thick, color=gray!70},
+    op/.style={circle, draw, thick, inner sep=2pt, font=\small},
+]
+    \node (latent) at (0, 1) [font=\small] {Latent $\mathbf{z}$};
+    \node (feat) at (0, -1) [font=\small] {Feature $\mathbf{x}$};
+    
+    \node[block, fill=proj] (mlp) at (3, 1) {Linear};
+    \node[block, fill=act] (mod) at (6, 1) {$1 + \tanh(\cdot)$};
+    
+    \node[op] (mult) at (6, -1) {$\odot$};
+    \node (out) at (8.5, -1) [font=\small] {Output};
+
+    \draw[arrow] (latent) -- (mlp);
+    \draw[arrow] (mlp) -- (mod);
+    \draw[arrow] (mod) -- (mult);
+    \draw[arrow] (feat) -- (mult);
+    \draw[arrow] (mult) -- (out);
+    
+    \node[font=\tiny, color=gray] at (6, 1.8) {Scale $\gamma(\mathbf{z})$};
+\end{tikzpicture}
 \end{center}
+
+This global conditioning ensures that the reconstructed image maintains sharpening consistency across different scales, as the latent vector can ``boost'' specific frequency components needed for a sharp reconstruction.
+
+\subsubsection{Residual Upsampling}
+Residual upsampling incorporates long-range skip connections around the upsampling layers. This allows the network to learn only the residual difference needed to reach the next resolution, facilitating better gradient flow and preserving high-frequency details from lower spatial resolutions.
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={draw, rounded corners=2pt, minimum height=0.6cm, minimum width=1.5cm, font=\scriptsize\sffamily, thick, text=white},
+    arrow/.style={->, thick, color=gray!70},
+    dot/.style={circle, fill=gray!70, inner sep=1.5pt},
+    op/.style={circle, draw, thick, inner sep=2pt, font=\small},
+]
+    \node (in) at (0,0) [font=\small] {$\mathbf{x}_{i-1}$};
+    \node[dot] (split) at (1.5,0) {};
+    
+    % Main path
+    \node[block, fill=up] (up) at (4, 0) {UpLayer};
+    
+    % Skip path
+    \node[block, fill=proj] (bin) at (3, -1.2) {Bilinear $\uparrow$};
+    \node[block, fill=conv] (proj) at (5.5, -1.2) {Conv$_{1\times1}$};
+    
+    % Add
+    \node[op] (add) at (7, 0) {$+$};
+    \node (out) at (8.5, 0) [font=\small] {$\mathbf{x}_i$};
+
+    \draw[arrow] (in) -- (split);
+    \draw[arrow] (split) -- (up);
+    \draw[arrow] (split) |- (bin);
+    \draw[arrow] (up) -- (add);
+    \draw[arrow] (bin) -- (proj);
+    \draw[arrow] (proj) -| (add);
+    \draw[arrow] (add) -- (out);
+\end{tikzpicture}
+\end{center}
+
+By bypassing the non-linear transformations for a portion of the signal, the model avoids the smoothing effect of repeated convolutions, resulting in crisper results.
+
+\section{Model\_1: Vision Transformer (ViT) Decoder}
+
+\texttt{Model\_1} adopts a transformer-based architecture to model long-range dependencies and produce sharper reconstructions by operating on a tokenized representation of the image.
+
+\subsection{Architecture Overview}
+
+The architecture follows a ``latent token to patch'' approach:
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={draw, rounded corners=3pt, minimum height=0.8cm, minimum width=2.4cm,
+                  font=\small\sffamily, thick, text=white},
+    arrow/.style={->, thick, color=gray!70},
+    label/.style={font=\scriptsize\sffamily, color=gray!60!black},
+]
+    \node[block, fill=proj] (input) {Latent $\mathbf{z}$};
+    \node[block, fill=proj, right=0.8cm of input] (proj) {MLP Projection};
+    \node[block, fill=act, right=0.8cm of proj] (pos) {+ Pos. Embed.};
+    \node[block, fill=up, below=1.2cm of input] (trans) {Transformer $\times L$};
+    \node[block, fill=conv, right=0.8cm of trans] (head) {Linear Head};
+    \node[block, fill=proj, right=0.8cm of head] (patch) {Patch-to-Pixel};
+
+    \draw[arrow] (input) -- (proj);
+    \draw[arrow] (proj) -- (pos);
+    \draw[arrow] (pos.south) -- ++(0,-0.4) -| (trans.north);
+    \draw[arrow] (trans) -- (head);
+    \draw[arrow] (head) -- (patch);
+
+    \node[label, above=2pt of input] {$(B, K)$};
+    \node[label, above=2pt of pos] {$(B, P^2, D)$};
+    \node[label, below=2pt of patch] {$(B, 3, N, N)$};
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{Tokenization and Projection}
+The latent vector $\mathbf{z}$ is projected into a sequence of $M = (N/p)^2$ tokens, where $p$ is the patch size (e.g., 16).
+\[
+    \mathbf{z} \xrightarrow{\text{MLP}} \mathbf{T} \in \mathbb{R}^{M \times D}
+\]
+Learnable 2D positional embeddings are added to provide spatial context to the transformer.
+
+\subsubsection{Transformer Backbone}
+A series of $L$ standard Transformer blocks (Multi-Head Self-Attention + MLP) process the token sequence. This allows information to propagate globally across the image grid.
+
+\subsubsection{Reconstruction Head}
+Each token $\mathbf{t}_i \in \mathbb{R}^D$ is projected to a patch $\mathbf{P}_i \in \mathbb{R}^{3 \times p \times p}$ using a linear layer. The patches are then rearranged to form the final image $\mathbf{I} \in \mathbb{R}^{3 \times N \times N}$.
 
 \section{System Configuration}
 
-The \texttt{Hydro} datablock uses a shared configuration dataclass to control architecture and training parameters.
+The \texttt{Hydro} datablock uses a shared configuration dataclass:
 
 \begin{center}
 \begin{tabular}{lll}
@@ -162,28 +239,28 @@ The \texttt{Hydro} datablock uses a shared configuration dataclass to control ar
 \midrule
 \texttt{latent\_dim} & 1536 & Input latent vector dimension $K$ \\
 \texttt{image\_size} & 256 & Output resolution $N \times N$ \\
-\texttt{initial\_size} & 8 & Spatial size before upsampling \\
-\texttt{hidden\_channels} & 256 & Base channel count $H$ \\
-\texttt{channel\_multipliers} & $(8,4,2,1,1)$ & Per-layer channel multiplier \\
-\texttt{kernel\_size} & 3 & Convolution kernel size \\
-\texttt{use\_batch\_norm} & True & BatchNorm in conv blocks \\
-\texttt{use\_bilinear\_upsampling} & True & Bilinear vs.\ transposed conv \\
-\texttt{loss\_type} & \texttt{mse} & MSE, L1, or L0 reconstruction loss \\
-\texttt{version} & 0 & Model architecture version \\
+\texttt{hidden\_channels} & 256 & Base channel count (Model\_0) / Dimension $D$ (Model\_1) \\
+\texttt{patch\_size} & 16 & Patch size for Model\_1 \\
+\texttt{num\_layers} & 12 & Number of layers (Transformer blocks) for Model\_1 \\
+\texttt{version} & 0 & Model architecture version (0 or 1) \\
+\texttt{use\_residual\_upsampling} & \texttt{False} & Enable residual skip connections in Model\_0 \\
+\texttt{use\_attention\_gates} & \texttt{False} & Enable spatial attention in Model\_0 \\
+\texttt{use\_feature\_modulation} & \texttt{False} & Enable latent-based feature modulation in Model\_0 \\
+\texttt{loss\_type} & \texttt{mse} & MSE, L1, L0, or LPIPS reconstruction loss \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \section{Loss Functions}
 
-The following reconstruction losses are supported:
+Reconstruction quality is improved by incorporating perceptual metrics:
 \[
     \mathcal{L} = \begin{cases}
         \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_2^2 & \text{if \texttt{loss\_type} = ``mse''} \\[4pt]
         \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_1   & \text{if \texttt{loss\_type} = ``l1''} \\[4pt]
-        \frac{1}{3N^2} \sum \log(1 + \frac{(\hat{\mathbf{I}} - \mathbf{I}^*)^2}{\epsilon}) & \text{if \texttt{loss\_type} = ``l0''}
+        \text{LPIPS}(\hat{\mathbf{I}}, \mathbf{I}^*) & \text{if \texttt{loss\_type} = ``lpips''}
     \end{cases}
 \]
-where $\epsilon = 10^{-3}$ and $\mathbf{I}^* \in [0, 255]^{3 \times N \times N}$.
+The \textbf{LPIPS} (Learned Perceptual Image Patch Similarity) loss compares deep features from a pre-trained network (e.g., VGG) and is highly effective at reducing blur by penalizing differences in perceptual content rather than raw pixel values.
 
 \end{document}
