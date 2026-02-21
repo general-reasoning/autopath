@@ -51,8 +51,8 @@ class Hydro(Datablock):
         # Loss parameters
         loss_type: str = "mse"          # Loss function: "mse", "l1", or "l0"
 
-        # Version
-        version: int = 0                # Model architecture version
+        # Model selection
+        model: int = 0                  # Model architecture identifier
 
     class Model_0(nn.Module):
         """Inner nn.Module implementing the deconvolutional decoder architecture.
@@ -189,8 +189,8 @@ class Hydro(Datablock):
     Model = {0: Model_0}
 
     def model(self) -> nn.Module:
-        """Create and return the decoder model for the configured version."""
-        ModelClass = self.Model[self.cfg.version]
+        """Create and return the decoder model for the configured model architecture."""
+        ModelClass = self.Model[self.cfg.model]
         return ModelClass(
             latent_dim=self.cfg.latent_dim,
             image_size=self.cfg.image_size,

@@ -295,11 +295,12 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
 
 
 # git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_HYDRO_DEFAULT')"
-def gigapath_hydro(name, **kwargs):
+def gigapath_hydro(name, *, model: int = 0, **kwargs):
     """Create a Hydro configuration by name.
     
     Args:
         name: Configuration name (e.g., 'GIGAPATH_HYDRO_DEFAULT')
+        model: Model architecture identifier (e.g., 0 selects Model_0)
         **kwargs: Override default parameters
         
     Returns:
@@ -324,6 +325,7 @@ def gigapath_hydro(name, **kwargs):
         raise ValueError(f"Unknown gigapath_hydro: {name}")
     
     hydro = Hydro(spec=dict(
+        model=model,
         latent_dim=latent_dim,
         image_size=image_size,
         initial_size=initial_size,
@@ -368,6 +370,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         loss_type: str = 'mse',
                         use_batch_norm: bool = True,
                         use_bilinear_upsampling: bool = False,
+                        model: int = 0,
                         **dataloader_kwargs,
     ):
     """Create a HydroStill training pipeline.
@@ -380,6 +383,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         log_images: Whether to log images during training
         log_images_interval: Interval (in steps) to log images
         from_scratch: Whether to restart training from scratch
+        model: Model architecture identifier (e.g., 0 selects Model_0)
         **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
         
     Returns:
@@ -394,6 +398,7 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         precision = bits[-1].lower()
         hydroname = '_'.join(bits[:-1])
         hydro = gigapath_hydro(hydroname, 
+                             model=model,
                              loss_type=loss_type, 
                              use_batch_norm=use_batch_norm, 
                              use_bilinear_upsampling=use_bilinear_upsampling)
