@@ -309,18 +309,18 @@ def gigapath_hydro(name, *, model: int = 0, **kwargs):
     if name == "GIGAPATH_HYDRO_DEFAULT":
         latent_dim = kwargs.get('latent_dim', 1536)
         image_size = kwargs.get('image_size', 256)
-        initial_size = kwargs.get('initial_size', 8)
-        hidden_channels = kwargs.get('hidden_channels', 256)
+        cnn_initial_size = kwargs.get('cnn_initial_size', 8)
+        cnn_hidden_channels = kwargs.get('cnn_hidden_channels', 256)
     elif name == "GIGAPATH_HYDRO_SMALL":
         latent_dim = kwargs.get('latent_dim', 1536)
         image_size = kwargs.get('image_size', 256)
-        initial_size = kwargs.get('initial_size', 8)
-        hidden_channels = kwargs.get('hidden_channels', 128)
+        cnn_initial_size = kwargs.get('cnn_initial_size', 8)
+        cnn_hidden_channels = kwargs.get('cnn_hidden_channels', 128)
     elif name == "GIGAPATH_HYDRO_LARGE":
         latent_dim = kwargs.get('latent_dim', 1536)
         image_size = kwargs.get('image_size', 256)
-        initial_size = kwargs.get('initial_size', 8)
-        hidden_channels = kwargs.get('hidden_channels', 512)
+        cnn_initial_size = kwargs.get('cnn_initial_size', 8)
+        cnn_hidden_channels = kwargs.get('cnn_hidden_channels', 512)
     else:
         raise ValueError(f"Unknown gigapath_hydro: {name}")
     
@@ -328,42 +328,52 @@ def gigapath_hydro(name, *, model: int = 0, **kwargs):
         model=model,
         latent_dim=latent_dim,
         image_size=image_size,
-        initial_size=initial_size,
-        hidden_channels=hidden_channels,
-        use_batch_norm=kwargs.get('use_batch_norm', True),
-        use_bilinear_upsampling=kwargs.get('use_bilinear_upsampling', True),
-        use_residual_upsampling=kwargs.get('use_residual_upsampling', False),
-        use_spatial_attention_gates=kwargs.get('use_spatial_attention_gates', False),
-        use_feature_modulation=kwargs.get('use_feature_modulation', False),
+        cnn_initial_size=cnn_initial_size,
+        cnn_hidden_channels=cnn_hidden_channels,
+        cnn_use_batch_norm=kwargs.get('cnn_use_batch_norm', True),
+        cnn_use_bilinear_upsampling=kwargs.get('cnn_use_bilinear_upsampling', True),
+        cnn_use_residual_upsampling=kwargs.get('cnn_use_residual_upsampling', False),
+        cnn_use_spatial_attention_gates=kwargs.get('cnn_use_spatial_attention_gates', False),
+        cnn_use_feature_modulation=kwargs.get('cnn_use_feature_modulation', False),
+        vit_patch_size=kwargs.get('vit_patch_size', 16),
+        vit_hidden_channels=kwargs.get('vit_hidden_channels', 256),
+        vit_n_layers=kwargs.get('vit_n_layers', 12),
+        vit_n_heads=kwargs.get('vit_n_heads', 8),
+        vit_dim_feedforward=kwargs.get('vit_dim_feedforward', 1024),
         loss_type=kwargs.get('loss_type', 'mse'),
     ))
     return hydro
 
 
 """
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159', \\
     log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_0', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_1', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_HYDRO_DEFAULT_MEDIUM_BASELINE_CPTAC_400159_SINGLE_1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
-    loss_type='l1', use_residual_upsampling=True, use_spatial_attention_gates=False, use_feature_modulation=False, suffix='resup_nosag_nofmod_l1', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
+    loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=False, cnn_use_feature_modulation=False, suffix='cnn_resup_nosag_nofmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \\
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro_still('GIGAPATH_HYDRO_DEFAULT_HIGHEST_BASELINE_CPTAC_400159_SINGLE_0', \\
-    loss_type='l1', use_residual_upsampling=True, use_spatial_attention_gates=True, use_feature_modulation=True, suffix='resup_sag_fmod_l1', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
+    loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
-
+#
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_CPTAC_400159_SINGLE_0', \\
+    loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_lpips', \\
+    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
-def gigapath_hydro_still(hydro_dataset_name = None, 
+def gigapath_bipolar_hydro_still(
+hydro_dataset_name = None, 
                         *,  
                         n_devices: int = 1,
                         logsroot: str = None,
@@ -380,11 +390,11 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                         gradient_clip_algorithm: str = 'norm',
                         gradient_clip_val: float = 10.0,
                         loss_type: str = 'mse',
-                        use_batch_norm: bool = True,
-                        use_bilinear_upsampling: bool = False,
-                        use_residual_upsampling: bool = False,
-                        use_spatial_attention_gates: bool = False,
-                        use_feature_modulation: bool = False,
+                        cnn_use_batch_norm: bool = True,
+                        cnn_use_bilinear_upsampling: bool = False,
+                        cnn_use_residual_upsampling: bool = False,
+                        cnn_use_spatial_attention_gates: bool = False,
+                        cnn_use_feature_modulation: bool = False,
                         model: int = 0,
                         suffix: str|None = None,
                         **dataloader_kwargs,
@@ -416,11 +426,11 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         hydro = gigapath_hydro(hydroname, 
                              model=model,
                              loss_type=loss_type, 
-                             use_batch_norm=use_batch_norm, 
-                             use_bilinear_upsampling=use_bilinear_upsampling,
-                             use_residual_upsampling=use_residual_upsampling,
-                             use_spatial_attention_gates=use_spatial_attention_gates,
-                             use_feature_modulation=use_feature_modulation)
+                             cnn_use_batch_norm=cnn_use_batch_norm, 
+                             cnn_use_bilinear_upsampling=cnn_use_bilinear_upsampling,
+                             cnn_use_residual_upsampling=cnn_use_residual_upsampling,
+                             cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
+                             cnn_use_feature_modulation=cnn_use_feature_modulation)
         tag = f"{hydro_dataset_name}/{suffix}" if suffix is not None else f"{hydro_dataset_name}"
 
         logsroot = logsroot or f'{os.environ["HOME"]}/autopath/tensorboard/hydro'
@@ -433,9 +443,9 @@ def gigapath_hydro_still(hydro_dataset_name = None,
         lightning = HydroLightning(
             spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler, 
                      log_images=log_images, log_images_interval=log_images_interval,
-                     use_residual_upsampling=use_residual_upsampling,
-                     use_spatial_attention_gates=use_spatial_attention_gates,
-                     use_feature_modulation=use_feature_modulation)
+                     cnn_use_residual_upsampling=cnn_use_residual_upsampling,
+                     cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
+                     cnn_use_feature_modulation=cnn_use_feature_modulation)
         )
 
         still = HydroStill(spec=dict(
@@ -448,9 +458,9 @@ def gigapath_hydro_still(hydro_dataset_name = None,
                     gradient_clip_algorithm=gradient_clip_algorithm,
                     precision=precision,
                     from_scratch=from_scratch,
-                    use_residual_upsampling=use_residual_upsampling,
-                    use_spatial_attention_gates=use_spatial_attention_gates,
-                    use_feature_modulation=use_feature_modulation,
+                    cnn_use_residual_upsampling=cnn_use_residual_upsampling,
+                    cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
+                    cnn_use_feature_modulation=cnn_use_feature_modulation,
                 ),
             n_devices=n_devices,
             logsroot=logsroot,

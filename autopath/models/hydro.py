@@ -46,11 +46,55 @@ class FeatureModulation(nn.Module):
     """Latent-conditioned feature modulation (simple scaling)."""
     def __init__(self, latent_dim: int, out_channels: int):
         super().__init__()
-        self.scale_fc = nn.Linear(latent_dim, out_channels)
+        self.scale_fc = nn.Sequential(
+            nn.Linear(latent_dim, out_channels),
+            nn.Tanh()
+        )
+
+    def forward(self, x: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+        scale = self.scale_fc(z).unsqueeze(-1).unsqueeze(-1)
+        return x * scale
+
+
+class PerceptualLoss(nn.Module):
+    """LPIPS-like perceptual loss using pre-trained VGG16 features."""
+    def __init__(self):
+        super().__init__()
+        try:
+            from torchvision import models
+            vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1).features
+        except (ImportError, AttributeError):
+            from torchvision import models
+            vgg = models.vgg16(pretrained=True).features
+            
+        self.slices = nn.ModuleList([
+            nn.Sequential(*[vgg[x] for x in range(4)]),    # conv1_2
+            nn.Sequential(*[vgg[x] for x in range(4, 9)]),  # conv2_2
+            nn.Sequential(*[vgg[x] for x in range(9, 16)]), # conv3_3
+            nn.Sequential(*[vgg[x] for x in range(16, 23)]),# conv4_3
+            nn.Sequential(*[vgg[x] for x in range(23, 30)]) # conv5_3
+        ])
         
-    def forward(self, x: torch.Tensor, latent: torch.Tensor) -> torch.Tensor:
-        scale = self.scale_fc(latent).unsqueeze(-1).unsqueeze(-1)
-        return x * (1.0 + torch.tanh(scale))
+        for param in self.parameters():
+            param.requires_grad = False
+            
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        self.eval()
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        # Expected input range: [0, 1]
+        x = (x - self.mean) / self.std
+        y = (y - self.mean) / self.std
+        
+        loss = 0
+        feat_x = x
+        feat_y = y
+        for slice in self.slices:
+            feat_x = slice(feat_x)
+            feat_y = slice(feat_y)
+            loss += F.mse_loss(feat_x, feat_y)
+        return loss
 
 
 class Hydro(Datablock):
@@ -66,24 +110,29 @@ class Hydro(Datablock):
         latent_dim: int = 1536          # K: length of input latent vectors
         image_size: int = 256           # N: output image resolution (NxN)
         
-        # Architecture parameters
-        initial_size: int = 8           # Starting spatial size before upsampling
-        hidden_channels: int = 256      # Base channel count
-        channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1)  # Channel mult per layer
-        kernel_size: int = 3            # Convolution kernel size
-        use_batch_norm: bool = True     # Whether to use batch normalization
-        use_bilinear_upsampling: bool = True  # Use bilinear upsampling instead of transposed conv
-        
-        # Architectural improvements (optional)
-        use_residual_upsampling: bool = False
-        use_spatial_attention_gates: bool = False
-        use_feature_modulation: bool = False
+        # Model_0 (CNN) parameters
+        cnn_initial_size: int = 8           # Starting spatial size
+        cnn_hidden_channels: int = 256      # Base channel count
+        cnn_channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1)
+        cnn_kernel_size: int = 3
+        cnn_use_batch_norm: bool = True
+        cnn_use_bilinear_upsampling: bool = True
+        cnn_use_residual_upsampling: bool = False
+        cnn_use_spatial_attention_gates: bool = False
+        cnn_use_feature_modulation: bool = False
         
         # Loss parameters
-        loss_type: str = "mse"          # Loss function: "mse", "l1", or "l0"
+        loss_type: str = "mse"          # Loss function
 
         # Model selection
-        model: int = 0                  # Model architecture identifier
+        model: int = 0                  # Model identifier
+
+        # Model_1 (ViT) parameters
+        vit_patch_size: int = 16
+        vit_hidden_channels: int = 256
+        vit_n_layers: int = 12
+        vit_n_heads: int = 8
+        vit_dim_feedforward: int = 1024
 
     class Model_0(nn.Module):
         """Inner nn.Module implementing the deconvolutional decoder architecture.
@@ -250,34 +299,169 @@ class Hydro(Datablock):
                 loss = F.l1_loss(predicted, target)
             elif self.loss_type == "l0":
                 # Differentiable proxy for L0: log(1 + (x-y)^2 / epsilon)
-                epsilon = 1e-3
-                loss = torch.mean(torch.log(1 + (predicted - target)**2 / epsilon))
+                # The user's snippet uses `torch.norm(pred - target, p=0) / pred.numel()`
+                # which is a direct L0 count, not a differentiable proxy.
+                # I will use the user's provided L0 implementation.
+                loss = torch.norm(predicted - target, p=0) / predicted.numel()
+            elif self.loss_type == "lpips":
+                if not hasattr(self, "_lpips"):
+                    self._lpips = PerceptualLoss().to(predicted.device)
+                loss = self._lpips(predicted, target)
             else:
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             
             self.log.detailed(f"Loss ({self.loss_type}): {loss.item():.6f}")
             return loss
 
-    Model = {0: Model_0}
+    class Model_1(nn.Module):
+        """Inner nn.Module implementing the Vision Transformer (ViT) decoder architecture.
+        
+        Architecture: latent (B, K) → MLP Projection → Tokens (B, M, D) + Pos. Embed. 
+                      → Transformer × L → Linear Head → Patch-to-Pixel → RGB (B, 3, N, N)
+        """
+
+        def __init__(
+            self,
+            *,
+            latent_dim: int = 1536,
+            image_size: int = 256,
+            hidden_channels: int = 256,
+            patch_size: int = 16,
+            n_layers: int = 12,
+            n_heads: int = 8,
+            dim_feedforward: int = 1024,
+            loss_type: str = "mse",
+            log: dbx.Logger = None,
+        ):
+            super().__init__()
+            self.latent_dim = latent_dim
+            self.image_size = image_size
+            self.hidden_channels = hidden_channels
+            self.patch_size = patch_size
+            self.loss_type = loss_type
+            self.log = log or dbx.Logger(self.__class__.__name__)
+
+            self.n_patches = image_size // patch_size
+            self.m_tokens = self.n_patches ** 2
+
+            # 1. MLP Projection: latent -> sequence of tokens
+            # We use a single linear layer to produce the sequence elements
+            self.proj = nn.Linear(latent_dim, self.m_tokens * hidden_channels)
+
+            # 2. Positional Embedding
+            self.pos_embed = nn.Parameter(torch.zeros(1, self.m_tokens, hidden_channels))
+            nn.init.trunc_normal_(self.pos_embed, std=0.02)
+
+            # 3. Transformer Backbone
+            encoder_layer = nn.TransformerEncoderLayer(
+                d_model=hidden_channels,
+                nhead=n_heads,
+                dim_feedforward=dim_feedforward,
+                activation='gelu',
+                batch_first=True
+            )
+            self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+
+            # 4. Reconstruction Head: token -> RGB patch
+            self.head = nn.Linear(hidden_channels, 3 * patch_size * patch_size)
+
+            self.log.debug(f"Built Hydro.Model_1: {latent_dim}→{image_size}x{image_size} "
+                          f"ViT with {n_layers} layers and {patch_size}x{patch_size} patches")
+
+        def forward(self, latent: torch.Tensor) -> torch.Tensor:
+            """Decode latent vectors to RGB images.
+            
+            Args:
+                latent: Tensor of shape (B, K) containing latent vectors
+                
+            Returns:
+                Tensor of shape (B, 3, N, N) containing reconstructed RGB images
+            """
+            batch_size = latent.shape[0]
+            
+            # Project to token sequence: (B, K) -> (B, M, D)
+            x = self.proj(latent)
+            x = x.view(batch_size, self.m_tokens, self.hidden_channels)
+            
+            # Add positional embedding
+            x = x + self.pos_embed
+            
+            # Transformer backbone
+            x = self.transformer(x) # (B, M, D)
+            
+            # Head: (B, M, D) -> (B, M, 3*p*p)
+            x = self.head(x)
+            
+            # Patch-to-Pixel reconstruction
+            # (B, M, 3*p*p) -> (B, n_patches, n_patches, 3, p, p)
+            p = self.patch_size
+            n = self.n_patches
+            x = x.view(batch_size, n, n, 3, p, p)
+            
+            # Permute to (B, 3, n*p, n*p) which is (B, 3, N, N)
+            x = x.permute(0, 3, 1, 4, 2, 5).contiguous()
+            x = x.view(batch_size, 3, self.image_size, self.image_size)
+            
+            # Final sigmoid to [0, 255]
+            x = torch.sigmoid(x) * 255.0
+            
+            return x
+
+        def loss(self, latent: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+            """Compute reconstruction loss."""
+            predicted = self.forward(latent)
+            
+            if self.loss_type == "mse":
+                loss = F.mse_loss(predicted, target)
+            elif self.loss_type == "l1":
+                loss = F.l1_loss(predicted, target)
+            elif self.loss_type == "l0":
+                loss = torch.norm(predicted - target, p=0) / predicted.numel()
+            elif self.loss_type == "lpips":
+                if not hasattr(self, "_lpips"):
+                    self._lpips = PerceptualLoss().to(predicted.device)
+                loss = self._lpips(predicted, target)
+            else:
+                raise ValueError(f"Unknown loss type: {self.loss_type}")
+            
+            self.log.detailed(f"Loss ({self.loss_type}): {loss.item():.6f}")
+            return loss
+
+    Model = {0: Model_0, 1: Model_1}
 
     def model(self) -> nn.Module:
         """Create and return the decoder model for the configured model architecture."""
         ModelClass = self.Model[self.cfg.model]
-        return ModelClass(
-            latent_dim=self.cfg.latent_dim,
-            image_size=self.cfg.image_size,
-            initial_size=self.cfg.initial_size,
-            hidden_channels=self.cfg.hidden_channels,
-            channel_multipliers=self.cfg.channel_multipliers,
-            kernel_size=self.cfg.kernel_size,
-            use_batch_norm=self.cfg.use_batch_norm,
-            use_bilinear_upsampling=self.cfg.use_bilinear_upsampling,
-            use_residual_upsampling=self.cfg.use_residual_upsampling,
-            use_spatial_attention_gates=self.cfg.use_spatial_attention_gates,
-            use_feature_modulation=self.cfg.use_feature_modulation,
-            loss_type=self.cfg.loss_type,
-            log=self.log,
-        )
+        if self.cfg.model == 0:
+            return ModelClass(
+                latent_dim=self.cfg.latent_dim,
+                image_size=self.cfg.image_size,
+                initial_size=self.cfg.cnn_initial_size,
+                hidden_channels=self.cfg.cnn_hidden_channels,
+                channel_multipliers=self.cfg.cnn_channel_multipliers,
+                kernel_size=self.cfg.cnn_kernel_size,
+                use_batch_norm=self.cfg.cnn_use_batch_norm,
+                use_bilinear_upsampling=self.cfg.cnn_use_bilinear_upsampling,
+                use_residual_upsampling=self.cfg.cnn_use_residual_upsampling,
+                use_spatial_attention_gates=self.cfg.cnn_use_spatial_attention_gates,
+                use_feature_modulation=self.cfg.cnn_use_feature_modulation,
+                loss_type=self.cfg.loss_type,
+                log=self.log,
+            )
+        elif self.cfg.model == 1:
+            return ModelClass(
+                latent_dim=self.cfg.latent_dim,
+                image_size=self.cfg.image_size,
+                hidden_channels=self.cfg.vit_hidden_channels,
+                patch_size=self.cfg.vit_patch_size,
+                n_layers=self.cfg.vit_n_layers,
+                n_heads=self.cfg.vit_n_heads,
+                dim_feedforward=self.cfg.vit_dim_feedforward,
+                loss_type=self.cfg.loss_type,
+                log=self.log,
+            )
+        else:
+            raise ValueError(f"Unknown model identifier: {self.cfg.model}")
 
 
 class HydroLightning(Datablock):
@@ -292,9 +476,9 @@ class HydroLightning(Datablock):
         log_images_interval: int = 100,
         
         # Architectural improvements (optional, hoisted from Hydro)
-        use_residual_upsampling: bool = False,
-        use_spatial_attention_gates: bool = False,
-        use_feature_modulation: bool = False,
+        cnn_use_residual_upsampling: bool = False,
+        cnn_use_spatial_attention_gates: bool = False,
+        cnn_use_feature_modulation: bool = False,
 
     class Lightning(L.LightningModule):
         def __init__(
@@ -378,17 +562,16 @@ class HydroLightning(Datablock):
 
     def __post_init__(self):
         self.hydro = self.cfg.hydro
+        # Propagate hoisted flags to hydro config if ellos son True
+        if self.cfg.cnn_use_residual_upsampling:
+            self.hydro.cfg.cnn_use_residual_upsampling = True
+        if self.cfg.cnn_use_spatial_attention_gates:
+            self.hydro.cfg.cnn_use_spatial_attention_gates = True
+        if self.cfg.cnn_use_feature_modulation:
+            self.hydro.cfg.cnn_use_feature_modulation = True
 
     @functools.cached_property
     def lightning_module(self):
-        # Propagate hoisted flags to hydro config if ellos son True
-        if self.cfg.use_residual_upsampling:
-            self.hydro.cfg.use_residual_upsampling = True
-        if self.cfg.use_spatial_attention_gates:
-            self.hydro.cfg.use_spatial_attention_gates = True
-        if self.cfg.use_feature_modulation:
-            self.hydro.cfg.use_feature_modulation = True
-
         return self.Lightning(
             decoder=self.hydro.model(),
             learning_rate=self.cfg.learning_rate,
@@ -424,9 +607,9 @@ class HydroStill(Datablock):
         precision: str = None,
         
         # Architectural improvements (optional, hoisted from Hydro)
-        use_residual_upsampling: bool = False,
-        use_spatial_attention_gates: bool = False,
-        use_feature_modulation: bool = False,
+        cnn_use_residual_upsampling: bool = False,
+        cnn_use_spatial_attention_gates: bool = False,
+        cnn_use_feature_modulation: bool = False,
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
         super().__init__(*args, n_devices=n_devices, logsroot=logsroot, **kwargs)
@@ -516,12 +699,12 @@ class HydroStill(Datablock):
         import os
         
         # Propagate hoisted flags to lightning config if ellos son True
-        if self.cfg.use_residual_upsampling:
-            self.cfg.lightning.cfg.use_residual_upsampling = True
-        if self.cfg.use_spatial_attention_gates:
-            self.cfg.lightning.cfg.use_spatial_attention_gates = True
-        if self.cfg.use_feature_modulation:
-            self.cfg.lightning.cfg.use_feature_modulation = True
+        if self.cfg.cnn_use_residual_upsampling:
+            self.cfg.lightning.cfg.cnn_use_residual_upsampling = True
+        if self.cfg.cnn_use_spatial_attention_gates:
+            self.cfg.lightning.cfg.cnn_use_spatial_attention_gates = True
+        if self.cfg.cnn_use_feature_modulation:
+            self.cfg.lightning.cfg.cnn_use_feature_modulation = True
 
         logger = L.pytorch.loggers.TensorBoardLogger(
             save_dir=self.logs, 

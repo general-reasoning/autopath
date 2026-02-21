@@ -269,8 +269,88 @@ Learnable 2D positional embeddings are added to provide spatial context to the t
 \subsubsection{Transformer Backbone}
 A series of $L$ standard Transformer blocks (Multi-Head Self-Attention + MLP) process the token sequence. This allows information to propagate globally across the image grid.
 
-\subsubsection{Reconstruction Head}
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={draw, rounded corners=2pt, minimum height=0.6cm, minimum width=2.4cm, font=\scriptsize\sffamily, thick, text=white},
+    arrow/.style={->, thick, color=gray!70},
+    op/.style={circle, draw, thick, inner sep=2pt, font=\small},
+    label/.style={font=\scriptsize\sffamily, color=gray!60!black},
+]
+    \node (in) at (0,0) {Token $\mathbf{t}_{i}$};
+    \node[draw, thick, circle, right=1cm of in] (add1) {$+$};
+    \node[block, fill=proj, above=0.8cm of add1] (norm1) {Layer Norm};
+    \node[block, fill=conv, above=0.6cm of norm1] (mha) {Multi-Head Attn};
+    
+    \node[draw, thick, circle, right=3.5cm of add1] (add2) {$+$};
+    \node[block, fill=proj, above=0.8cm of add2] (norm2) {Layer Norm};
+    \node[block, fill=up, above=0.6cm of norm2] (mlp) {MLP (Feed Forward)};
+    
+    \node (out) at (6.5,0) {Output $\mathbf{t}'_{i}$};
+
+    \draw[arrow] (in) -- (add1);
+    \draw[arrow] (add1) -- (add2);
+    \draw[arrow] (add2) -- (out);
+    
+    % Residual 1
+    \coordinate (p1) at ($(in)!0.5!(add1)$);
+    \draw[arrow] (p1) |- (norm1);
+    \draw[arrow] (norm1) -- (mha);
+    \draw[arrow] (mha) -| (add1);
+    
+    % Residual 2
+    \coordinate (p2) at ($(add1)!0.5!(add2)$);
+    \draw[arrow] (p2) |- (norm2);
+    \draw[arrow] (norm2) -- (mlp);
+    \draw[arrow] (mlp) -| (add2);
+    
+    \node[label, below=2pt of add1] {Residual};
+    \node[label, below=2pt of add2] {Residual};
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{Reconstruction Head and Patch-to-Pixel}
 Each token $\mathbf{t}_i \in \mathbb{R}^D$ is projected to a patch $\mathbf{P}_i \in \mathbb{R}^{3 \times p \times p}$ using a linear layer. The patches are then rearranged to form the final image $\mathbf{I} \in \mathbb{R}^{3 \times N \times N}$.
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={draw, rounded corners=2pt, minimum height=0.6cm, minimum width=2.0cm, font=\scriptsize\sffamily, thick, text=white},
+    arrow/.style={->, thick, color=gray!70},
+    label/.style={font=\scriptsize\sffamily, color=gray!60!black},
+]
+    % Tokens
+    \node[draw, thick, fill=gray!10, minimum size=1.5cm] (tokens) at (0,0) {Tokens $(M, D)$};
+    
+    % Linear Head
+    \node[block, fill=conv, right=1.2cm of tokens] (lin) {Linear Head};
+    
+    % Patches
+    \node[draw, thick, fill=blue!10, minimum size=1.5cm, right=1.2cm of lin] (patches) {Patches $(M, 3, p, p)$};
+    
+    % Pixel Grid
+    \begin{scope}[shift={(6.5,-0.75)}]
+        \draw[thick, fill=green!5] (0,0) rectangle (1.5,1.5);
+        \draw[step=0.375cm, gray!50, very thin] (0,0) grid (1.5,1.5);
+        \node at (0.75, -0.3) [font=\tiny\sffamily] {Reconstructed Image $\hat{\mathbf{I}}$};
+        
+        \node (p0) at (0.1875, 1.3125) {};
+        \node (p1) at (0.5625, 1.3125) {};
+        \node (pm) at (1.3125, 0.1875) {};
+    \end{scope}
+
+    \draw[arrow] (tokens) -- (lin);
+    \draw[arrow] (lin) -- (patches);
+    
+    % Arrows from patches to grid
+    \draw[arrow, dashed] (patches.north east) to [out=30, in=150] (6.6875, 0.5625);
+    \node[label] at (5.0, 1.2) {Rearrange / Pixel-Shuffle};
+
+    \node[label, above=2pt of tokens] {Sequence};
+    \node[label, above=2pt of patches] {Local Tensors};
+    \node[label, below=2pt of lin] {$\text{dim} \to 3p^2$};
+\end{tikzpicture}
+\end{center}
 
 \section{System Configuration}
 
