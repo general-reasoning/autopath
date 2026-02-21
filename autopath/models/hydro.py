@@ -337,8 +337,14 @@ class HydroStill(Datablock):
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
         super().__init__(*args, n_devices=n_devices, logsroot=logsroot, **kwargs)
-        self.logs = self.dirpath('logs', ensure=True)
-        self.logslink = os.path.join(self.logsroot, self.tag) if self.logsroot is not None else None
+
+    @property
+    def logs(self):
+        return self.dirpath('logs', ensure=True)
+
+    @property
+    def logslink(self):
+        return os.path.join(self.logsroot, self.tag) if self.logsroot is not None else None
 
     def __pre_build__(self):
         super().__pre_build__()
