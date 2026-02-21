@@ -368,12 +368,25 @@ class HydroStill(Datablock):
         if self.logslink is not None:
             self.log.verbose(f"---------------------- Linking logs to {self.logslink}----------------------------")
             # Create a symlink only if self.logslink does not already point to self.logs
-            if not os.path.islink(self.logslink) or os.readlink(self.logslink) != self.logs:
-                # If it's a file or dir but not a link, we might still need to handle it, 
-                # but the user said "do no more os.remove".
-                # To be safe, we'll try to symlink and let it fail if it's a real file/dir.
+            if os.path.lexists(self.logslink):
+                if os.path.islink(self.logslink) and os.readlink(self.logslink) == self.logs:
+                    return self # Correct link already exists
+                
+                # It exists but is NOT the correct link.
+                # We remove it ONLY now to allow creation of the correct link.
+                # This avoids the unconditional removal that was previously at the start of the function.
+                try:
+                    os.remove(self.logslink)
+                except Exception as e:
+                    self.log.warning(f"Could not remove existing path at {self.logslink}: {e}")
+                    return self
+
+            # Create the symlink
+            try:
                 os.symlink(self.logs, self.logslink)
                 self.log.debug(f"os.symlink({self.logs}, {self.logslink})")
+            except Exception as e:
+                self.log.warning(f"Failed to create symlink {self.logslink} -> {self.logs}: {e}")
         return self
 
     def ckpt(self):
