@@ -31,15 +31,17 @@ class SpatialAttentionGate(nn.Module):
     """Simple spatial attention mechanism to focus on sharp transitions."""
     def __init__(self, in_channels: int):
         super().__init__()
+        # Enhanced to 3x3 for better spatial context
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels // 4, kernel_size=1),
+            nn.Conv2d(in_channels, in_channels // 4, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Conv2d(in_channels // 4, 1, kernel_size=1),
+            nn.Conv2d(in_channels // 4, 1, kernel_size=3, padding=1),
             nn.Sigmoid()
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x * self.conv(x)
+
 
 
 class FeatureModulation(nn.Module):
@@ -83,7 +85,11 @@ class PerceptualLoss(nn.Module):
         self.eval()
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # Expected input range: [0, 1]
+        # Expected input range: [0, 1] for VGG. 
+        # Hydro outputs [0, 255], so we must scale.
+        x = x / 255.0
+        y = y / 255.0
+        
         x = (x - self.mean) / self.std
         y = (y - self.mean) / self.std
         
@@ -95,6 +101,26 @@ class PerceptualLoss(nn.Module):
             feat_y = slice(feat_y)
             loss += F.mse_loss(feat_x, feat_y)
         return loss
+
+
+class GradientLoss(nn.Module):
+    """Loss function penalizing differences in image gradients (edges)."""
+    def __init__(self):
+        super().__init__()
+        kernel_x = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+        kernel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+        self.register_buffer('kernel_x', kernel_x.repeat(3, 1, 1, 1))
+        self.register_buffer('kernel_y', kernel_y.repeat(3, 1, 1, 1))
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        grad_x_real = F.conv2d(x, self.kernel_x, groups=3, padding=1)
+        grad_y_real = F.conv2d(x, self.kernel_y, groups=3, padding=1)
+        grad_x_target = F.conv2d(y, self.kernel_x, groups=3, padding=1)
+        grad_y_target = F.conv2d(y, self.kernel_y, groups=3, padding=1)
+        
+        loss = F.l1_loss(grad_x_real, grad_x_target) + F.l1_loss(grad_y_real, grad_y_target)
+        return loss
+
 
 
 class Hydro(Datablock):
@@ -118,8 +144,11 @@ class Hydro(Datablock):
         cnn_use_batch_norm: bool = True
         cnn_use_bilinear_upsampling: bool = True
         cnn_use_residual_upsampling: bool = False
+        cnn_use_pixel_shuffle: bool = False
+        cnn_use_residual: bool = False
         cnn_use_spatial_attention_gates: bool = False
         cnn_use_feature_modulation: bool = False
+
         
         # Loss parameters
         loss_type: str = "mse"          # Loss function
@@ -151,6 +180,8 @@ class Hydro(Datablock):
             kernel_size: int = 3,
             use_batch_norm: bool = True,
             use_bilinear_upsampling: bool = False,
+            cnn_use_pixel_shuffle: bool = False,
+            cnn_use_residual: bool = False,
             use_residual_upsampling: bool = False,
             use_spatial_attention_gates: bool = False,
             use_feature_modulation: bool = False,
@@ -166,9 +197,12 @@ class Hydro(Datablock):
             self.kernel_size = kernel_size
             self.use_batch_norm = use_batch_norm
             self.use_bilinear_upsampling = use_bilinear_upsampling
+            self.cnn_use_pixel_shuffle = cnn_use_pixel_shuffle
+            self.cnn_use_residual = cnn_use_residual
             self.use_residual_upsampling = use_residual_upsampling
             self.use_spatial_attention_gates = use_spatial_attention_gates
             self.use_feature_modulation = use_feature_modulation
+
             self.loss_type = loss_type
             self.log = log or dbx.Logger(self.__class__.__name__)
 
@@ -202,7 +236,10 @@ class Hydro(Datablock):
                     use_batch_norm=use_batch_norm,
                     use_skip_connection=False,
                     use_bilinear_upsampling=self.use_bilinear_upsampling,
+                    cnn_use_pixel_shuffle=self.cnn_use_pixel_shuffle,
+                    cnn_use_residual=self.cnn_use_residual,
                 )
+
                 self.up_layers.append(layer)
 
                 if self.use_residual_upsampling:
@@ -307,7 +344,12 @@ class Hydro(Datablock):
                 if not hasattr(self, "_lpips"):
                     self._lpips = PerceptualLoss().to(predicted.device)
                 loss = self._lpips(predicted, target)
+            elif self.loss_type == "grad":
+                if not hasattr(self, "_grad_loss"):
+                    self._grad_loss = GradientLoss().to(predicted.device)
+                loss = self._grad_loss(predicted, target)
             else:
+
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             
             self.log.detailed(f"Loss ({self.loss_type}): {loss.item():.6f}")
@@ -442,12 +484,15 @@ class Hydro(Datablock):
                 kernel_size=self.cfg.cnn_kernel_size,
                 use_batch_norm=self.cfg.cnn_use_batch_norm,
                 use_bilinear_upsampling=self.cfg.cnn_use_bilinear_upsampling,
+                cnn_use_pixel_shuffle=self.cfg.cnn_use_pixel_shuffle,
+                cnn_use_residual=self.cfg.cnn_use_residual,
                 use_residual_upsampling=self.cfg.cnn_use_residual_upsampling,
                 use_spatial_attention_gates=self.cfg.cnn_use_spatial_attention_gates,
                 use_feature_modulation=self.cfg.cnn_use_feature_modulation,
                 loss_type=self.cfg.loss_type,
                 log=self.log,
             )
+
         elif self.cfg.model == 'vit':
             return ModelClass(
                 latent_dim=self.cfg.latent_dim,
@@ -477,10 +522,13 @@ class HydroLightning(Datablock):
         
         # Architectural improvements (optional, hoisted from Hydro)
         cnn_use_residual_upsampling: bool = False,
+        cnn_use_pixel_shuffle: bool = False,
+        cnn_use_residual: bool = False,
         cnn_use_spatial_attention_gates: bool = False,
         cnn_use_feature_modulation: bool = False,
 
     class Lightning(L.LightningModule):
+
         def __init__(
             self, 
             decoder: nn.Module, 
@@ -565,10 +613,15 @@ class HydroLightning(Datablock):
         # Propagate hoisted flags to hydro config if ellos son True
         if self.cfg.cnn_use_residual_upsampling:
             self.hydro.cfg.cnn_use_residual_upsampling = True
+        if self.cfg.cnn_use_pixel_shuffle:
+            self.hydro.cfg.cnn_use_pixel_shuffle = True
+        if self.cfg.cnn_use_residual:
+            self.hydro.cfg.cnn_use_residual = True
         if self.cfg.cnn_use_spatial_attention_gates:
             self.hydro.cfg.cnn_use_spatial_attention_gates = True
         if self.cfg.cnn_use_feature_modulation:
             self.hydro.cfg.cnn_use_feature_modulation = True
+
 
     @functools.cached_property
     def lightning_module(self):
@@ -608,8 +661,11 @@ class HydroStill(Datablock):
         
         # Architectural improvements (optional, hoisted from Hydro)
         cnn_use_residual_upsampling: bool = False,
+        cnn_use_pixel_shuffle: bool = False,
+        cnn_use_residual: bool = False,
         cnn_use_spatial_attention_gates: bool = False,
         cnn_use_feature_modulation: bool = False,
+
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
         super().__init__(*args, n_devices=n_devices, logsroot=logsroot, **kwargs)
@@ -701,10 +757,15 @@ class HydroStill(Datablock):
         # Propagate hoisted flags to lightning config if ellos son True
         if self.cfg.cnn_use_residual_upsampling:
             self.cfg.lightning.cfg.cnn_use_residual_upsampling = True
+        if self.cfg.cnn_use_pixel_shuffle:
+            self.cfg.lightning.cfg.cnn_use_pixel_shuffle = True
+        if self.cfg.cnn_use_residual:
+            self.cfg.lightning.cfg.cnn_use_residual = True
         if self.cfg.cnn_use_spatial_attention_gates:
             self.cfg.lightning.cfg.cnn_use_spatial_attention_gates = True
         if self.cfg.cnn_use_feature_modulation:
             self.cfg.lightning.cfg.cnn_use_feature_modulation = True
+
 
         logger = L.pytorch.loggers.TensorBoardLogger(
             save_dir=self.logs, 

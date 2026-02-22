@@ -135,8 +135,11 @@ class ConvBlock(nn.Module):
         use_batch_norm: bool = True,
         batch_norm_training_override: bool = False,
         use_squeeze_and_excite: bool = False,
+        cnn_use_residual: bool = False,
     ):
         super().__init__()
+        self.cnn_use_residual = cnn_use_residual
+
         self.conv_relu_1 = ConvRelu(
             in_channels=in_channels,
             out_channels=out_channels,
@@ -144,7 +147,14 @@ class ConvBlock(nn.Module):
             use_batch_norm=use_batch_norm,
             batch_norm_training_override=batch_norm_training_override,
         )
+        if self.cnn_use_residual:
+            if in_channels != out_channels:
+                self.residual_proj = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+            else:
+                self.residual_proj = nn.Identity()
+
         self.conv_relu_2 = ConvRelu(
+
             in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
@@ -164,7 +174,11 @@ class ConvBlock(nn.Module):
 
     def forward(self, input_t: torch.Tensor) -> torch.Tensor:
         out = self.conv_relu_1(input_t)
-        out = self.conv_relu_2(out)
+        if self.cnn_use_residual:
+            out = self.conv_relu_2(out) + self.residual_proj(input_t)
+        else:
+            out = self.conv_relu_2(out)
+
         if self.use_squeeze_and_excite:
             F_sq = self.avg_pool(out)
             F_ex = self.dense(F_sq)
@@ -187,13 +201,29 @@ class UpLayer(nn.Module):
         use_squeeze_and_excite: bool = False,
         use_skip_connection: bool = True,
         add_skip: bool = False,
+        cnn_use_pixel_shuffle: bool = False,
+        cnn_use_residual: bool = False,
     ):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.cnn_use_pixel_shuffle = cnn_use_pixel_shuffle
 
         self.use_bilinear_upsampling = use_bilinear_upsampling
-        if self.use_bilinear_upsampling:
+        if self.cnn_use_pixel_shuffle:
+            self.pixel_shuffle = nn.PixelShuffle(2)
+            self.post_shuffle_block = nn.Sequential(
+                Conv2dSame(
+                    in_channels // 4,
+                    out_channels,
+                    kernel_size=1,
+                    stride=1,
+                    bias=False,
+                ),
+                nn.ReLU(),
+            )
+        elif self.use_bilinear_upsampling:
+
             self.post_bilinear_block = nn.Sequential(
                 Conv2dSame(
                     in_channels,
@@ -241,12 +271,19 @@ class UpLayer(nn.Module):
             use_batch_norm=use_batch_norm,
             batch_norm_training_override=batch_norm_training_override,
             use_squeeze_and_excite=use_squeeze_and_excite,
+            cnn_use_residual=cnn_use_residual,
         )
+
         self.channel_dim = channel_dim
 
 
     def forward(self, input_t: torch.Tensor, skip_features: torch.Tensor) -> torch.Tensor:
-        if self.use_bilinear_upsampling:
+        if self.cnn_use_pixel_shuffle:
+            # PixelShuffle expects in_channels to be divisible by 4 for 2x upscale
+            curr_tensor = self.pixel_shuffle(input_t)
+            curr_tensor = self.post_shuffle_block(curr_tensor)
+        elif self.use_bilinear_upsampling:
+
             target_shape = tuple(2 * x for x in input_t.shape[-2:])
             curr_tensor = F.interpolate(input_t, size=target_shape, mode="bilinear")
             curr_tensor = self.post_bilinear_block(curr_tensor)

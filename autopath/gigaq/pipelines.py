@@ -332,7 +332,10 @@ def gigapath_hydro(name, *, model: Literal['cnn', 'vit'] = 'cnn', **kwargs):
         cnn_hidden_channels=cnn_hidden_channels,
         cnn_use_batch_norm=kwargs.get('cnn_use_batch_norm', True),
         cnn_use_bilinear_upsampling=kwargs.get('cnn_use_bilinear_upsampling', True),
+        cnn_use_pixel_shuffle=kwargs.get('cnn_use_pixel_shuffle', False),
+        cnn_use_residual=kwargs.get('cnn_use_residual', False),
         cnn_use_residual_upsampling=kwargs.get('cnn_use_residual_upsampling', False),
+
         cnn_use_spatial_attention_gates=kwargs.get('cnn_use_spatial_attention_gates', False),
         cnn_use_feature_modulation=kwargs.get('cnn_use_feature_modulation', False),
         vit_patch_size=kwargs.get('vit_patch_size', 16),
@@ -375,7 +378,8 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
-    loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_bilinear_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_bilup_sag_fmod_lpips', \\
+    loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_bilinear_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
+    model='cnn', suffix='cnn_resup_bilup_sag_fmod_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 ### ViT
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
@@ -405,6 +409,8 @@ hydro_dataset_name = None,
                         loss_type: str = 'mse',
                         cnn_use_batch_norm: bool = True,
                         cnn_use_bilinear_upsampling: bool = False,
+                        cnn_use_pixel_shuffle: bool = False,
+                        cnn_use_residual: bool = False,
                         cnn_use_residual_upsampling: bool = False,
                         cnn_use_spatial_attention_gates: bool = False,
                         cnn_use_feature_modulation: bool = False,
@@ -448,9 +454,12 @@ hydro_dataset_name = None,
                              loss_type=loss_type, 
                              cnn_use_batch_norm=cnn_use_batch_norm, 
                              cnn_use_bilinear_upsampling=cnn_use_bilinear_upsampling,
+                             cnn_use_pixel_shuffle=cnn_use_pixel_shuffle,
+                             cnn_use_residual=cnn_use_residual,
                              cnn_use_residual_upsampling=cnn_use_residual_upsampling,
                              cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
                              cnn_use_feature_modulation=cnn_use_feature_modulation)
+
         tag = f"{hydro_dataset_name}/{suffix}" if suffix is not None else f"{hydro_dataset_name}"
 
         logsroot = logsroot or f'{os.environ["HOME"]}/autopath/tensorboard/hydro'
@@ -463,6 +472,8 @@ hydro_dataset_name = None,
         lightning = HydroLightning(
             spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler, 
                      log_images=log_images, log_images_interval=log_images_interval,
+                     cnn_use_pixel_shuffle=cnn_use_pixel_shuffle,
+                     cnn_use_residual=cnn_use_residual,
                      cnn_use_residual_upsampling=cnn_use_residual_upsampling,
                      cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
                      cnn_use_feature_modulation=cnn_use_feature_modulation)
@@ -478,6 +489,8 @@ hydro_dataset_name = None,
                     gradient_clip_algorithm=gradient_clip_algorithm,
                     precision=precision,
                     from_scratch=from_scratch,
+                    cnn_use_pixel_shuffle=cnn_use_pixel_shuffle,
+                    cnn_use_residual=cnn_use_residual,
                     cnn_use_residual_upsampling=cnn_use_residual_upsampling,
                     cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
                     cnn_use_feature_modulation=cnn_use_feature_modulation,
@@ -485,6 +498,7 @@ hydro_dataset_name = None,
             n_devices=n_devices,
             logsroot=logsroot,
             tag=tag,
+            **dataloader_kwargs,
         )
     return still
     

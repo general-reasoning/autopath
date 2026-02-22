@@ -105,11 +105,44 @@ The latent vector $\mathbf{z}$ is produced by a fixed (or fine-tuned) backbone t
 To address the blurriness observed in \texttt{Model\_0} outputs, several optional components can be enabled. These features prioritize the preservation and enhancement of high-frequency information and are situated within the progressive upsampling loop.
 
 \subsubsection{Overview of Improved Upsampling Path}
-The decoding process begins with a global latent vector $\mathbf{z} \in \mathbb{R}^K$, which represents a compressed semantic summary of the input slide (extracted via a large-scale encoder like GigaPath). When enabled, the optional components are applied sequentially after each base \texttt{UpLayer}. The data flow for a single upsampling stage $i$ is:
-\[
-    \mathbf{x}_{i-1} \xrightarrow{\text{Residual/UpLayer}} \mathbf{\hat{x}}_i \xrightarrow{\text{Modulation}(\mathbf{z})} \mathbf{\tilde{x}}_i \xrightarrow{\text{Attention}} \mathbf{x}_i
-\]
 where $\mathbf{x}_i \in \mathbb{R}^{C_i \times H_i \times W_i}$.
+
+\subsubsection{Internal Architecture of \texttt{UpLayer}}
+The \texttt{UpLayer} is the fundamental building block of the CNN decoder. It handles spatial upsampling, optional skip connections from an encoder, and local feature refinement.
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={draw, rounded corners=2pt, minimum height=0.6cm, minimum width=2.0cm, font=\scriptsize\sffamily, thick, text=white},
+    arrow/.style={->, thick, color=gray!70},
+    dot/.style={circle, fill=gray!70, inner sep=1.5pt},
+    op/.style={circle, draw, thick, inner sep=2pt, font=\small},
+    label/.style={font=\tiny\sffamily, color=gray!60!black},
+]
+    \node (in) at (0,0) [font=\small] {Input $\mathbf{x}_{i-1}$};
+    
+    % Upsampling Stage
+    \node[block, fill=up] (sample) at (2.5, 0) {Sampling Step};
+    \node[label, below=2pt of sample] {Bilinear / Deconv / Pixel-Shuffle};
+    
+    % Skip connection
+    \node[op] (merge) at (5.5, 0) {$\oplus$};
+    \node (skip) at (5.5, 1.2) [font=\small] {Skip Features};
+    \node[label, right=2pt of merge] {Concatenate / Add};
+    
+    % ConvBlock
+    \node[block, fill=conv] (block) at (8.5, 0) {ConvBlock};
+    \node[label, below=2pt of block] {ConvRelu $\times 2$ (+ SE)};
+    
+    \node (out) at (11,0) [font=\small] {Output $\mathbf{x}_i$};
+
+    \draw[arrow] (in) -- (sample);
+    \draw[arrow] (sample) -- (merge);
+    \draw[arrow] (skip) -- (merge);
+    \draw[arrow] (merge) -- (block);
+    \draw[arrow] (block) -- (out);
+\end{tikzpicture}
+\end{center}
 
 \subsubsection{Spatial Attention Gates (SAG)}
 The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial features (e.g., edges and textures). It is situated at the end of each upsampling stage to refine the newly generated spatial details.
@@ -243,7 +276,36 @@ This connection operates \textbf{within} a single \texttt{ConvBlock} at a consta
 \end{center}
 
 \subsubsection{Pixel-Shuffle Upsampling (\texttt{cnn\_use\_pixel\_shuffle})}
-Instead of using bilinear interpolation or standard transposed convolutions (deconvolution), the model can be configured to use \textbf{Pixel-Shuffle} (Depth-to-Space) upsampling. This technique rearranges channels into higher spatial resolution, which often results in significantly sharper edges as it avoids the interpolation artifacts typical of standard upsampling kernels.
+Instead of using bilinear interpolation or standard transposed convolutions (deconvolution), the model can be configured to use \textbf{Pixel-Shuffle} (Depth-to-Space) upsampling. This technique rearranges channels into higher spatial resolution ($2\times \uparrow$), which often results in significantly sharper edges as it avoids the interpolation artifacts typical of standard upsampling kernels.
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    cube/.style={draw, thick, fill=proj!20, opacity=0.8},
+    arrow/.style={->, thick, color=gray!70},
+    label/.style={font=\tiny\sffamily, color=gray!60!black},
+]
+    % Input tensor (Deep and small)
+    \draw[cube] (0,0) -- (0.8,0) -- (0.8,0.8) -- (0,0.8) -- cycle;
+    \draw[cube] (0,0.8) -- (0.3,1.1) -- (1.1,1.1) -- (0.8,0.8) -- cycle;
+    \draw[cube] (0.8,0) -- (1.1,0.3) -- (1.1,1.1) -- (0.8,0.8) -- cycle;
+    
+    \node[label] at (0.55, -0.3) {$(4C, H, W)$};
+    
+    \draw[arrow] (1.5, 0.5) -- (3.5, 0.5);
+    \node[label] at (2.5, 0.8) {Rearrange};
+    
+    % Output tensor (Shallow and big)
+    \draw[cube] (4,-0.4) -- (5.6,-0.4) -- (5.6,1.2) -- (4,1.2) -- cycle;
+    \draw[cube] (4,1.2) -- (4.15,1.35) -- (5.75,1.35) -- (5.6,1.2) -- cycle;
+    \draw[cube] (5.6,-0.4) -- (5.75,-0.25) -- (5.75,1.35) -- (5.6,1.2) -- cycle;
+    
+    % Grid on output
+    \draw[step=0.4cm, gray!40, very thin] (4,-0.4) grid (5.6,1.2);
+    
+    \node[label] at (4.85, -0.7) {$(C, 2H, 2W)$};
+\end{tikzpicture}
+\end{center}
 
 \section{Model\_1: Vision Transformer (ViT) Decoder}
 
