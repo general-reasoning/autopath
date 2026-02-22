@@ -1,7 +1,14 @@
 # Project Rules
 
 - **Conda Environment**: Always use the `autopath` conda environment for running scripts and compiling LaTeX.
-- **Commit Messages**: Always prepend commit messages with `dbx: ` (to satisfy project logging requirements).
-- **File Organization**: Store all agent-specific verification scripts and internal tools in `.agent/verify/`.
+- **Commit Messages**: Always prepend commit messages with `autopath: ` (as per the latest project convention).
+- **File Organization**: 
+  - Store all agent-specific verification scripts and internal tools in categorized subfolders within `.agent/` (e.g., `.agent/verify/`).
+  - Keep the project root clean of agent-generated scripts.
+  - **Git Hygiene**: 
+    - Commit high-level agent files (rules, KIs, workflows) located in `.agent/`.
+    - Ignore temporary verification scripts and logs located in `.agent/verify/`.
+
 - **Documentation**: Maintain `hydro.tex` and ensure it is compiled via Tectonic in the `autopath` environment after significant changes.
 - **Python Path**: When running verification scripts, ensure `PYTHONPATH=.` is set if running from the root.
+
