@@ -2,6 +2,9 @@
 
 This Knowledge Item documents the persistent conventions and operational rules for the Autopath project.
 
+## Access & Permissions
+- **Full Access**: The agent is granted explicit permission to access and modify any file within the project repository. This includes all source code, documentation, and the `.agent/` directory.
+
 ## Environment & Operations
 - **Conda Environment**: The `autopath` environment should be used for all tasks.
   - Python Path: `/home/t-9dkarp/miniconda3/envs/autopath/bin/python`

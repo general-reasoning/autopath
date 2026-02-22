@@ -1,6 +1,8 @@
 # Project Rules
 
+- **Access Permissions**: The agent is explicitly allowed access to any and all files in this project, including the `.agent` directory and its subfolders.
 - **Conda Environment**: Always use the `autopath` conda environment for running scripts and compiling LaTeX.
+
 - **Commit Messages**: Always prepend commit messages with `autopath: ` (as per the latest project convention).
 - **File Organization**: 
   - Store all agent-specific verification scripts and internal tools in categorized subfolders within `.agent/` (e.g., `.agent/verify/`).
