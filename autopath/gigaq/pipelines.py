@@ -370,7 +370,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_lpips', \\
-    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=8, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 """
 def gigapath_bipolar_hydro_still(
 hydro_dataset_name = None, 
