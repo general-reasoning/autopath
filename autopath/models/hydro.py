@@ -770,8 +770,9 @@ class HydroStill(Datablock):
         logger = L.pytorch.loggers.TensorBoardLogger(
             save_dir=self.logs, 
             default_hp_metric=False, 
-            name=self.tag
+            name="",
         )
+
         # Log the datablock quote to TensorBoard for traceability
         logger.experiment.add_text("HydroStill: quote", f"```python\n{self.bid.quote}\n```", global_step=0)
         logger.experiment.add_text("HydroStill: handle", f"```python\n{self.bid.deslash('handle')}\n```", global_step=0)
