@@ -295,12 +295,12 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
 
 
 # git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_BIPOLAR_HYDRO')"
-def gigapath_hydro(name, *, model: int = 0, **kwargs):
+def gigapath_hydro(name, *, model: Literal['cnn', 'vit'] = 'cnn', **kwargs):
     """Create a Hydro configuration by name.
     
     Args:
         name: Configuration name (e.g., 'GIGAPATH_BIPOLAR_HYDRO')
-        model: Model architecture identifier (e.g., 0 selects Model_0)
+        model: Model architecture identifier (e.g., 'cnn' or 'vit')
         **kwargs: Override default parameters
         
     Returns:
@@ -346,6 +346,7 @@ def gigapath_hydro(name, *, model: int = 0, **kwargs):
 
 
 """
+### CNN
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159', \\
     log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
@@ -371,6 +372,18 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+#
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_bilinear_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_bilup_sag_fmod_lpips', \\
+    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+### ViT
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    model='vit', loss_type='lpips',  suffix='vit_lpips', \\
+    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+
+
 """
 def gigapath_bipolar_hydro_still(
 hydro_dataset_name = None, 
@@ -395,7 +408,7 @@ hydro_dataset_name = None,
                         cnn_use_residual_upsampling: bool = False,
                         cnn_use_spatial_attention_gates: bool = False,
                         cnn_use_feature_modulation: bool = False,
-                        model: int = 0,
+                        model: Literal['cnn', 'vit'] = 'cnn',
                         suffix: str|None = None,
                         **dataloader_kwargs,
     ):
@@ -409,7 +422,7 @@ hydro_dataset_name = None,
         log_images: Whether to log images during training
         log_images_interval: Interval (in steps) to log images
         from_scratch: Whether to restart training from scratch
-        model: Model architecture identifier (e.g., 0 selects Model_0)
+        model: Model architecture identifier (e.g., 'cnn' or 'vit')
         **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
         
     Returns:

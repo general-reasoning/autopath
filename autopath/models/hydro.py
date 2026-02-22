@@ -110,7 +110,7 @@ class Hydro(Datablock):
         latent_dim: int = 1536          # K: length of input latent vectors
         image_size: int = 256           # N: output image resolution (NxN)
         
-        # Model_0 (CNN) parameters
+        # Model_CNN parameters
         cnn_initial_size: int = 8           # Starting spatial size
         cnn_hidden_channels: int = 256      # Base channel count
         cnn_channel_multipliers: Tuple[int, ...] = (8, 4, 2, 1, 1)
@@ -125,16 +125,16 @@ class Hydro(Datablock):
         loss_type: str = "mse"          # Loss function
 
         # Model selection
-        model: int = 0                  # Model identifier
+        model: str = 'cnn'                  # Model identifier
 
-        # Model_1 (ViT) parameters
+        # Model_ViT parameters
         vit_patch_size: int = 16
         vit_hidden_channels: int = 256
         vit_n_layers: int = 12
         vit_n_heads: int = 8
         vit_dim_feedforward: int = 1024
 
-    class Model_0(nn.Module):
+    class Model_CNN(nn.Module):
         """Inner nn.Module implementing the deconvolutional decoder architecture.
         
         Architecture: latent (B, K) → Linear → reshape → UpLayer × N → Conv2d → RGB
@@ -233,7 +233,7 @@ class Hydro(Datablock):
                 kernel_size=1,
             )
 
-            self.log.debug(f"Built Hydro.Model_0: {latent_dim}→{image_size}x{image_size} "
+            self.log.debug(f"Built Hydro.Model_CNN: {latent_dim}→{image_size}x{image_size} "
                           f"with {self.n_upsample} upsample layers")
 
         def forward(self, latent: torch.Tensor) -> torch.Tensor:
@@ -313,7 +313,7 @@ class Hydro(Datablock):
             self.log.detailed(f"Loss ({self.loss_type}): {loss.item():.6f}")
             return loss
 
-    class Model_1(nn.Module):
+    class Model_ViT(nn.Module):
         """Inner nn.Module implementing the Vision Transformer (ViT) decoder architecture.
         
         Architecture: latent (B, K) → MLP Projection → Tokens (B, M, D) + Pos. Embed. 
@@ -365,7 +365,7 @@ class Hydro(Datablock):
             # 4. Reconstruction Head: token -> RGB patch
             self.head = nn.Linear(hidden_channels, 3 * patch_size * patch_size)
 
-            self.log.debug(f"Built Hydro.Model_1: {latent_dim}→{image_size}x{image_size} "
+            self.log.debug(f"Built Hydro.Model_ViT: {latent_dim}→{image_size}x{image_size} "
                           f"ViT with {n_layers} layers and {patch_size}x{patch_size} patches")
 
         def forward(self, latent: torch.Tensor) -> torch.Tensor:
@@ -427,12 +427,12 @@ class Hydro(Datablock):
             self.log.detailed(f"Loss ({self.loss_type}): {loss.item():.6f}")
             return loss
 
-    Model = {0: Model_0, 1: Model_1}
+    Model = {'cnn': Model_CNN, 'vit': Model_ViT}
 
     def model(self) -> nn.Module:
         """Create and return the decoder model for the configured model architecture."""
         ModelClass = self.Model[self.cfg.model]
-        if self.cfg.model == 0:
+        if self.cfg.model == 'cnn':
             return ModelClass(
                 latent_dim=self.cfg.latent_dim,
                 image_size=self.cfg.image_size,
@@ -448,7 +448,7 @@ class Hydro(Datablock):
                 loss_type=self.cfg.loss_type,
                 log=self.log,
             )
-        elif self.cfg.model == 1:
+        elif self.cfg.model == 'vit':
             return ModelClass(
                 latent_dim=self.cfg.latent_dim,
                 image_size=self.cfg.image_size,
