@@ -1,5 +1,5 @@
 import os
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 from tqdm import tqdm
 
