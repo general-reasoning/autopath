@@ -126,9 +126,9 @@ The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial feat
     \node[dot] (split) at (1.5,0) {};
     
     % Mask path
-    \node[block, fill=conv] (c1) at (3, 1) {Conv$_{1\times1}$};
+    \node[block, fill=conv] (c1) at (3, 1) {Conv$_{3\times3}$};
     \node[block, fill=act] (r1) at (5, 1) {ReLU};
-    \node[block, fill=conv] (c2) at (7, 1) {Conv$_{1\times1}$};
+    \node[block, fill=conv] (c2) at (7, 1) {Conv$_{3\times3}$};
     \node[block, fill=act] (sig) at (9, 1) {Sigmoid};
     
     % Multiply
@@ -147,6 +147,9 @@ The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial feat
     \node[font=\tiny, color=gray] at (9, 1.5) {Mask $\mathbf{M} \in \mathbb{R}^{1 \times H \times W}$};
 \end{tikzpicture}
 \end{center}
+
+The gate receives the upsampled feature map $\mathbf{x} \in \mathbb{R}^{C \times H \times W}$. In its enhanced version, it employs $3\times3$ convolutions to capture better spatial context when computing the mask, effectively identifying sharp transitions like edges and textures which are then selectively amplified.
+
 
 The gate receives the upsampled feature map $\mathbf{x} \in \mathbb{R}^{C \times H \times W}$. While the gate itself employs $1\times1$ (pointwise) convolutions, it effectively learns to identify spatial transitions by interpreting the local neighborhood information that has already been ``collapsed'' into the channel dimension by the preceding $3\times3$ convolutions in the \texttt{UpLayer}. 
 
@@ -187,8 +190,14 @@ Feature modulation allows the global latent vector $\mathbf{z}$ to dynamically s
 
 This global conditioning ensures that the reconstructed image maintains sharpening consistency across different scales, as the latent vector can ``boost'' specific frequency components needed for a sharp reconstruction.
 
-\subsubsection{Residual Upsampling}
-Residual upsampling incorporates long-range skip connections around the upsampling layers. This allows the network to learn only the residual difference needed to reach the next resolution, facilitating better gradient flow and preserving high-frequency details from lower spatial resolutions.
+\subsubsection{Residual Architectures}
+Two distinct types of residual connections are available to improve gradient flow and preserve signal fidelity.
+
+\paragraph{Upsampling Residuals (\texttt{cnn\_use\_residual\_upsampling})}
+This resolution-skipping connection operates \textbf{across} an upsampling block. It provides a direct path for low-frequency content by upsampling the previous stage's feature map (typically via bilinear interpolation) and adding it to the current stage's output. 
+
+\paragraph{Internal Residuals (\texttt{cnn\_use\_residual})}
+This connection operates \textbf{within} a single \texttt{ConvBlock} at a constant resolution. It adds the block's input directly to its output ($y = f(x) + x$), helping gradients propagate through deep stacks of convolutions without attenuation or blurring.
 
 \begin{center}
 \begin{tikzpicture}[
@@ -198,31 +207,43 @@ Residual upsampling incorporates long-range skip connections around the upsampli
     dot/.style={circle, fill=gray!70, inner sep=1.5pt},
     op/.style={circle, draw, thick, inner sep=2pt, font=\small},
 ]
-    \node (in) at (0,0) [font=\small] {$\mathbf{x}_{i-1}$};
-    \node[dot] (split) at (1.5,0) {};
+    % Upsampling Residual (Existing)
+    \node (in1) at (0, 1.5) [font=\small] {$\mathbf{x}_{i-1}$};
+    \node[dot] (s1) at (1, 1.5) {};
+    \node[block, fill=up] (up) at (3, 1.5) {\texttt{UpLayer}};
+    \node[block, fill=proj] (bin) at (2.5, 2.5) {Bilinear $\uparrow$};
+    \node[op] (addup) at (5, 1.5) {$+$};
+    \node (out1) at (6.5, 1.5) [font=\small] {$\mathbf{x}_i$};
     
-    % Main path
-    \node[block, fill=up] (up) at (4, 0) {UpLayer};
+    \draw[arrow] (in1) -- (s1);
+    \draw[arrow] (s1) -- (up);
+    \draw[arrow] (s1) |- (bin);
+    \draw[arrow] (up) -- (addup);
+    \draw[arrow] (bin) -| (addup);
+    \draw[arrow] (addup) -- (out1);
     
-    % Skip path
-    \node[block, fill=proj] (bin) at (3, -1.2) {Bilinear $\uparrow$};
-    \node[block, fill=conv] (proj) at (5.5, -1.2) {Conv$_{1\times1}$};
+    % Internal Residual (New)
+    \node (in2) at (0, -1) [font=\small] {$\mathbf{h}_{j}$};
+    \node[dot] (s2) at (1, -1) {};
+    \node[block, fill=conv] (cv1) at (3, -1) {Conv$_{3\times3}$};
+    \node[block, fill=conv] (cv2) at (5, -1) {Conv$_{3\times3}$};
+    \node[op] (addint) at (6.5, -1) {$+$};
+    \node (out2) at (7.8, -1) [font=\small] {$\mathbf{h}_{j+1}$};
     
-    % Add
-    \node[op] (add) at (7, 0) {$+$};
-    \node (out) at (8.5, 0) [font=\small] {$\mathbf{x}_i$};
-
-    \draw[arrow] (in) -- (split);
-    \draw[arrow] (split) -- (up);
-    \draw[arrow] (split) |- (bin);
-    \draw[arrow] (up) -- (add);
-    \draw[arrow] (bin) -- (proj);
-    \draw[arrow] (proj) -| (add);
-    \draw[arrow] (add) -- (out);
+    \draw[arrow] (in2) -- (s2);
+    \draw[arrow] (s2) -- (cv1);
+    \draw[arrow] (s2) -- ++(0, -0.8) -| (addint);
+    \draw[arrow] (cv1) -- (cv2);
+    \draw[arrow] (cv2) -- (addint);
+    \draw[arrow] (addint) -- (out2);
+    
+    \node[above=0.2cm of bin, font=\tiny\itshape] {Upsampling Residual};
+    \node[below=1cm of cv1, font=\tiny\itshape] {Internal \texttt{cnn\_use\_residual}};
 \end{tikzpicture}
 \end{center}
 
-By bypassing the non-linear transformations for a portion of the signal, the model avoids the smoothing effect of repeated convolutions, resulting in crisper results.
+\subsubsection{Pixel-Shuffle Upsampling (\texttt{cnn\_use\_pixel\_shuffle})}
+Instead of using bilinear interpolation or standard transposed convolutions (deconvolution), the model can be configured to use \textbf{Pixel-Shuffle} (Depth-to-Space) upsampling. This technique rearranges channels into higher spatial resolution, which often results in significantly sharper edges as it avoids the interpolation artifacts typical of standard upsampling kernels.
 
 \section{Model\_1: Vision Transformer (ViT) Decoder}
 
@@ -380,11 +401,14 @@ The \texttt{Hydro} datablock uses a shared configuration dataclass:
 Reconstruction quality is improved by incorporating perceptual metrics:
 \[
     \mathcal{L} = \begin{cases}
-        \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_2^2 & \text{if \texttt{loss\_type} = ``mse''} \\[4pt]
-        \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_1   & \text{if \texttt{loss\_type} = ``l1''} \\[4pt]
-        \text{LPIPS}(\hat{\mathbf{I}}, \mathbf{I}^*) & \text{if \texttt{loss\_type} = ``lpips''}
-    \end{cases}
+    \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_2^2 & \text{if \texttt{loss\_type} = ``mse''} \\[4pt]
+    \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_1   & \text{if \texttt{loss\_type} = ``l1''} \\[4pt]
+    \text{LPIPS}(\hat{\mathbf{I}}/255, \mathbf{I}^*/255) & \text{if \texttt{loss\_type} = ``lpips''} \\[4pt]
+    \|\nabla\hat{\mathbf{I}} - \nabla\mathbf{I}^*\|_1 & \text{if \texttt{loss\_type} = ``grad''}
+\end{cases}
 \]
-The \textbf{LPIPS} (Learned Perceptual Image Patch Similarity) loss compares deep features from a pre-trained network (e.g., VGG) and is highly effective at reducing blur by penalizing differences in perceptual content rather than raw pixel values.
+The \textbf{LPIPS} (Learned Perceptual Image Patch Similarity) loss compares deep features from a pre-trained network. Crucially, as the network assumes $[0, 1]$ normalized inputs, the model's $[0, 255]$ outputs are scaled by $1/255$ prior to loss computation to ensure the perceptual weights are applied correctly.
+
+The \textbf{Gradient Loss} (\texttt{grad}) explicitly penalizes differences in the spatial derivative of the image, encouraging the model to match the sharp edges of the target rather than just the average pixel intensities.
 
 \end{document}
