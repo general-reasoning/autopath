@@ -122,6 +122,49 @@ class GradientLoss(nn.Module):
         return loss
 
 
+class SSIMLoss(nn.Module):
+    """Structural Similarity Index Measure (SSIM) loss."""
+    def __init__(self, window_size: int = 11, sigma: float = 1.5):
+        super().__init__()
+        self.window_size = window_size
+        self.sigma = sigma
+        
+        # Create 1D Gaussian kernel
+        coords = torch.arange(window_size).float() - window_size // 2
+        g = torch.exp(-(coords**2) / (2 * sigma**2))
+        g /= g.sum()
+        
+        # Create 2D Gaussian kernel
+        g2d = g.view(1, -1) * g.view(-1, 1)
+        kernel = g2d.view(1, 1, window_size, window_size).repeat(3, 1, 1, 1)
+        self.register_buffer('kernel', kernel)
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        # Expected input range: [0, 255] for Hydro outputs.
+        # Scale to [0, 1] for SSIM calculation.
+        x = x / 255.0
+        y = y / 255.0
+        
+        mu_x = F.conv2d(x, self.kernel, groups=3, padding=self.window_size//2)
+        mu_y = F.conv2d(y, self.kernel, groups=3, padding=self.window_size//2)
+        
+        mu_x_sq = mu_x.pow(2)
+        mu_y_sq = mu_y.pow(2)
+        mu_xy = mu_x * mu_y
+        
+        sigma_x_sq = F.conv2d(x * x, self.kernel, groups=3, padding=self.window_size//2) - mu_x_sq
+        sigma_y_sq = F.conv2d(y * y, self.kernel, groups=3, padding=self.window_size//2) - mu_y_sq
+        sigma_xy = F.conv2d(x * y, self.kernel, groups=3, padding=self.window_size//2) - mu_xy
+        
+        c1 = 0.01**2
+        c2 = 0.03**2
+        
+        ssim_map = ((2 * mu_xy + c1) * (2 * sigma_xy + c2)) / \
+                   ((mu_x_sq + mu_y_sq + c1) * (sigma_x_sq + sigma_y_sq + c2))
+        
+        return 1 - ssim_map.mean()
+
+
 
 class Hydro(Datablock):
     """Datablock wrapper for a latent-to-image decoder.
@@ -348,8 +391,11 @@ class Hydro(Datablock):
                 if not hasattr(self, "_grad_loss"):
                     self._grad_loss = GradientLoss().to(predicted.device)
                 loss = self._grad_loss(predicted, target)
+            elif self.loss_type == "ssim":
+                if not hasattr(self, "_ssim_loss"):
+                    self._ssim_loss = SSIMLoss().to(predicted.device)
+                loss = self._ssim_loss(predicted, target)
             else:
-
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             
             self.log.detailed(f"Loss ({self.loss_type}): {loss.item():.6f}")
@@ -463,6 +509,10 @@ class Hydro(Datablock):
                 if not hasattr(self, "_lpips"):
                     self._lpips = PerceptualLoss().to(predicted.device)
                 loss = self._lpips(predicted, target)
+            elif self.loss_type == "ssim":
+                if not hasattr(self, "_ssim_loss"):
+                    self._ssim_loss = SSIMLoss().to(predicted.device)
+                loss = self._ssim_loss(predicted, target)
             else:
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             

@@ -449,7 +449,7 @@ The \texttt{Hydro} datablock uses a shared configuration dataclass. Parameters a
 \texttt{latent\_dim} & 1536 & Input latent vector dimension $K$ \\
 \texttt{image\_size} & 256 & Output resolution $N \times N$ \\
 \texttt{model} & \texttt{'cnn'} & Model architecture identifier (\texttt{'cnn'} or \texttt{'vit'}) \\
-\texttt{loss\_type} & \texttt{'mse'} & Primary reconstruction loss function \\
+\texttt{loss\_type} & \texttt{'mse'} & Primary reconstruction loss function (\texttt{mse}, \texttt{l1}, \texttt{l0}, \texttt{lpips}, \texttt{grad}, \texttt{ssim}) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -506,6 +506,13 @@ To explicitly reward the preservation of high-frequency edges, the model can min
     \mathcal{L}_{\text{grad}} = \|\nabla_x\hat{\mathbf{I}} - \nabla_x\mathbf{I}^*\|_1 + \|\nabla_y\hat{\mathbf{I}} - \nabla_y\mathbf{I}^*\|_1
 \]
 where $\nabla$ represents the Sobel operator (or standard finite difference). Unlike MSE, which tends to average out high-frequency noise and produce blurry boundaries, Gradient Loss forces the model to match the local contrast transitions.
+
+\subsection{Structural Similarity Index (\texttt{ssim})}
+The Structural Similarity Index (SSIM) is used as a differentiable loss function to capture perceived changes in structural information, luminance, and contrast. Unlike pixel-wise losses (MSE/L1), SSIM is insensitive to uniform changes in brightness and better matches human visual perception of similarity:
+\[
+    \text{SSIM}(\mathbf{x}, \mathbf{y}) = \frac{(2\mu_x\mu_y + C_1)(2\sigma_{xy} + C_2)}{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}
+\]
+The model minimizes $1 - \text{SSIM}$, promoting the reconstruction of realistic textures and structural patterns. 
 
 
 \end{document}
