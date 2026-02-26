@@ -344,8 +344,8 @@ def gigapath_hydro(name, *, model: Literal['cnn', 'vit'] = 'cnn', **kwargs):
         vit_n_heads=kwargs.get('vit_n_heads', 8),
         vit_dim_feedforward=kwargs.get('vit_dim_feedforward', 1024),
         loss_type=kwargs.get('loss_type', 'mse'),
-        ssim_companion_weight=kwargs.get('ssim_companion_weight', 0.1),
-        ssim_companion_loss=kwargs.get('ssim_companion_loss', 'l1'),
+        ssim_companion_weight=kwargs.get('ssim_companion_weight', 0.8),
+        ssim_companion_loss=kwargs.get('ssim_companion_loss', 'lpips'),
     ))
     return hydro
 
@@ -392,6 +392,10 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     model='vit', loss_type='ssim',  suffix='vit_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    model='vit', loss_type='ssim',  ssim_companion_loss='lpips', ssim_companion_weight=0.8, suffix='vit_ssim_lpips_0.8',   \\
+    log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 
 """
 def gigapath_bipolar_hydro_still(
@@ -420,8 +424,8 @@ hydro_dataset_name = None,
                         cnn_use_spatial_attention_gates: bool = False,
                         cnn_use_feature_modulation: bool = False,
                         model: Literal['cnn', 'vit'] = 'cnn',
-                        ssim_companion_weight: float = 0.1,
-                        ssim_companion_loss: str = 'l1',
+                        ssim_companion_weight: float = 0.8,
+                        ssim_companion_loss: str = 'lpips',
                         suffix: str|None = None,
                         **dataloader_kwargs,
     ):

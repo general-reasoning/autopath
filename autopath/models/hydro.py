@@ -194,8 +194,8 @@ class Hydro(Datablock):
         
         # Loss parameters
         loss_type: str = "mse"              # Loss function
-        ssim_companion_weight: float = 0.1  # Weight for companion loss when using SSIM
-        ssim_companion_loss: str = "l1"     # Companion loss type ('l1' or 'mse')
+        ssim_companion_weight: float = 0.8  # Weight for companion loss when using SSIM
+        ssim_companion_loss: str = "lpips"  # Companion loss type ('l1', 'mse', or 'lpips')
 
         # Model selection
         model: str = 'cnn'                  # Model identifier
@@ -401,8 +401,18 @@ class Hydro(Datablock):
                     self._ssim_loss = SSIMLoss().to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
                 if self.ssim_companion_weight > 0:
-                    comp_func = F.l1_loss if self.ssim_companion_loss == "l1" else F.mse_loss
-                    loss = (1 - self.ssim_companion_weight) * loss + self.ssim_companion_weight * comp_func(predicted, target)
+                    if self.ssim_companion_loss == "l1":
+                        comp_loss = F.l1_loss(predicted, target)
+                    elif self.ssim_companion_loss == "mse":
+                        comp_loss = F.mse_loss(predicted, target)
+                    elif self.ssim_companion_loss == "lpips":
+                        if not hasattr(self, "_lpips"):
+                            self._lpips = PerceptualLoss().to(predicted.device)
+                        comp_loss = self._lpips(predicted, target)
+                    else:
+                        raise ValueError(f"Unknown companion loss: {self.ssim_companion_loss}")
+                    
+                    loss = (1 - self.ssim_companion_weight) * loss + self.ssim_companion_weight * comp_loss
             else:
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             
@@ -526,8 +536,18 @@ class Hydro(Datablock):
                     self._ssim_loss = SSIMLoss().to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
                 if self.ssim_companion_weight > 0:
-                    comp_func = F.l1_loss if self.ssim_companion_loss == "l1" else F.mse_loss
-                    loss = (1 - self.ssim_companion_weight) * loss + self.ssim_companion_weight * comp_func(predicted, target)
+                    if self.ssim_companion_loss == "l1":
+                        comp_loss = F.l1_loss(predicted, target)
+                    elif self.ssim_companion_loss == "mse":
+                        comp_loss = F.mse_loss(predicted, target)
+                    elif self.ssim_companion_loss == "lpips":
+                        if not hasattr(self, "_lpips"):
+                            self._lpips = PerceptualLoss().to(predicted.device)
+                        comp_loss = self._lpips(predicted, target)
+                    else:
+                        raise ValueError(f"Unknown companion loss: {self.ssim_companion_loss}")
+                    
+                    loss = (1 - self.ssim_companion_weight) * loss + self.ssim_companion_weight * comp_loss
             else:
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             
