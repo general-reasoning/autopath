@@ -485,7 +485,9 @@ hydro_dataset_name = None,
                      cnn_use_residual=cnn_use_residual,
                      cnn_use_residual_upsampling=cnn_use_residual_upsampling,
                      cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
-                     cnn_use_feature_modulation=cnn_use_feature_modulation)
+                     cnn_use_feature_modulation=cnn_use_feature_modulation,
+                     ssim_companion_weight=ssim_companion_weight,
+                     ssim_companion_loss=ssim_companion_loss)
         )
 
         still = HydroStill(spec=dict(
@@ -498,6 +500,8 @@ hydro_dataset_name = None,
                     gradient_clip_algorithm=gradient_clip_algorithm,
                     precision=precision,
                     from_scratch=from_scratch,
+                    ssim_companion_weight=ssim_companion_weight,
+                    ssim_companion_loss=ssim_companion_loss,
                     cnn_use_pixel_shuffle=cnn_use_pixel_shuffle,
                     cnn_use_residual=cnn_use_residual,
                     cnn_use_residual_upsampling=cnn_use_residual_upsampling,

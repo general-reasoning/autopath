@@ -586,19 +586,19 @@ class HydroLightning(Datablock):
         hydro: Hydro
         learning_rate: float = 1e-3
         scheduler: str = "cosine"
-        log_images: bool = False,
-        log_images_interval: int = 100,
+        log_images: bool = False
+        log_images_interval: int = 100
         
         # Architectural improvements (optional, hoisted from Hydro)
-        cnn_use_residual_upsampling: bool = False,
-        cnn_use_pixel_shuffle: bool = False,
-        cnn_use_residual: bool = False,
-        cnn_use_spatial_attention_gates: bool = False,
-        cnn_use_feature_modulation: bool = False,
+        cnn_use_residual_upsampling: bool = False
+        cnn_use_pixel_shuffle: bool = False
+        cnn_use_residual: bool = False
+        cnn_use_spatial_attention_gates: bool = False
+        cnn_use_feature_modulation: bool = False
         
         # SSIM parameters (optional, hoisted from Hydro)
-        ssim_companion_weight: Optional[float] = None,
-        ssim_companion_loss: Optional[str] = None,
+        ssim_companion_weight: Optional[float] = None
+        ssim_companion_loss: Optional[str] = None
 
     class Lightning(L.LightningModule):
 
@@ -734,19 +734,19 @@ class HydroStill(Datablock):
         log_interval: int = 10
         gradient_clip_val: float = 1.0
         gradient_clip_algorithm: str = "norm"
-        ckpt_every_n_steps: int = None,
-        precision: str = None,
+        ckpt_every_n_steps: int = None
+        precision: str = None
         
         # Architectural improvements (optional, hoisted from Hydro)
-        cnn_use_residual_upsampling: bool = False,
-        cnn_use_pixel_shuffle: bool = False,
-        cnn_use_residual: bool = False,
-        cnn_use_spatial_attention_gates: bool = False,
-        cnn_use_feature_modulation: bool = False,
+        cnn_use_residual_upsampling: bool = False
+        cnn_use_pixel_shuffle: bool = False
+        cnn_use_residual: bool = False
+        cnn_use_spatial_attention_gates: bool = False
+        cnn_use_feature_modulation: bool = False
         
         # SSIM parameters (optional, hoisted from Hydro)
-        ssim_companion_weight: Optional[float] = None,
-        ssim_companion_loss: Optional[str] = None,
+        ssim_companion_weight: Optional[float] = None
+        ssim_companion_loss: Optional[str] = None
 
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
@@ -786,7 +786,7 @@ class HydroStill(Datablock):
     def linklogs(self):
         # Link the logs directory to the provided location (e.g., for Tensorboard to pick up the logs)
         if self.logslink is not None:
-            self.log.verbose(f"---------------------- Linking logs to {self.logslink}----------------------------")
+            self.log.verbose(f"---------------------- Linking logs to {self.logslink} ----------------------------")
             
             # Create a symlink only if self.logslink does not already point to target
             if os.path.lexists(self.logslink):
