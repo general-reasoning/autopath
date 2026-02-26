@@ -196,6 +196,7 @@ class Hydro(Datablock):
         loss_type: str = "mse"              # Loss function
         ssim_companion_weight: float = 0.8  # Weight for companion loss when using SSIM
         ssim_companion_loss: str = "lpips"  # Companion loss type ('l1', 'mse', or 'lpips')
+        ssim_kernel_width: int = 11         # Kernel width for SSIM calculation
 
         # Model selection
         model: str = 'cnn'                  # Model identifier
@@ -230,8 +231,9 @@ class Hydro(Datablock):
             use_spatial_attention_gates: bool = False,
             use_feature_modulation: bool = False,
             loss_type: str = "mse",
-            ssim_companion_weight: float = 0.1,
-            ssim_companion_loss: str = "l1",
+            ssim_companion_weight: float = 0.8,
+            ssim_companion_loss: str = "lpips",
+            ssim_kernel_width: int = 11,
             log: dbx.Logger = None,
         ):
             super().__init__()
@@ -252,6 +254,7 @@ class Hydro(Datablock):
             self.loss_type = loss_type
             self.ssim_companion_weight = ssim_companion_weight
             self.ssim_companion_loss = ssim_companion_loss
+            self.ssim_kernel_width = ssim_kernel_width
             self.log = log or dbx.Logger(self.__class__.__name__)
 
             # Compute number of upsampling layers needed
@@ -398,7 +401,7 @@ class Hydro(Datablock):
                 loss = self._grad_loss(predicted, target)
             elif self.loss_type == "ssim":
                 if not hasattr(self, "_ssim_loss"):
-                    self._ssim_loss = SSIMLoss().to(predicted.device)
+                    self._ssim_loss = SSIMLoss(window_size=self.ssim_kernel_width).to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
                 if self.ssim_companion_weight > 0:
                     if self.ssim_companion_loss == "l1":
@@ -437,8 +440,9 @@ class Hydro(Datablock):
             n_heads: int = 8,
             dim_feedforward: int = 1024,
             loss_type: str = "mse",
-            ssim_companion_weight: float = 0.1,
-            ssim_companion_loss: str = "l1",
+            ssim_companion_weight: float = 0.8,
+            ssim_companion_loss: str = "lpips",
+            ssim_kernel_width: int = 11,
             log: dbx.Logger = None,
         ):
             super().__init__()
@@ -449,6 +453,7 @@ class Hydro(Datablock):
             self.loss_type = loss_type
             self.ssim_companion_weight = ssim_companion_weight
             self.ssim_companion_loss = ssim_companion_loss
+            self.ssim_kernel_width = ssim_kernel_width
             self.log = log or dbx.Logger(self.__class__.__name__)
 
             self.n_patches = image_size // patch_size
@@ -533,7 +538,7 @@ class Hydro(Datablock):
                 loss = self._lpips(predicted, target)
             elif self.loss_type == "ssim":
                 if not hasattr(self, "_ssim_loss"):
-                    self._ssim_loss = SSIMLoss().to(predicted.device)
+                    self._ssim_loss = SSIMLoss(window_size=self.ssim_kernel_width).to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
                 if self.ssim_companion_weight > 0:
                     if self.ssim_companion_loss == "l1":
@@ -577,6 +582,7 @@ class Hydro(Datablock):
                 loss_type=self.cfg.loss_type,
                 ssim_companion_weight=self.cfg.ssim_companion_weight,
                 ssim_companion_loss=self.cfg.ssim_companion_loss,
+                ssim_kernel_width=self.cfg.ssim_kernel_width,
                 log=self.log,
             )
 
@@ -592,6 +598,7 @@ class Hydro(Datablock):
                 loss_type=self.cfg.loss_type,
                 ssim_companion_weight=self.cfg.ssim_companion_weight,
                 ssim_companion_loss=self.cfg.ssim_companion_loss,
+                ssim_kernel_width=self.cfg.ssim_kernel_width,
                 log=self.log,
             )
         else:
