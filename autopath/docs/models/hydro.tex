@@ -56,9 +56,10 @@ In the context of the overall pipeline, \texttt{Hydro} serves as the generative 
 
 The latent vector $\mathbf{z}$ is produced by a fixed (or fine-tuned) backbone that summarizes the semantic content of a histology slide or patch. This vector provides the global context used by \texttt{Hydro} features like Feature Modulation to inform the progressive upsampling process.
 
-\section{Model\_0: Deconvolutional Decoder}
+\section{Model\_CNN: CNN-based Decoder}
 
-\texttt{Model\_0} is the baseline architecture, using progressive upsampling to reconstruct $N \times N$ RGB images from $K$-dimensional latent vectors.
+\texttt{Model\_CNN} is the baseline architecture, using progressive upsampling to reconstruct $N \times N$ RGB images from $K$-dimensional latent vectors.
+
 
 \begin{center}
 \begin{tikzpicture}[
@@ -102,7 +103,8 @@ The latent vector $\mathbf{z}$ is produced by a fixed (or fine-tuned) backbone t
 
 \subsection{Architectural Improvements to Combat Blur}
 
-To address the blurriness observed in \texttt{Model\_0} outputs, several optional components can be enabled. These features prioritize the preservation and enhancement of high-frequency information and are situated within the progressive upsampling loop.
+To address the blurriness observed in \texttt{Model\_CNN} outputs, several optional components can be enabled. These features prioritize the preservation and enhancement of high-frequency information and are situated within the progressive upsampling loop.
+
 
 \subsubsection{Overview of Improved Upsampling Path}
 where $\mathbf{x}_i \in \mathbb{R}^{C_i \times H_i \times W_i}$.
@@ -183,14 +185,12 @@ The \texttt{SpatialAttentionGate} identifies and emphasizes salient spatial feat
 
 The gate receives the upsampled feature map $\mathbf{x} \in \mathbb{R}^{C \times H \times W}$. In its enhanced version, it employs $3\times3$ convolutions to capture better spatial context when computing the mask, effectively identifying sharp transitions like edges and textures which are then selectively amplified.
 
-
-The gate receives the upsampled feature map $\mathbf{x} \in \mathbb{R}^{C \times H \times W}$. While the gate itself employs $1\times1$ (pointwise) convolutions, it effectively learns to identify spatial transitions by interpreting the local neighborhood information that has already been ``collapsed'' into the channel dimension by the preceding $3\times3$ convolutions in the \texttt{UpLayer}. 
-
 The mask generator sub-network learns a **pixelwise** spatial mask $\mathbf{M}$ where each value $\in [0, 1]$. This single-channel mask is shared across all $C$ channels. The output is computed via the Hadamard product (element-wise multiplication $\odot$) with broadcasting:
 \[
     \mathbf{y}_{c,h,w} = \mathbf{x}_{c,h,w} \times \mathbf{M}_{1,h,w}
 \]
-By focusing representational capacity on these spatially-encoded transitions, SAG effectively reduces the smoothing artifacts.
+By focusing representational capacity on these spatially-encoded transitions, SAG effectively reduces smoothing artifacts.
+
 
 \subsubsection{Feature Modulation}
 Feature modulation allows the global latent vector $\mathbf{z}$ to dynamically scale the intensity of intermediate feature maps. This provides a mechanism for the latent representation to globally influence spatial details at every upsampling stage.
@@ -307,9 +307,10 @@ Instead of using bilinear interpolation or standard transposed convolutions (dec
 \end{tikzpicture}
 \end{center}
 
-\section{Model\_1: Vision Transformer (ViT) Decoder}
+\section{Model\_ViT: Vision Transformer (ViT) Decoder}
 
-\texttt{Model\_1} adopts a transformer-based architecture to model long-range dependencies and produce sharper reconstructions by operating on a tokenized representation of the image.
+\texttt{Model\_ViT} adopts a transformer-based architecture to model long-range dependencies and produce sharper reconstructions by operating on a tokenized representation of the image.
+
 
 \subsection{Architecture Overview}
 
@@ -437,8 +438,9 @@ Each token $\mathbf{t}_i \in \mathbb{R}^D$ is projected to a patch $\mathbf{P}_i
 
 \section{System Configuration}
 
-The \texttt{Hydro} datablock uses a shared configuration dataclass:
+The \texttt{Hydro} datablock uses a shared configuration dataclass. Parameters are grouped by their scope.
 
+\subsection{General Parameters}
 \begin{center}
 \begin{tabular}{lll}
 \toprule
@@ -446,31 +448,64 @@ The \texttt{Hydro} datablock uses a shared configuration dataclass:
 \midrule
 \texttt{latent\_dim} & 1536 & Input latent vector dimension $K$ \\
 \texttt{image\_size} & 256 & Output resolution $N \times N$ \\
-\texttt{hidden\_channels} & 256 & Base channel count (Model\_0) / Dimension $D$ (Model\_1) \\
-\texttt{patch\_size} & 16 & Patch size for Model\_1 \\
-\texttt{num\_layers} & 12 & Number of layers (Transformer blocks) for Model\_1 \\
-\texttt{version} & 0 & Model architecture version (0 or 1) \\
-\texttt{use\_residual\_upsampling} & \texttt{False} & Enable residual skip connections in Model\_0 \\
-\texttt{use\_spatial\_attention\_gates} & \texttt{False} & Enable spatial attention in Model\_0 \\
-\texttt{use\_feature\_modulation} & \texttt{False} & Enable latent-based feature modulation in Model\_0 \\
-\texttt{loss\_type} & \texttt{mse} & MSE, L1, L0, or LPIPS reconstruction loss \\
+\texttt{model} & \texttt{'cnn'} & Model architecture identifier (\texttt{'cnn'} or \texttt{'vit'}) \\
+\texttt{loss\_type} & \texttt{'mse'} & Primary reconstruction loss function \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\section{Loss Functions}
+\subsection{Model\_CNN Parameters}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Default} & \textbf{Description} \\
+\midrule
+\texttt{cnn\_initial\_size} & 8 & Initial spatial resolution $S \times S$ \\
+\texttt{cnn\_hidden\_channels} & 256 & Base channel count for convolutional layers \\
+\texttt{cnn\_channel\_multipliers} & (8,4,2,1,1) & Scale factor for channels at each stage \\
+\texttt{cnn\_use\_bilinear\_upsampling} & \texttt{True} & Use bilinear interpolation for upsampling \\
+\texttt{cnn\_use\_residual\_upsampling} & \texttt{False} & Enable resolution-skipping connections \\
+\texttt{cnn\_use\_pixel\_shuffle} & \texttt{False} & Use sub-pixel convolution (Depth-to-Space) \\
+\texttt{cnn\_use\_residual} & \texttt{False} & Enable internal block residuals ($y = f(x) + x$) \\
+\texttt{cnn\_use\_spatial\_attention\_gates} & \texttt{False} & Enable Spatial Attention Gates (SAG) \\
+\texttt{cnn\_use\_feature\_modulation} & \texttt{False} & Enable latent-based scaling \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-Reconstruction quality is improved by incorporating perceptual metrics:
+\subsection{Model\_ViT Parameters}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Default} & \textbf{Description} \\
+\midrule
+\texttt{vit\_patch\_size} & 16 & Pixel size of each tokenized patch ($p$) \\
+\texttt{vit\_hidden\_channels} & 256 & Transformer embedding dimension $D$ \\
+\texttt{vit\_n\_layers} & 12 & Number of Transformer encoder blocks $L$ \\
+\texttt{vit\_n\_heads} & 8 & Number of attention heads \\
+\texttt{vit\_dim\_feedforward} & 1024 & Dimension of MLP in Transformer block \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+\section{Sharpness Enhancement Design}
+
+Several model-independent mechanisms are provided to improve the visual fidelity of reconstructions, specifically targeting the suppression of blur.
+
+\subsection{Perceptual Scaling}
+The \texttt{lpips} loss relies on a pre-trained VGG feature extractor. Since the decoder typically outputs pixel values in the range $[0, 255]$, while VGG expects inputs normalized to $[0, 1]$, an internal scaling factor is applied:
 \[
-    \mathcal{L} = \begin{cases}
-    \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_2^2 & \text{if \texttt{loss\_type} = ``mse''} \\[4pt]
-    \frac{1}{3N^2}\|\hat{\mathbf{I}} - \mathbf{I}^*\|_1   & \text{if \texttt{loss\_type} = ``l1''} \\[4pt]
-    \text{LPIPS}(\hat{\mathbf{I}}/255, \mathbf{I}^*/255) & \text{if \texttt{loss\_type} = ``lpips''} \\[4pt]
-    \|\nabla\hat{\mathbf{I}} - \nabla\mathbf{I}^*\|_1 & \text{if \texttt{loss\_type} = ``grad''}
-\end{cases}
+    \hat{\mathbf{I}}_{\text{perceptual}} = \frac{\hat{\mathbf{I}}}{255.0}
 \]
-The \textbf{LPIPS} (Learned Perceptual Image Patch Similarity) loss compares deep features from a pre-trained network. Crucially, as the network assumes $[0, 1]$ normalized inputs, the model's $[0, 255]$ outputs are scaled by $1/255$ prior to loss computation to ensure the perceptual weights are applied correctly.
+This ensuring that the perceptual gradients are correctly scaled relative to the learned weights.
 
-The \textbf{Gradient Loss} (\texttt{grad}) explicitly penalizes differences in the spatial derivative of the image, encouraging the model to match the sharp edges of the target rather than just the average pixel intensities.
+\subsection{Gradient Penalization (\texttt{grad})}
+To explicitly reward the preservation of high-frequency edges, the model can minimize the $L_1$ distance between the spatial gradients of the predicted and target images:
+\[
+    \mathcal{L}_{\text{grad}} = \|\nabla_x\hat{\mathbf{I}} - \nabla_x\mathbf{I}^*\|_1 + \|\nabla_y\hat{\mathbf{I}} - \nabla_y\mathbf{I}^*\|_1
+\]
+where $\nabla$ represents the Sobel operator (or standard finite difference). Unlike MSE, which tends to average out high-frequency noise and produce blurry boundaries, Gradient Loss forces the model to match the local contrast transitions.
+
 
 \end{document}
