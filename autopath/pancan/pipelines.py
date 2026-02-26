@@ -86,12 +86,23 @@ def pancan_tile_bag_partition(name=None, fold_fractions: Optional[list[float]] =
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_8020_TEST').build()"
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_9802_TRAIN').build()"
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_9802_TEST').build()"
+#
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_404020_CALIBRATE').build()"
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_404020_TRAIN').build()"
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_404020_TEST').build()"
+#
+# git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_305020_CALIBRATE').build()"
+# git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_305020_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_305020_TEST').build()"
+#
+# git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_206020_CALIBRATE').build()"
+# git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_206020_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_206020_TEST').build()"
+#
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_400159_CALIBRATE').build()"
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_400159_TRAIN').build()"
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_400159_TEST').build()"
+#
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_400159_CALIBRATE').shard(0)"
 # git commit -am 'gigaq: PancanTileBagFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_fold('CPTAC_400159_CALIBRATE').shard_lens"
 def pancan_tile_bag_fold(name=None) -> PancanTileBagFold:

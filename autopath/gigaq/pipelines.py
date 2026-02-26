@@ -106,47 +106,39 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: in
     devices = [f'cuda:{i}' for i in range(n_devices)]
     if name is None:
         return FeatureBagClip
+    extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
     if name == "GIGAPATH_BASELINE_CPTAC":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_clip, 'CPTAC')
     elif name == "GIGAPATH_BASELINE_CPTAC_9802_TEST":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_9802_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_9802_TRAIN":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_9802_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_8020_TEST":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_8020_TRAIN":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_404020_CALIBRATE":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_CALIBRATE')
     elif name == "GIGAPATH_BASELINE_CPTAC_404020_TRAIN":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_404020_TEST":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_CALIBRATE')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_TRAIN":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_TEST":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TEST')
     elif name == "GIGAPATH_BASELINE_5B_CPTAC_8020_TEST":
-        extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_5B_EVALUATOR')
         tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TEST')
     else:
         raise ValueError(f"Unknown gigapath_feature_clip: {repr(name)}")
     return FeatureBagClip(
         root=root, 
-        spec=dict(extractor=extractor, tilebagclip=tilebagclip), 
+        spec=dict(
+            extractor=extractor, 
+            tilebagclip=tilebagclip
+        ), 
         n_workers=n_workers,
         devices=devices, 
         gpu_batch_size=gpu_batch_size,
@@ -397,7 +389,8 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     model='vit', loss_type='ssim',  ssim_companion_loss='lpips', ssim_companion_weight=0.1, suffix='vit_ssim_lpips_0.8',   \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
-    dbx.slurm.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.slurm.pprint \
+    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_loss='lpips', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()" \
