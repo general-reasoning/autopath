@@ -401,7 +401,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_loss='lpips', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()" \
-    nodelist=radish gpus=1 cpus=2
+    nodelist=radish mem=4G gpus=1 cpus=2
 """
 def gigapath_bipolar_hydro_still(
 hydro_dataset_name = None, 
