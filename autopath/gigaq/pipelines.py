@@ -397,7 +397,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     model='vit', loss_type='ssim',  ssim_companion_loss='lpips', ssim_companion_weight=0.1, suffix='vit_ssim_lpips_0.8',   \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.slurm.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_loss='lpips', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()" \
