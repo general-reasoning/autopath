@@ -122,6 +122,12 @@ def pancan_tile_bag_fold(name=None) -> PancanTileBagFold:
         return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="1"))
     elif name == "CPTAC_404020_TEST":
         return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_404020'), fold="2"))
+    elif name == "CPTAC_206020_CALIBRATE":
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_206020'), fold="0"))
+    elif name == "CPTAC_206020_TRAIN":
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_206020'), fold="1"))
+    elif name == "CPTAC_206020_TEST":
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_206020'), fold="2"))
     elif name == "CPTAC_400159_CALIBRATE":
         return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="0"))
     elif name == "CPTAC_400159_TRAIN":

@@ -95,9 +95,11 @@ def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_404020_CALIBRATE', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_404020_TRAIN', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_404020_TEST', n_workers=16).build()"
+#
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', n_workers=16).build_tree()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_TRAIN', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_TEST', n_workers=16).build()"
+#
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TEST', n_workers=16).build()"
@@ -123,6 +125,12 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: in
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_404020_TEST":
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TEST')
+    elif name == "GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE":
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_206020_CALIBRATE')
+    elif name == "GIGAPATH_BASELINE_CPTAC_206020_TRAIN":
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_206020_TRAIN')
+    elif name == "GIGAPATH_BASELINE_CPTAC_206020_TEST":
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_206020_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE":
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_CALIBRATE')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_TRAIN":
