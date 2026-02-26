@@ -344,6 +344,8 @@ def gigapath_hydro(name, *, model: Literal['cnn', 'vit'] = 'cnn', **kwargs):
         vit_n_heads=kwargs.get('vit_n_heads', 8),
         vit_dim_feedforward=kwargs.get('vit_dim_feedforward', 1024),
         loss_type=kwargs.get('loss_type', 'mse'),
+        ssim_companion_weight=kwargs.get('ssim_companion_weight', 0.1),
+        ssim_companion_loss=kwargs.get('ssim_companion_loss', 'l1'),
     ))
     return hydro
 
@@ -418,6 +420,8 @@ hydro_dataset_name = None,
                         cnn_use_spatial_attention_gates: bool = False,
                         cnn_use_feature_modulation: bool = False,
                         model: Literal['cnn', 'vit'] = 'cnn',
+                        ssim_companion_weight: float = 0.1,
+                        ssim_companion_loss: str = 'l1',
                         suffix: str|None = None,
                         **dataloader_kwargs,
     ):
@@ -461,7 +465,9 @@ hydro_dataset_name = None,
                              cnn_use_residual=cnn_use_residual,
                              cnn_use_residual_upsampling=cnn_use_residual_upsampling,
                              cnn_use_spatial_attention_gates=cnn_use_spatial_attention_gates,
-                             cnn_use_feature_modulation=cnn_use_feature_modulation)
+                             cnn_use_feature_modulation=cnn_use_feature_modulation,
+                             ssim_companion_weight=ssim_companion_weight,
+                             ssim_companion_loss=ssim_companion_loss)
 
         tag = f"{hydro_dataset_name}/{suffix}" if suffix is not None else f"{hydro_dataset_name}"
 

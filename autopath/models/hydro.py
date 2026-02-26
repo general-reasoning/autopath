@@ -191,10 +191,11 @@ class Hydro(Datablock):
         cnn_use_residual: bool = False
         cnn_use_spatial_attention_gates: bool = False
         cnn_use_feature_modulation: bool = False
-
         
         # Loss parameters
-        loss_type: str = "mse"          # Loss function
+        loss_type: str = "mse"              # Loss function
+        ssim_companion_weight: float = 0.1  # Weight for companion loss when using SSIM
+        ssim_companion_loss: str = "l1"     # Companion loss type ('l1' or 'mse')
 
         # Model selection
         model: str = 'cnn'                  # Model identifier
@@ -229,6 +230,8 @@ class Hydro(Datablock):
             use_spatial_attention_gates: bool = False,
             use_feature_modulation: bool = False,
             loss_type: str = "mse",
+            ssim_companion_weight: float = 0.1,
+            ssim_companion_loss: str = "l1",
             log: dbx.Logger = None,
         ):
             super().__init__()
@@ -247,6 +250,8 @@ class Hydro(Datablock):
             self.use_feature_modulation = use_feature_modulation
 
             self.loss_type = loss_type
+            self.ssim_companion_weight = ssim_companion_weight
+            self.ssim_companion_loss = ssim_companion_loss
             self.log = log or dbx.Logger(self.__class__.__name__)
 
             # Compute number of upsampling layers needed
@@ -395,6 +400,9 @@ class Hydro(Datablock):
                 if not hasattr(self, "_ssim_loss"):
                     self._ssim_loss = SSIMLoss().to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
+                if self.ssim_companion_weight > 0:
+                    comp_func = F.l1_loss if self.ssim_companion_loss == "l1" else F.mse_loss
+                    loss = (1 - self.ssim_companion_weight) * loss + self.ssim_companion_weight * comp_func(predicted, target)
             else:
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             
@@ -419,6 +427,8 @@ class Hydro(Datablock):
             n_heads: int = 8,
             dim_feedforward: int = 1024,
             loss_type: str = "mse",
+            ssim_companion_weight: float = 0.1,
+            ssim_companion_loss: str = "l1",
             log: dbx.Logger = None,
         ):
             super().__init__()
@@ -427,6 +437,8 @@ class Hydro(Datablock):
             self.hidden_channels = hidden_channels
             self.patch_size = patch_size
             self.loss_type = loss_type
+            self.ssim_companion_weight = ssim_companion_weight
+            self.ssim_companion_loss = ssim_companion_loss
             self.log = log or dbx.Logger(self.__class__.__name__)
 
             self.n_patches = image_size // patch_size
@@ -513,6 +525,9 @@ class Hydro(Datablock):
                 if not hasattr(self, "_ssim_loss"):
                     self._ssim_loss = SSIMLoss().to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
+                if self.ssim_companion_weight > 0:
+                    comp_func = F.l1_loss if self.ssim_companion_loss == "l1" else F.mse_loss
+                    loss = (1 - self.ssim_companion_weight) * loss + self.ssim_companion_weight * comp_func(predicted, target)
             else:
                 raise ValueError(f"Unknown loss type: {self.loss_type}")
             
@@ -540,6 +555,8 @@ class Hydro(Datablock):
                 use_spatial_attention_gates=self.cfg.cnn_use_spatial_attention_gates,
                 use_feature_modulation=self.cfg.cnn_use_feature_modulation,
                 loss_type=self.cfg.loss_type,
+                ssim_companion_weight=self.cfg.ssim_companion_weight,
+                ssim_companion_loss=self.cfg.ssim_companion_loss,
                 log=self.log,
             )
 
@@ -553,6 +570,8 @@ class Hydro(Datablock):
                 n_heads=self.cfg.vit_n_heads,
                 dim_feedforward=self.cfg.vit_dim_feedforward,
                 loss_type=self.cfg.loss_type,
+                ssim_companion_weight=self.cfg.ssim_companion_weight,
+                ssim_companion_loss=self.cfg.ssim_companion_loss,
                 log=self.log,
             )
         else:
@@ -576,6 +595,10 @@ class HydroLightning(Datablock):
         cnn_use_residual: bool = False,
         cnn_use_spatial_attention_gates: bool = False,
         cnn_use_feature_modulation: bool = False,
+        
+        # SSIM parameters (optional, hoisted from Hydro)
+        ssim_companion_weight: Optional[float] = None,
+        ssim_companion_loss: Optional[str] = None,
 
     class Lightning(L.LightningModule):
 
@@ -671,6 +694,11 @@ class HydroLightning(Datablock):
             self.hydro.cfg.cnn_use_spatial_attention_gates = True
         if self.cfg.cnn_use_feature_modulation:
             self.hydro.cfg.cnn_use_feature_modulation = True
+        
+        if self.cfg.ssim_companion_weight is not None:
+            self.hydro.cfg.ssim_companion_weight = self.cfg.ssim_companion_weight
+        if self.cfg.ssim_companion_loss is not None:
+            self.hydro.cfg.ssim_companion_loss = self.cfg.ssim_companion_loss
 
 
     @functools.cached_property
@@ -715,6 +743,10 @@ class HydroStill(Datablock):
         cnn_use_residual: bool = False,
         cnn_use_spatial_attention_gates: bool = False,
         cnn_use_feature_modulation: bool = False,
+        
+        # SSIM parameters (optional, hoisted from Hydro)
+        ssim_companion_weight: Optional[float] = None,
+        ssim_companion_loss: Optional[str] = None,
 
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
@@ -815,6 +847,11 @@ class HydroStill(Datablock):
             self.cfg.lightning.cfg.cnn_use_spatial_attention_gates = True
         if self.cfg.cnn_use_feature_modulation:
             self.cfg.lightning.cfg.cnn_use_feature_modulation = True
+            
+        if self.cfg.ssim_companion_weight is not None:
+            self.cfg.lightning.cfg.ssim_companion_weight = self.cfg.ssim_companion_weight
+        if self.cfg.ssim_companion_loss is not None:
+            self.cfg.lightning.cfg.ssim_companion_loss = self.cfg.ssim_companion_loss
 
 
         logger = L.pytorch.loggers.TensorBoardLogger(

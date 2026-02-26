@@ -450,6 +450,8 @@ The \texttt{Hydro} datablock uses a shared configuration dataclass. Parameters a
 \texttt{image\_size} & 256 & Output resolution $N \times N$ \\
 \texttt{model} & \texttt{'cnn'} & Model architecture identifier (\texttt{'cnn'} or \texttt{'vit'}) \\
 \texttt{loss\_type} & \texttt{'mse'} & Primary reconstruction loss function (\texttt{mse}, \texttt{l1}, \texttt{l0}, \texttt{lpips}, \texttt{grad}, \texttt{ssim}) \\
+\texttt{ssim\_companion\_weight} & 0.1 & Weight $\alpha$ for companion loss when using SSIM \\
+\texttt{ssim\_companion\_loss} & \texttt{'l1'} & Companion loss type (\texttt{l1}, \texttt{mse}) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -513,6 +515,12 @@ The Structural Similarity Index (SSIM) is used as a differentiable loss function
     \text{SSIM}(\mathbf{x}, \mathbf{y}) = \frac{(2\mu_x\mu_y + C_1)(2\sigma_{xy} + C_2)}{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}
 \]
 The model minimizes $1 - \text{SSIM}$, promoting the reconstruction of realistic textures and structural patterns. 
+
+The SSIM loss is typically combined with a pixel-wise companion loss (e.g., $L_1$) to ensure intensity consistency and provide more stable gradients:
+\[
+    \mathcal{L}_{\text{total}} = (1 - \alpha)\mathcal{L}_{\text{ssim}} + \alpha\mathcal{L}_{\text{comp}}
+\]
+where $\alpha$ is the \texttt{ssim\_companion\_weight} and $\mathcal{L}_{\text{comp}}$ is the value of \texttt{ssim\_companion\_loss} (\texttt{l1} or \texttt{mse}).
 
 
 \end{document}
