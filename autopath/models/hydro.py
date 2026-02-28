@@ -257,6 +257,14 @@ class Hydro(Datablock):
             self.ssim_kernel_width = ssim_kernel_width
             self.log = log or dbx.Logger(self.__class__.__name__)
 
+            # Pre-initialize loss modules to avoid 'Unexpected key' errors when resuming
+            if self.loss_type == "ssim":
+                self._ssim_loss = SSIMLoss(window_size=self.ssim_kernel_width)
+            if self.loss_type == "grad":
+                self._grad_loss = GradientLoss()
+            if self.loss_type == "lpips" or (self.loss_type == "ssim" and self.ssim_companion_loss == "lpips" and self.ssim_companion_weight > 0):
+                self._lpips = PerceptualLoss()
+
             # Compute number of upsampling layers needed
             self.n_upsample = int(math.log2(image_size // initial_size))
             assert 2 ** self.n_upsample * initial_size == image_size, \
@@ -392,16 +400,10 @@ class Hydro(Datablock):
                 # I will use the user's provided L0 implementation.
                 loss = torch.norm(predicted - target, p=0) / predicted.numel()
             elif self.loss_type == "lpips":
-                if not hasattr(self, "_lpips"):
-                    self._lpips = PerceptualLoss().to(predicted.device)
                 loss = self._lpips(predicted, target)
             elif self.loss_type == "grad":
-                if not hasattr(self, "_grad_loss"):
-                    self._grad_loss = GradientLoss().to(predicted.device)
                 loss = self._grad_loss(predicted, target)
             elif self.loss_type == "ssim":
-                if not hasattr(self, "_ssim_loss"):
-                    self._ssim_loss = SSIMLoss(window_size=self.ssim_kernel_width).to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
                 if self.ssim_companion_weight > 0:
                     if self.ssim_companion_loss == "l1":
@@ -409,8 +411,6 @@ class Hydro(Datablock):
                     elif self.ssim_companion_loss == "mse":
                         comp_loss = F.mse_loss(predicted, target)
                     elif self.ssim_companion_loss == "lpips":
-                        if not hasattr(self, "_lpips"):
-                            self._lpips = PerceptualLoss().to(predicted.device)
                         comp_loss = self._lpips(predicted, target)
                     else:
                         raise ValueError(f"Unknown companion loss: {self.ssim_companion_loss}")
@@ -455,6 +455,14 @@ class Hydro(Datablock):
             self.ssim_companion_loss = ssim_companion_loss
             self.ssim_kernel_width = ssim_kernel_width
             self.log = log or dbx.Logger(self.__class__.__name__)
+
+            # Pre-initialize loss modules to avoid 'Unexpected key' errors when resuming
+            if self.loss_type == "ssim":
+                self._ssim_loss = SSIMLoss(window_size=self.ssim_kernel_width)
+            if self.loss_type == "grad":
+                self._grad_loss = GradientLoss()
+            if self.loss_type == "lpips" or (self.loss_type == "ssim" and self.ssim_companion_loss == "lpips" and self.ssim_companion_weight > 0):
+                self._lpips = PerceptualLoss()
 
             self.n_patches = image_size // patch_size
             self.m_tokens = self.n_patches ** 2
@@ -533,12 +541,8 @@ class Hydro(Datablock):
             elif self.loss_type == "l0":
                 loss = torch.norm(predicted - target, p=0) / predicted.numel()
             elif self.loss_type == "lpips":
-                if not hasattr(self, "_lpips"):
-                    self._lpips = PerceptualLoss().to(predicted.device)
                 loss = self._lpips(predicted, target)
             elif self.loss_type == "ssim":
-                if not hasattr(self, "_ssim_loss"):
-                    self._ssim_loss = SSIMLoss(window_size=self.ssim_kernel_width).to(predicted.device)
                 loss = self._ssim_loss(predicted, target)
                 if self.ssim_companion_weight > 0:
                     if self.ssim_companion_loss == "l1":
@@ -546,8 +550,6 @@ class Hydro(Datablock):
                     elif self.ssim_companion_loss == "mse":
                         comp_loss = F.mse_loss(predicted, target)
                     elif self.ssim_companion_loss == "lpips":
-                        if not hasattr(self, "_lpips"):
-                            self._lpips = PerceptualLoss().to(predicted.device)
                         comp_loss = self._lpips(predicted, target)
                     else:
                         raise ValueError(f"Unknown companion loss: {self.ssim_companion_loss}")
@@ -626,6 +628,7 @@ class HydroLightning(Datablock):
         # SSIM parameters (optional, hoisted from Hydro)
         ssim_companion_weight: Optional[float] = None
         ssim_companion_loss: Optional[str] = None
+        strict_loading: bool = True
 
     class Lightning(L.LightningModule):
 
@@ -636,6 +639,7 @@ class HydroLightning(Datablock):
             scheduler: str = "cosine",
             log_images: bool = False,
             log_images_interval: int = 100,
+            strict_loading: bool = True,
             log: dbx.Logger = None,
         ):
             super().__init__()
@@ -644,6 +648,7 @@ class HydroLightning(Datablock):
             self.scheduler = scheduler
             self.log_images = log_images
             self.log_images_interval = log_images_interval
+            self.strict_loading = strict_loading
             self.save_hyperparameters(ignore=['decoder'])
             self.log_ = log or dbx.Logger(name="HydroLightning")
 
@@ -736,6 +741,7 @@ class HydroLightning(Datablock):
             scheduler=self.cfg.scheduler,
             log_images=self.cfg.log_images,
             log_images_interval=self.cfg.log_images_interval,
+            strict_loading=self.cfg.strict_loading,
             log=self.log,
         )
 
@@ -763,6 +769,7 @@ class HydroStill(Datablock):
         gradient_clip_algorithm: str = "norm"
         ckpt_every_n_steps: int = None
         precision: str = None
+        strict_loading: bool = False
         
         # Architectural improvements (optional, hoisted from Hydro)
         cnn_use_residual_upsampling: bool = False
@@ -910,6 +917,9 @@ class HydroStill(Datablock):
             self.cfg.lightning.cfg.ssim_companion_weight = self.cfg.ssim_companion_weight
         if self.cfg.ssim_companion_loss is not None:
             self.cfg.lightning.cfg.ssim_companion_loss = self.cfg.ssim_companion_loss
+            
+        if self.cfg.strict_loading is not None:
+            self.cfg.lightning.cfg.strict_loading = self.cfg.strict_loading
 
 
         logger = L.pytorch.loggers.TensorBoardLogger(
