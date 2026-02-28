@@ -195,8 +195,12 @@ def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_
 # git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=2, prefetch_factor=2)" ~=
 # git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=2, prefetch_factor=1)" ~=
 # git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=2, prefetch_factor=1)" ~=
+#
 # git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
 # git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+#
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
 def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', None)
     dataloader_builder = gigapath_featurebag_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
@@ -245,6 +249,8 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_206020')[0]"
+#
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0')[0]"
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1')[0]"
 def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
@@ -282,6 +288,7 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
 
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020', 1000)"
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
 def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
@@ -405,48 +412,57 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     loss_type='ssim', ssim_companion_loss='lpips', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()" \
     nodelist=radish mem=4G gpus=1 cpus=2
+#
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+    dbx.slurm.pprint \
+    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_206020', \\
+    cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
+    loss_type='ssim', ssim_companion_loss='lpips', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
+    log_images=True, log_images_interval=1, max_epochs=16, n_devices=1, batch_size=46, num_workers=16, prefetch_factor=4, pin_memory=True, shuffle=True).build()" \
+    nodelist=radish mem=4G gpus=1 cpus=2
 """
 def gigapath_bipolar_hydro_still(
-hydro_dataset_name = None, 
-                        *,  
-                        n_devices: int = 1,
-                        logsroot: str = None,
-                        log_images: bool = False,
-                        log_images_interval: int = 100,
-                        from_scratch: bool = False,
-                        max_epochs: int = 1,
-                        max_steps: int = None,
-                        ckpt_every_n_steps: int = 100,
-                        use_bags: bool = True,
-                        shuffle_bags_seed: int = 42,
-                        learning_rate: float = 1e-4,
-                        scheduler: str = 'cosine',
-                        gradient_clip_algorithm: str = 'norm',
-                        gradient_clip_val: float = 10.0,
-                        loss_type: str = 'mse',
-                        cnn_use_batch_norm: bool = True,
-                        cnn_use_bilinear_upsampling: bool = False,
-                        cnn_use_pixel_shuffle: bool = False,
-                        cnn_use_residual: bool = False,
-                        cnn_use_residual_upsampling: bool = False,
-                        cnn_use_spatial_attention_gates: bool = False,
-                        cnn_use_feature_modulation: bool = False,
-                        model: Literal['cnn', 'vit'] = 'cnn',
-                        ssim_companion_weight: float = 0.8,
-                        ssim_companion_loss: str = 'lpips',
-                        suffix: str|None = None,
-                        **dataloader_kwargs,
-    ):
+    hydro_dataset_name = None, 
+    *,  
+    n_devices: int = 1,
+    logsroot: str = None,
+    log_images: bool = False,
+    log_images_interval: int = 100,
+    from_scratch: bool = False,
+    load_optimizer_state: bool = False,
+    max_epochs: int = 1,
+    max_steps: int = None,
+    ckpt_every_n_steps: int = 100,
+    use_bags: bool = True,
+    shuffle_bags_seed: int = 42,
+    learning_rate: float = 1e-4,
+    scheduler: str = 'cosine',
+    gradient_clip_algorithm: str = 'norm',
+    gradient_clip_val: float = 10.0,
+    loss_type: str = 'mse',
+    cnn_use_batch_norm: bool = True,
+    cnn_use_bilinear_upsampling: bool = False,
+    cnn_use_pixel_shuffle: bool = False,
+    cnn_use_residual: bool = False,
+    cnn_use_residual_upsampling: bool = False,
+    cnn_use_spatial_attention_gates: bool = False,
+    cnn_use_feature_modulation: bool = False,
+    model: Literal['cnn', 'vit'] = 'cnn',
+    ssim_companion_weight: float = 0.8,
+    ssim_companion_loss: str = 'lpips',
+    suffix: str|None = None,
+    **dataloader_kwargs,
+):
     """Create a HydroStill training pipeline.
     
     Args:
         hydro_dataset_name: Name in format 'GIGAPATH_BIPOLAR_HYDRO_<precision>_CPTAC_<split>'
-        dataroot: Root directory for data
         n_devices: Number of GPU devices
         logsroot: Root directory for tensorboard logs
         log_images: Whether to log images during training
         log_images_interval: Interval (in steps) to log images
         from_scratch: Whether to restart training from scratch
+        load_optimizer_state: Whether to load optimizer state when resuming from checkpoint
         model: Model architecture identifier (e.g., 'cnn' or 'vit')
         **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
         
@@ -512,6 +528,7 @@ hydro_dataset_name = None,
                     gradient_clip_algorithm=gradient_clip_algorithm,
                     precision=precision,
                     from_scratch=from_scratch,
+                    load_optimizer_state=load_optimizer_state,
                     ssim_companion_weight=ssim_companion_weight,
                     ssim_companion_loss=ssim_companion_loss,
                     cnn_use_pixel_shuffle=cnn_use_pixel_shuffle,
