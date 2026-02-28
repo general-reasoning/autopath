@@ -230,13 +230,13 @@ def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_s
         devices=[f'cuda:{i}' for i in range(n_devices)],
     )
  
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020', n_workers=4).build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020').build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159').build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020').build_tree()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020', n_workers=4).build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020').build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159').build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020').build_tree()"
 #
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=1).build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=1).build()"
 def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 0, build_missing_only: bool = False, n_devices: int = 1, gpu_batch_size: int = 16, single: int|None = None) -> BipolarFeatureBagClip:
     probe = gigapath_bipolar_feature_bags_probe(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size)
     if single is not None:
@@ -286,11 +286,11 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
     )
  
 
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159', 1000)"
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020', 1000)"
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
 def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', 1)
     dataloader_builder = gigapath_bipolar_featurebag_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
@@ -361,52 +361,52 @@ def gigapath_hydro(name, *, model: Literal['cnn', 'vit'] = 'cnn', **kwargs):
 
 """
 ### CNN
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159', \\
     log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_1', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=False, cnn_use_feature_modulation=False, suffix='cnn_resup_nosag_nofmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_bilinear_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     model='cnn', suffix='cnn_resup_bilup_sag_fmod_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 ### ViT
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     model='vit', loss_type='lpips',  suffix='vit_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     model='vit', loss_type='ssim',  suffix='vit_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     model='vit', loss_type='ssim',  ssim_companion_loss='lpips', ssim_companion_weight=0.1, suffix='vit_ssim_lpips_0.8',   \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 ###: slurm
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.slurm.pprint \
     "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
@@ -414,7 +414,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()" \
     nodelist=radish mem=4G gpus=1 cpus=2
 ### interactive
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXWRKREPO=True \
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     dbx.pprint \
     "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_206020', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\

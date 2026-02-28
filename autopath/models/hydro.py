@@ -930,7 +930,7 @@ class HydroStill(Datablock):
 
         # Log the datablock metadata to TensorBoard for traceability
         logger.experiment.add_text("HydroStill: anchorhashpath", f"```python\n{self.anchorhashpath}\n```", global_step=0)
-        logger.experiment.add_text("HydroStill: state", f"```python\n{self.state()}\n```", global_step=0)
+        logger.experiment.add_text("HydroStill: defn", f"```python\n{self.defn()}\n```", global_step=0)
         
         default_root_dir = self.dirpath('ckpts')
         
