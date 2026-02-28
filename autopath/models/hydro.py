@@ -753,9 +753,9 @@ class HydroStill(Datablock):
     class CONFIG:
         lightning: HydroLightning
         dataloader: ClipDataLoaderBuilder  # DataLoader or DataLoaderBuilder with .dataloader() method
-        init_ckpt_path_or_anchor: str = None
+        initial_ckpt: str = None
         from_scratch: bool = False
-        load_optimizer_state: bool = False
+        reset_optimizer_state: bool = False
         max_epochs: int = 1
         max_steps: int = 1000
         log_interval: int = 10
@@ -936,8 +936,8 @@ class HydroStill(Datablock):
             if resume:
                 ckpt = self.ckpt()
             if ckpt is None:
-                if self.cfg.init_ckpt_path_or_anchor is not None:
-                    ckpath = self.cfg.init_ckpt_path_or_anchor
+                if self.cfg.initial_ckpt is not None:
+                    ckpath = self.cfg.initial_ckpt
                     if ckpath.startswith('/'):  # TODO: support for fsspec urls
                         ckpt = ckpath
                     else:
@@ -945,7 +945,8 @@ class HydroStill(Datablock):
             fit_kwargs = {}
             if ckpt is not None:
                 self.log.info(f"Using checkpoint {ckpt}")
-                if not self.cfg.load_optimizer_state:
+                self.log.info(f"DEBUG: reset_optimizer_state={self.cfg.reset_optimizer_state} (type={type(self.cfg.reset_optimizer_state)})")
+                if self.cfg.reset_optimizer_state:
                     self.log.info(f"Skipping optimizer state from {ckpt}")
                     checkpoint = torch.load(ckpt, weights_only=False)
                     model.load_state_dict(checkpoint['state_dict'], strict=False)

@@ -429,7 +429,8 @@ def gigapath_bipolar_hydro_still(
     log_images: bool = False,
     log_images_interval: int = 100,
     from_scratch: bool = False,
-    load_optimizer_state: bool = False,
+    reset_optimizer_state: bool = False,
+    initial_ckpt: str = None,
     max_epochs: int = 1,
     max_steps: int = None,
     ckpt_every_n_steps: int = 100,
@@ -462,7 +463,8 @@ def gigapath_bipolar_hydro_still(
         log_images: Whether to log images during training
         log_images_interval: Interval (in steps) to log images
         from_scratch: Whether to restart training from scratch
-        load_optimizer_state: Whether to load optimizer state when resuming from checkpoint
+        reset_optimizer_state: Whether to reset optimizer state when resuming from checkpoint
+        initial_ckpt: Optional path to an initial checkpoint to load
         model: Model architecture identifier (e.g., 'cnn' or 'vit')
         **dataloader_kwargs: DataLoader parameters (batch_size, num_workers, etc.)
         
@@ -528,7 +530,8 @@ def gigapath_bipolar_hydro_still(
                     gradient_clip_algorithm=gradient_clip_algorithm,
                     precision=precision,
                     from_scratch=from_scratch,
-                    load_optimizer_state=load_optimizer_state,
+                    reset_optimizer_state=reset_optimizer_state,
+                    initial_ckpt=initial_ckpt,
                     ssim_companion_weight=ssim_companion_weight,
                     ssim_companion_loss=ssim_companion_loss,
                     cnn_use_pixel_shuffle=cnn_use_pixel_shuffle,
