@@ -976,7 +976,6 @@ class HydroStill(Datablock):
             fit_kwargs = {}
             if ckpt is not None:
                 self.log.info(f"Using checkpoint {ckpt}")
-                self.log.info(f"DEBUG: reset_optimizer_state={self.cfg.reset_optimizer_state} (type={type(self.cfg.reset_optimizer_state)})")
                 if self.cfg.reset_optimizer_state:
                     self.log.info(f"Skipping optimizer state from {ckpt}")
                     checkpoint = torch.load(ckpt, weights_only=False)
