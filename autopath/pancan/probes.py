@@ -31,7 +31,7 @@ from dbx import (
     TorchMultithreadingDatablocksBuilder,
     TorchMultiprocessingDatablocksBuilder,
     MultithreadingCallableExecutor,
-    MultiprocessingDatablockBuilder,
+    MultiprocessingDatablocksBuilder,
     RemoteDatablocksBuilder,
 )
 
