@@ -793,8 +793,39 @@ class HydroStill(Datablock):
         return self
 
     def valid(self):
-        #TODO: Implement validation
-        return False
+        """Check whether the necessary number of checkpoints is present in the ckpts directory."""
+        if self.cfg.max_steps is None or self.cfg.ckpt_every_n_steps is None or self.cfg.ckpt_every_n_steps <= 0:
+            return False
+
+        # Total expected number of checkpoints based on total training steps
+        # total_steps = max_epochs * max_steps (since limit_train_batches is set to max_steps)
+        expected_n = (self.cfg.max_epochs * self.cfg.max_steps) // self.cfg.ckpt_every_n_steps
+        if expected_n <= 0:
+            return False
+
+        dirpath = self.dirpath('ckpts')
+        ckptfs, _ = fsspec.url_to_fs(dirpath)
+        files = [] if not ckptfs.exists(dirpath) else ckptfs.ls(dirpath)
+        ckpts = [f for f in files if f.endswith('.ckpt') and 'step=' in f]
+        
+        steps = []
+        for ckpt in ckpts:
+            try:
+                _, basename = os.path.split(ckpt)
+                # Split by '.' and take the first part to get 'step=100-v1' from 'step=100-v1.ckpt'
+                name = basename.split('.ckpt')[0]
+                if 'step=' not in name:
+                    continue
+                _, stepstr = name.split('step=')
+                # Handle versioned checkpoints (e.g., '100-v1') by taking the first part
+                step = int(stepstr.split('-')[0])
+                steps.append(step)
+            except (ValueError, IndexError):
+                continue
+        
+        unique_steps = set(steps)
+        # Verify that we have at least the expected number of unique step checkpoints
+        return len(unique_steps) >= expected_n
 
     def UNSAFE_clear_logs(self, *, OVERRIDE: bool = False):
         """Clear all TensorBoard logs from the logs directory."""
@@ -887,9 +918,9 @@ class HydroStill(Datablock):
             name="",
         )
 
-        # Log the datablock quote to TensorBoard for traceability
-        logger.experiment.add_text("HydroStill: quote", f"```python\n{self.bid.quote}\n```", global_step=0)
-        logger.experiment.add_text("HydroStill: handle", f"```python\n{self.bid.deslash('handle')}\n```", global_step=0)
+        # Log the datablock metadata to TensorBoard for traceability
+        logger.experiment.add_text("HydroStill: anchorhash", f"```python\n{self.anchorhash}\n```", global_step=0)
+        logger.experiment.add_text("HydroStill: state", f"```python\n{self.state()}\n```", global_step=0)
         
         default_root_dir = self.dirpath('ckpts')
         
