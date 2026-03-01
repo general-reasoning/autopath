@@ -7,7 +7,6 @@ jupyterlab==4.4.3
 lightning==2.6.0
 omegaconf==2.3.0
 pyarrow==23.0.1
-ray==2.44.1
 scikit-learn==1.8.0
 scipy==1.16.3
 tfrecord==1.14.6
