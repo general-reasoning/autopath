@@ -439,9 +439,9 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     loss_type='ssim', ssim_companion_weight=0.0, \\
     initial_ckpt='/home/t-9dkarp/datalake/autopath.models.hydro.HydroStill/1f67c4f05eb5ddfa858e4e4ab703fd4aed68c309165d0fb479a94ba428c653db/ckpts/epoch=2-step=14800.ckpt', \\
     max_epochs=16, max_steps='10%', \\
-    suffix='cnn_resup_sag_fmod_ssim_10pct', \\
+    suffix='cnn_resup_sag_fmod_ssim_10pct_2', \\
     log_images=True, log_images_interval=1, \\
-    n_devices=3, batch_size=46, num_workers=6, prefetch_factor=1, pin_memory=True).build()"
+    n_devices=3, batch_size=46, num_workers=2, prefetch_factor=1, pin_memory=True).build()"
 """
 def gigapath_bipolar_hydro_still(
     hydro_dataset_name = None, 
