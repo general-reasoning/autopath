@@ -789,6 +789,7 @@ class HydroStill(Datablock):
         dataloader = self.cfg.dataloader
         if hasattr(dataloader, 'dataloader'):
             dataloader = dataloader.dataloader()
+        self.dataloader = dataloader
         if isinstance(self.cfg.max_steps, str):
             if self.cfg.max_steps.endswith('%'):
                 total_n = len(self.dataloader)
