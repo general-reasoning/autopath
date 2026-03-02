@@ -789,11 +789,13 @@ class HydroStill(Datablock):
             if self.cfg.max_steps.endswith('%'):
                 total_n = len(self.cfg.dataloader.dataset)
                 self.max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
+                self.log.info(f"Computed max_steps={self.max_steps} from {self.cfg.max_steps} of {total_n}")
             else:
                 self.max_steps = int(self.cfg.max_steps)
+                self.log.info(f"Using max_steps={self.max_steps}")
         else:
             self.max_steps = self.cfg.max_steps
-        self.log.info(f"Computed max_steps={self.max_steps}")
+            self.log.info(f"Using max_steps={self.max_steps}")
 
     @property
     def logs(self):
