@@ -490,11 +490,11 @@ def gigapath_bipolar_hydro_still(
         bits = hydroname_precision.split('_')
         # GIGAPATH_BIPOLAR_HYDRO_MEDIUM -> bits = ['GIGAPATH', 'BIPOLAR', 'HYDRO', 'MEDIUM']
         # GIGAPATH_BIPOLAR_HYDRO -> bits = ['GIGAPATH', 'BIPOLAR', 'HYDRO']
-        if bits[-1] in ['MEDIUM', 'HIGHEST']:
+        if bits[-1] in ['HIGH','MEDIUM', 'HIGHEST']:
             precision = bits[-1].lower()
             hydroname = '_'.join(bits[:-1])
         else:
-            precision = 'medium'
+            precision = 'highest'
             hydroname = hydroname_precision
 
         hydro = gigapath_hydro(hydroname, 
