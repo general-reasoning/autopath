@@ -793,6 +793,7 @@ class HydroStill(Datablock):
                 self.max_steps = int(self.cfg.max_steps)
         else:
             self.max_steps = self.cfg.max_steps
+        self.log.info(f"Computed max_steps={self.max_steps}")
 
     @property
     def logs(self):
@@ -944,7 +945,7 @@ class HydroStill(Datablock):
         
         default_root_dir = self.dirpath('ckpts')
         
-        self.log.debug(f"Building trainer for {self.max_steps} steps using {self.cfg.lightning}")
+        self.log.verbose(f"Building trainer for {self.max_steps} steps using {self.cfg.lightning}")
         
         kwargs = {}
         if self.cfg.gradient_clip_val > 0.0:
