@@ -427,10 +427,21 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_weight=0.0, \\
     initial_ckpt='/home/t-9dkarp/datalake/autopath.models.hydro.HydroStill/8407f891562e15019daa1cee2a565820602a4492eb48415a1a6ba1fb80bb2e78/ckpts/epoch=2-step=171600.ckpt', \\
-    max_epochs=16, max_steps='1%', reset_optimizer_state=True, \\
-    suffix='cnn_resup_sag_fmod_ssim_1pct', \\
+    max_epochs=16, max_steps='10%', reset_optimizer_state=True, \\
+    suffix='cnn_resup_sag_fmod_ssim_10pct', \\
     log_images=True, log_images_interval=1, \\
     n_devices=1, batch_size=46, num_workers=2, prefetch_factor=1, pin_memory=True).build()"
+### training set warmup2
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
+    dbx.pprint \
+    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGH_CPTAC_206020', \\
+    cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
+    loss_type='ssim', ssim_companion_weight=0.0, \\
+    initial_ckpt='/home/t-9dkarp/datalake/autopath.models.hydro.HydroStill/8407f891562e15019daa1cee2a565820602a4492eb48415a1a6ba1fb80bb2e78/ckpts/epoch=2-step=171600.ckpt', \\
+    max_epochs=16, max_steps='10%', reset_optimizer_state=True, \\
+    suffix='cnn_resup_sag_fmod_ssim_10pct', \\
+    log_images=True, log_images_interval=1, \\
+    n_devices=3, batch_size=46, num_workers=6, prefetch_factor=1, pin_memory=True).build()"
 """
 def gigapath_bipolar_hydro_still(
     hydro_dataset_name = None, 
