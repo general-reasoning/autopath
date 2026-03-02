@@ -785,9 +785,13 @@ class HydroStill(Datablock):
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
         super().__init__(*args, n_devices=n_devices, logsroot=logsroot, **kwargs)
+        # Get dataloader - support both DataLoader and builders with .dataloader() method
+        dataloader = self.cfg.dataloader
+        if hasattr(dataloader, 'dataloader'):
+            dataloader = dataloader.dataloader()
         if isinstance(self.cfg.max_steps, str):
             if self.cfg.max_steps.endswith('%'):
-                total_n = len(self.cfg.dataloader)
+                total_n = len(self.dataloader)
                 self.max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
                 self.log.info(f"Computed max_steps={self.max_steps} from {self.cfg.max_steps} of {total_n}")
             else:
@@ -1013,12 +1017,9 @@ class HydroStill(Datablock):
                 else:
                     fit_kwargs['ckpt_path'] = ckpt
             
-            # Get dataloader - support both DataLoader and builders with .dataloader() method
-            dataloader = self.cfg.dataloader
-            if hasattr(dataloader, 'dataloader'):
-                dataloader = dataloader.dataloader()
+            
                 
-            trainer.fit(model=model, train_dataloaders=dataloader, **fit_kwargs)
+            trainer.fit(model=model, train_dataloaders=self.dataloader, **fit_kwargs)
         finally:
             torch.set_float32_matmul_precision(original_precision)
             
