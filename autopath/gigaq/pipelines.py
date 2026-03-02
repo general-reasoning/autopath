@@ -420,6 +420,16 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=16, n_devices=1, batch_size=46, num_workers=2, prefetch_factor=1, pin_memory=True).build()"
+### training set warmup
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
+    dbx.pprint \
+    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_206020', \\
+    cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
+    loss_type='ssim', ssim_companion_weight=0.0, \\
+    max_epochs=16, max_steps='10%', initial_ckpt=\\
+    suffix='cnn_resup_sag_fmod_ssim_10pct', \\
+    log_images=True, log_images_interval=1, \\
+    n_devices=1, batch_size=46, num_workers=2, prefetch_factor=1, pin_memory=True).build()"
 """
 def gigapath_bipolar_hydro_still(
     hydro_dataset_name = None, 
@@ -509,7 +519,9 @@ def gigapath_bipolar_hydro_still(
             raise NotImplementedError(f"Shard dataloader_builder")
         
         lightning = HydroLightning(
-            spec=dict(hydro=hydro, learning_rate=learning_rate, scheduler=scheduler, 
+            spec=dict(hydro=hydro, 
+                     learning_rate=learning_rate, 
+                     scheduler=scheduler, 
                      log_images=log_images, log_images_interval=log_images_interval,
                      cnn_use_pixel_shuffle=cnn_use_pixel_shuffle,
                      cnn_use_residual=cnn_use_residual,

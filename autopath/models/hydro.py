@@ -975,10 +975,17 @@ class HydroStill(Datablock):
             resume = not self.cfg.from_scratch
             ckpt = None
             if resume:
+                self.log.info(f"Resuming training from {self.dirpath('ckpts')}")
                 ckpt = self.ckpt()
             if ckpt is None:
                 if self.cfg.initial_ckpt is not None:
-                    ckpath = self.cfg.initial_ckpt
+                    self.log.info(f"Using initial checkpoint {self.cfg.initial_ckpt}")
+                    ckpt = self.cfg.initial_ckpt
+                    if ckpt.startswith('$'):
+                        ckptblock = dbx.eval_term(ckpt)
+                        ckpath = ckptblock.ckpt()
+                    else:
+                        ckpath = ckpt
                     if ckpath.startswith('/'):  # TODO: support for fsspec urls
                         ckpt = ckpath
                     else:
