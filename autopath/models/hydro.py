@@ -806,7 +806,15 @@ class HydroStill(Datablock):
 
         # Total expected number of checkpoints based on total training steps
         # total_steps = max_epochs * max_steps (since limit_train_batches is set to max_steps)
-        expected_n = (self.cfg.max_epochs * self.cfg.max_steps) // self.cfg.ckpt_every_n_steps
+        if isinstance(self.cfg.max_steps, str):
+            if self.cfg.max_steps.endswith('%'):
+                total_n = len(self.dataloader.dataset)
+                max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
+            else:
+                max_steps = int(self.cfg.max_steps)
+        else:
+            max_steps = self.cfg.max_steps
+        expected_n = (self.cfg.max_epochs * max_steps) // self.cfg.ckpt_every_n_steps
         if expected_n <= 0:
             return False
 
