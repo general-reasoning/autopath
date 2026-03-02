@@ -808,7 +808,7 @@ class HydroStill(Datablock):
         # total_steps = max_epochs * max_steps (since limit_train_batches is set to max_steps)
         if isinstance(self.cfg.max_steps, str):
             if self.cfg.max_steps.endswith('%'):
-                total_n = len(self.dataloader.dataset)
+                total_n = len(self.cfg.dataloader.dataset)
                 max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
             else:
                 max_steps = int(self.cfg.max_steps)
