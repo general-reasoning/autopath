@@ -437,7 +437,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGH_CPTAC_206020', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_weight=0.0, \\
-    initial_ckpt='/home/t-9dkarp/datalake/autopath.models.hydro.HydroStill/8407f891562e15019daa1cee2a565820602a4492eb48415a1a6ba1fb80bb2e78/ckpts/epoch=2-step=171600.ckpt', \\
+    initial_ckpt='/home/t-9dkarp/datalake/autopath.models.hydro.HydroStill/1f67c4f05eb5ddfa858e4e4ab703fd4aed68c309165d0fb479a94ba428c653db/ckpts/epoch=2-step=14800.ckpt', \\
     max_epochs=16, max_steps='10%', \\
     suffix='cnn_resup_sag_fmod_ssim_10pct', \\
     log_images=True, log_images_interval=1, \\
