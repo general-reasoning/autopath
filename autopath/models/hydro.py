@@ -785,6 +785,14 @@ class HydroStill(Datablock):
 
     def __init__(self, *args, n_devices: int = 1, logsroot: str = None, **kwargs):
         super().__init__(*args, n_devices=n_devices, logsroot=logsroot, **kwargs)
+        if isinstance(self.cfg.max_steps, str):
+            if self.cfg.max_steps.endswith('%'):
+                total_n = len(self.cfg.dataloader.dataset)
+                self.max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
+            else:
+                self.max_steps = int(self.cfg.max_steps)
+        else:
+            self.max_steps = self.cfg.max_steps
 
     @property
     def logs(self):
@@ -797,14 +805,7 @@ class HydroStill(Datablock):
     def __pre_build__(self):
         super().__pre_build__()
         self.linklogs()
-        if isinstance(self.cfg.max_steps, str):
-            if self.cfg.max_steps.endswith('%'):
-                total_n = len(self.cfg.dataloader.dataset)
-                self.max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
-            else:
-                self.max_steps = int(self.cfg.max_steps)
-        else:
-            self.max_steps = self.cfg.max_steps
+        
         return self
 
     def valid(self):
