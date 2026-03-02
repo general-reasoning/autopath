@@ -797,24 +797,25 @@ class HydroStill(Datablock):
     def __pre_build__(self):
         super().__pre_build__()
         self.linklogs()
+        if isinstance(self.cfg.max_steps, str):
+            if self.cfg.max_steps.endswith('%'):
+                total_n = len(self.cfg.dataloader.dataset)
+                self.max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
+            else:
+                self.max_steps = int(self.cfg.max_steps)
+        else:
+            self.max_steps = self.cfg.max_steps
         return self
 
     def valid(self):
         """Check whether the necessary number of checkpoints is present in the ckpts directory."""
-        if self.cfg.max_steps is None or self.cfg.ckpt_every_n_steps is None or self.cfg.ckpt_every_n_steps <= 0:
+        if self.max_steps is None or self.cfg.ckpt_every_n_steps is None or self.cfg.ckpt_every_n_steps <= 0:
             return False
 
         # Total expected number of checkpoints based on total training steps
         # total_steps = max_epochs * max_steps (since limit_train_batches is set to max_steps)
-        if isinstance(self.cfg.max_steps, str):
-            if self.cfg.max_steps.endswith('%'):
-                total_n = len(self.cfg.dataloader.dataset)
-                max_steps = int(total_n * float(self.cfg.max_steps.strip('%')) / 100)
-            else:
-                max_steps = int(self.cfg.max_steps)
-        else:
-            max_steps = self.cfg.max_steps
-        expected_n = (self.cfg.max_epochs * max_steps) // self.cfg.ckpt_every_n_steps
+        
+        expected_n = (self.cfg.max_epochs * self.max_steps) // self.cfg.ckpt_every_n_steps
         if expected_n <= 0:
             return False
 
@@ -942,7 +943,7 @@ class HydroStill(Datablock):
         
         default_root_dir = self.dirpath('ckpts')
         
-        self.log.debug(f"Building trainer for {self.cfg.max_steps} steps using {self.cfg.lightning}")
+        self.log.debug(f"Building trainer for {self.max_steps} steps using {self.cfg.lightning}")
         
         kwargs = {}
         if self.cfg.gradient_clip_val > 0.0:
@@ -962,7 +963,7 @@ class HydroStill(Datablock):
         trainer = L.pytorch.Trainer(
             default_root_dir=default_root_dir,
             max_epochs=self.cfg.max_epochs,
-            limit_train_batches=self.cfg.max_steps,
+            limit_train_batches=self.max_steps,
             log_every_n_steps=self.cfg.log_interval,
             callbacks=callbacks,
             devices=self.n_devices,
@@ -971,7 +972,7 @@ class HydroStill(Datablock):
         )
 
         self.log.debug(f"Built {trainer=} for lightning {self.cfg.lightning}")
-        self.log.debug(f"Launching training for {self.cfg.max_steps=}")
+        self.log.debug(f"Launching training for {self.max_steps=}")
 
         original_precision = torch.get_float32_matmul_precision()
         if self.cfg.precision is not None:
