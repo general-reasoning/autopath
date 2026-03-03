@@ -441,7 +441,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBXUSEWRKREPO=True \
     max_epochs=16, max_steps='10%', \\
     suffix='cnn_resup_sag_fmod_ssim_10pct_2', \\
     log_images=True, log_images_interval=1, \\
-    n_devices=3, batch_size=28, num_workers=2, prefetch_factor=1, pin_memory=True).build()"
+    n_devices=3, batch_size=24, num_workers=2, prefetch_factor=1, pin_memory=True).build()"
 """
 def gigapath_bipolar_hydro_still(
     hydro_dataset_name = None, 
