@@ -1,8 +1,9 @@
+
 from dataclasses import dataclass
 import functools
 import math
 import traceback as tb
-from typing import Optional, Union
+from typing import Union
 
 import tqdm
 
@@ -12,7 +13,10 @@ import torchvision
 
 
 import dbx
-from dbx import Datablock
+from dbx import (
+    Datablock,
+    MultithreadingDatablocksBuilder,
+)
 
 
 class Shard(Datablock):
@@ -274,13 +278,214 @@ class Fold(Clip):
         return self.cfg.partition.n_shards(self.cfg.fold)
 
 
+class ShuffledShard(Shard):
+    """A ``Shard`` whose samples are a shuffled, non-overlapping subset of
+    those exposed by a ``ClipDatasetBuilder.dataset()``.
+
+    One ``ShuffledShard`` is created per fold by ``ShuffledPartition`` and
+    built in parallel via ``MultithreadingDatablocksBuilder``.
+    The 'index' topic persists the int64 array of global sample indices;
+    ``tensor`` and ``labels`` are resolved lazily at read time.
+    """
+
+    TOPICFILES = {'index': 'sample_indices.npy', 'tensor': None, 'labels': None}
+
+    @dataclass
+    class CONFIG(Shard.CONFIG):
+        clip_dataset_builder: 'ClipDatasetBuilder'
+        fold: int
+        indices: np.ndarray     # int64 global sample indices for this fold
+
+    # ------------------------------------------------------------------
+    # Build / read
+    # ------------------------------------------------------------------
+
+    def __build__(self):
+        self.log.verbose(
+            f"ShuffledShard fold={self.cfg.fold}: {len(self.cfg.indices)} samples"
+        )
+        np.save(
+            self.path('index', ensure_dirpath=True),
+            self.cfg.indices.astype(np.int64),
+        )
+        return self
+
+    def __read__(self, topic):
+        if topic == 'index':
+            return np.load(self.path('index'))
+        raise ValueError(f"Unknown topic: {topic!r}")
+
+    # ------------------------------------------------------------------
+    # Shard interface
+    # ------------------------------------------------------------------
+
+    def __len__(self) -> int:
+        return len(self.index)
+
+    @functools.cached_property
+    def index(self) -> np.ndarray:
+        """1-D int64 array of global sample indices."""
+        return self.read('index')
+
+    @functools.cached_property
+    def tensor(self):
+        """Stack of all samples in this fold (may be large — use sparingly)."""
+        dataset = self.cfg.clip_dataset_builder.dataset()
+        return torch.stack([dataset[int(i)][0] for i in self.index])
+
+    @functools.cached_property
+    def labels(self):
+        dataset = self.cfg.clip_dataset_builder.dataset()
+        return [dataset[int(i)][1] for i in self.index]
+
+
+class ShuffledPartition(Partition):
+    """Sample-level, non-overlapping partition of a ``ClipDatasetBuilder.dataset()``.
+
+    Extends ``Partition`` with two key differences:
+
+    * Works at the *sample* level (indices into the full dataset) rather than
+      the shard level.
+    * ``fold_fractions`` need **not** sum to 1 — any remainder is discarded.
+
+    Each fold is represented as a ``ShuffledShard`` (a ``Shard`` subclass)
+    whose index file is written to disk.  When ``n_workers > 1`` the per-fold
+    ``ShuffledShard`` Datablocks are built in parallel using
+    ``MultithreadingDatablocksBuilder``.
+
+    Use the existing ``Fold`` class to access a single fold as a ``Clip``::
+
+        sp = ShuffledPartition(
+            spec=dict(
+                clip_dataset_builder=dbx.quote(my_builder),
+                fold_fractions=[0.7, 0.15],   # 15 % remainder unused
+                seed=0,
+            ),
+            n_workers=4,
+        )
+        sp.build()
+        fold0 = Fold(spec=dict(partition=dbx.quote(sp), fold=0))
+    """
+
+    # State lives entirely in the per-fold ShuffledShard Datablocks,
+    # so this Partition has no files of its own.
+    TOPICFILES = {}
+
+    @dataclass
+    class CONFIG:
+        clip_dataset_builder: 'ClipDatasetBuilder'
+        fold_fractions: list[float]
+        seed: int = 42
+
+    def __init__(self, *args, n_workers: int = 1, **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+
+    def __post_init__(self):
+        # Relaxed: fractions need not sum to 1.0
+        total = sum(self.cfg.fold_fractions)
+        assert total <= 1.0 + 1e-9, (
+            f"fold_fractions total must not exceed 1.0, "
+            f"got {self.cfg.fold_fractions} (sum={total:.6f})"
+        )
+        return self
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _compute_fold_slices(self, N: int) -> list[np.ndarray]:
+        """Single shuffled permutation split into per-fold index slices."""
+        rng = np.random.default_rng(self.cfg.seed)
+        perm = rng.permutation(N)
+        slices, lo = [], 0
+        for fraction in self.cfg.fold_fractions:
+            k = int(math.floor(N * fraction))
+            hi = min(lo + k, N)
+            slices.append(perm[lo:hi].astype(np.int64))
+            lo = hi
+        return slices
+
+    def _make_shards(self, fold_slices: list[np.ndarray]) -> list[ShuffledShard]:
+        """Construct one ``ShuffledShard`` per fold (not yet built)."""
+        return [
+            ShuffledShard(
+                root=self._root_,
+                spec=dict(
+                    clip_dataset_builder=self.spec['clip_dataset_builder'],
+                    fold=fold,
+                    indices=indices,
+                ),
+                revision=self.revision,
+            )
+            for fold, indices in enumerate(fold_slices)
+        ]
+
+    def _all_shards(self) -> list[ShuffledShard]:
+        dataset = self.cfg.clip_dataset_builder.dataset()
+        return self._make_shards(self._compute_fold_slices(len(dataset)))
+
+    # ------------------------------------------------------------------
+    # Build / valid
+    # ------------------------------------------------------------------
+
+    def __build__(self):
+        dataset = self.cfg.clip_dataset_builder.dataset()
+        N = len(dataset)
+        self.log.info(
+            f"ShuffledPartition: {N} samples, "
+            f"fold_fractions={self.cfg.fold_fractions}, "
+            f"seed={self.cfg.seed}, n_workers={self.n_workers}"
+        )
+        all_shards = self._make_shards(self._compute_fold_slices(N))
+        missing = [s for s in all_shards if not s.valid()]
+        self.log.verbose(
+            f"ShuffledPartition: {len(missing)} of {len(all_shards)} shards need building"
+        )
+        if self.n_workers > 1:
+            MultithreadingDatablocksBuilder(
+                n_threads=self.n_workers, log=self.log
+            ).build_blocks(missing)
+        else:
+            for shard in missing:
+                shard.build()
+        self.log.info("ShuffledPartition: build complete")
+        return self
+
+    def valid(self):
+        return all(s.valid() for s in self._all_shards())
+
+    # ------------------------------------------------------------------
+    # Partition interface
+    # ------------------------------------------------------------------
+
+    def shards(self, fold) -> list[ShuffledShard]:
+        return [self._all_shards()[int(fold)]]
+
+    def shard(self, fold, idx: int) -> ShuffledShard:
+        assert idx == 0, "Each fold is a single ShuffledShard; use idx=0"
+        return self._all_shards()[int(fold)]
+
+    def shard_lens(self, fold) -> np.ndarray:
+        return np.array([len(self.shard(fold, 0))])
+
+    def shard_indices(self, fold) -> np.ndarray:
+        """Global sample-index array for *fold*."""
+        return self.shard(fold, 0).index
+
+    def n_shards(self, fold) -> int:
+        return 1
+
+    def n_folds(self) -> int:
+        return len(self.cfg.fold_fractions)
+
+
 class ClipDatasetBuilder(Datablock):
     @dataclass
     class CONFIG:
         clip: Clip
-        transform: Optional[torchvision.transforms.Compose] = None
-        target_transform: Optional[torchvision.transforms.Compose] = None
-        shuffle_seed: Optional[int] = None
+        transform: torchvision.transforms.Compose | None = None
+        target_transform: torchvision.transforms.Compose | None = None
+        shuffle_seed: int | None = None
 
     def __post_init__(self):
         self.n_shards = self.cfg.clip.n_shards
