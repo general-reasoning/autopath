@@ -16,6 +16,8 @@ import dbx
 from dbx import (
     Datablock,
     MultithreadingDatablocksBuilder,
+    MultiprocessingDatablocksBuilder,
+    RemoteDatablocksBuilder,
 )
 
 
@@ -278,41 +280,50 @@ class Fold(Clip):
         return self.cfg.partition.n_shards(self.cfg.fold)
 
 
-class ShuffledShard(Shard):
-    """A ``Shard`` whose samples are a shuffled, non-overlapping subset of
-    those exposed by a ``ClipDatasetBuilder.dataset()``.
 
-    One ``ShuffledShard`` is created per fold by ``ShuffledPartition`` and
-    built in parallel via ``MultithreadingDatablocksBuilder``.
-    The 'index' topic persists the int64 array of global sample indices;
-    ``tensor`` and ``labels`` are resolved lazily at read time.
+class ShuffledShard(Shard):
+    """A ``Shard`` that holds a fixed subset of samples drawn from a ``Clip``.
+
+    ``__build__`` instantiates ``ClipDatasetBuilder(cfg.clip).dataset()``,
+    fetches the assigned sample indices, and persists the resulting tensors
+    and labels as ``tensor.npy`` / ``labels.npy``.
+
+    All ``Shard`` methods (``tensor``, ``labels``, ``__len__``) are served
+    directly from those on-disk files after the first build.
     """
 
-    TOPICFILES = {'index': 'sample_indices.npy', 'tensor': None, 'labels': None}
+    TOPICFILES = {'tensor': 'tensor.npz', 'labels': 'labels.npz'}
 
     @dataclass
     class CONFIG(Shard.CONFIG):
-        clip_dataset_builder: 'ClipDatasetBuilder'
-        fold: int
-        indices: np.ndarray     # int64 global sample indices for this fold
+        clip: Clip
+        indices: list[int]      # global sample indices assigned to this shard
 
     # ------------------------------------------------------------------
     # Build / read
     # ------------------------------------------------------------------
 
     def __build__(self):
-        self.log.detailed(
-            f"ShuffledShard fold={self.cfg.fold}: {len(self.cfg.indices)} samples"
-        )
-        np.save(
-            self.path('index', ensure_dirpath=True),
-            np.asarray(self.cfg.indices, dtype=np.int64),
-        )
+        self.log.verbose(f"fetching {len(self.cfg.indices)} samples: BEGIN")
+        dataset = ClipDatasetBuilder(
+            root=self._root_,
+            spec=dict(clip=self.spec['clip']),
+        ).dataset()
+        samples = [dataset[i] for i in self.cfg.indices]
+        self.log.verbose(f"fetching {len(self.cfg.indices)} samples: END")
+        tensor = torch.stack([s[0] for s in samples])
+        labels = np.array([s[1] for s in samples])
+        self.log.verbose(f"writing tensor and labels: BEGIN")
+        dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
+        dbx.write_npz(self.path('labels', ensure_dirpath=True), labels=labels)
+        self.log.verbose(f"writing tensor and labels: END")
         return self
 
     def __read__(self, topic):
-        if topic == 'index':
-            return np.load(self.path('index'))
+        if topic == 'tensor':
+            return dbx.read_tensors(self.path('tensor'), 'tensor')['tensor']
+        if topic == 'labels':
+            return dbx.read_npz(self.path('labels'), 'labels')['labels']
         raise ValueError(f"Unknown topic: {topic!r}")
 
     # ------------------------------------------------------------------
@@ -320,72 +331,73 @@ class ShuffledShard(Shard):
     # ------------------------------------------------------------------
 
     def __len__(self) -> int:
-        return len(self.index)
-
-    @functools.cached_property
-    def index(self) -> np.ndarray:
-        """1-D int64 array of global sample indices."""
-        return self.read('index')
+        return len(self.cfg.indices)
 
     @functools.cached_property
     def tensor(self):
-        """Stack of all samples in this fold (may be large — use sparingly)."""
-        dataset = self.cfg.clip_dataset_builder.dataset()
-        return torch.stack([dataset[int(i)][0] for i in self.index])
+        return self.read('tensor')
 
     @functools.cached_property
     def labels(self):
-        dataset = self.cfg.clip_dataset_builder.dataset()
-        return [dataset[int(i)][1] for i in self.index]
+        return self.read('labels').tolist()
 
 
-class ShuffledPartition(Partition):
-    """Sample-level, non-overlapping partition of a ``ClipDatasetBuilder.dataset()``.
+class ShuffledClip(Clip):
+    """A ``Clip`` that draws a random subset of samples from an existing
+    ``Clip`` and re-shards them into fixed-size ``ShuffledShard`` blocks.
 
-    Extends ``Partition`` with two key differences:
+    CONFIG parameters:
 
-    * Works at the *sample* level (indices into the full dataset) rather than
-      the shard level.
-    * ``fold_fractions`` need **not** sum to 1 — any remainder is discarded.
+    - ``clip``         — source ``Clip`` to sample from.
+    - ``fraction``     — fraction of the source dataset to keep (0 < fraction ≤ 1).
+    - ``shuffle_seed`` — seed for the sample-index permutation.
+    - ``shard_size``   — number of samples per output ``ShuffledShard``.
 
-    Each fold is represented as a ``ShuffledShard`` (a ``Shard`` subclass)
-    whose index file is written to disk.  When ``n_workers > 1`` the per-fold
-    ``ShuffledShard`` Datablocks are built in parallel using
-    ``MultithreadingDatablocksBuilder``.
+    Typical use::
 
-    Use the existing ``Fold`` class to access a single fold as a ``Clip``::
-
-        sp = ShuffledPartition(
+        sc = ShuffledClip(
             spec=dict(
-                clip_dataset_builder=dbx.quote(my_builder),
-                fold_fractions=[0.7, 0.15],   # 15 % remainder unused
-                seed=0,
+                clip=dbx.quote(my_clip),
+                fraction=0.8,
+                shuffle_seed=42,
+                shard_size=512,
             ),
-            n_workers=4,
+            n_workers=8,
         )
-        sp.build()
-        fold0 = Fold(spec=dict(partition=dbx.quote(sp), fold=0))
+        sc.build()
     """
-
-    # State lives entirely in the per-fold ShuffledShard Datablocks,
-    # so this Partition has no files of its own.
-    TOPICFILES = {}
 
     @dataclass
     class CONFIG:
-        clip_dataset_builder: 'ClipDatasetBuilder'
-        fold_fractions: list[float]
-        seed: int = 42
+        clip: Clip
+        fraction: float
+        shard_size: int
+        shuffle_seed: int = 42
 
-    def __init__(self, *args, n_workers: int = 1, **kwargs):
+    PARALLELIZERS = {
+        'MultithreadingDatablocksBuilder':  MultithreadingDatablocksBuilder,
+        'MultiprocessingDatablocksBuilder': MultiprocessingDatablocksBuilder,
+        'RemoteDatablocksBuilder':          RemoteDatablocksBuilder,
+    }
+
+    def __init__(
+        self,
+        *args,
+        n_workers: int = 1,
+        parallelizer: str = 'MultithreadingDatablocksBuilder',
+        **kwargs,
+    ):
+        if parallelizer not in self.PARALLELIZERS:
+            raise ValueError(
+                f"Unknown parallelizer {repr(parallelizer)}. "
+                f"Choose one of: {list(self.PARALLELIZERS)}"
+            )
         super().__init__(*args, n_workers=n_workers, **kwargs)
+        self.parallelizer = parallelizer
 
     def __post_init__(self):
-        # Relaxed: fractions need not sum to 1.0
-        total = sum(self.cfg.fold_fractions)
-        assert total <= 1.0 + 1e-9, (
-            f"fold_fractions total must not exceed 1.0, "
-            f"got {self.cfg.fold_fractions} (sum={total:.6f})"
+        assert 0 < self.cfg.fraction <= 1.0, (
+            f"fraction must be in (0, 1], got {self.cfg.fraction}"
         )
         return self
 
@@ -393,94 +405,68 @@ class ShuffledPartition(Partition):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _compute_fold_slices(self, N: int) -> list[list[int]]:
-        """Single shuffled permutation split into per-fold index slices.
+    def _shuffled_indices(self) -> list[int]:
+        """Return the full list of sampled global indices (Python ints)."""
+        dataset = ClipDatasetBuilder(
+            root=self._root_,
+            spec=dict(clip=self.spec['clip']),
+        ).dataset()
+        N = len(dataset)
+        n_samples = int(math.floor(N * self.cfg.fraction))
+        rng = np.random.default_rng(self.cfg.shuffle_seed)
+        perm = rng.permutation(N)[:n_samples]
+        return perm.tolist()   # plain list[int] — survives YAML serialisation
 
-        Returns plain ``list[int]`` slices so that they survive Datablock's
-        YAML-based spec serialisation without becoming ``list[np.int64]``.
-        """
-        rng = np.random.default_rng(self.cfg.seed)
-        perm = rng.permutation(N)
-        slices, lo = [], 0
-        for fraction in self.cfg.fold_fractions:
-            k = int(math.floor(N * fraction))
-            hi = min(lo + k, N)
-            slices.append(perm[lo:hi].astype(np.int64).tolist())
-            lo = hi
-        return slices
-
-    def _make_shards(self, fold_slices: list[np.ndarray]) -> list[ShuffledShard]:
-        """Construct one ``ShuffledShard`` per fold (not yet built)."""
+    def _make_shards(self, indices: list[int]) -> list[ShuffledShard]:
+        """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
+        s = self.cfg.shard_size
+        chunks = [indices[i:i + s] for i in range(0, len(indices), s)]
         return [
             ShuffledShard(
                 root=self._root_,
                 spec=dict(
-                    clip_dataset_builder=self.spec['clip_dataset_builder'],
-                    fold=fold,
-                    indices=indices,
+                    clip=self.spec['clip'],
+                    indices=chunk,
                 ),
                 revision=self.revision,
             )
-            for fold, indices in enumerate(fold_slices)
+            for idx, chunk in enumerate(chunks)
         ]
 
-    def _all_shards(self) -> list[ShuffledShard]:
-        dataset = self.cfg.clip_dataset_builder.dataset()
-        return self._make_shards(self._compute_fold_slices(len(dataset)))
+    # ------------------------------------------------------------------
+    # Clip interface
+    # ------------------------------------------------------------------
+
+    @functools.cached_property
+    def shards(self) -> list[ShuffledShard]:
+        return self._make_shards(self._shuffled_indices())
+
+    def shard(self, idx: int) -> ShuffledShard:
+        return self.shards[idx]
 
     # ------------------------------------------------------------------
-    # Build / valid
+    # Build
     # ------------------------------------------------------------------
 
     def __build__(self):
-        dataset = self.cfg.clip_dataset_builder.dataset()
-        N = len(dataset)
-        self.log.info(
-            f"ShuffledPartition: {N} samples, "
-            f"fold_fractions={self.cfg.fold_fractions}, "
-            f"seed={self.cfg.seed}, n_workers={self.n_workers}"
-        )
-        all_shards = self._make_shards(self._compute_fold_slices(N))
+        all_shards = self.shards
         missing = [s for s in all_shards if not s.valid()]
-        self.log.verbose(
-            f"ShuffledPartition: {len(missing)} of {len(all_shards)} shards need building"
+        self.log.info(
+            f"{len(all_shards)} shards total, "
+            f"{len(missing)} need building, n_workers={self.n_workers}"
         )
-        if self.n_workers > 1:
-            MultithreadingDatablocksBuilder(
-                n_threads=self.n_workers, log=self.log
-            ).build_blocks(missing)
-        else:
-            for shard in missing:
-                shard.build()
-        self.log.info("ShuffledPartition: build complete")
+        if missing:
+            self.log.info(f"building {len(missing)} shards: BEGIN")
+            if self.n_workers > 1:
+                builder_cls = self._PARALLELIZERS[self.parallelizer]
+                builder_cls(n_workers=self.n_workers, log=self.log).build_blocks(missing)
+            else:
+                for shard in missing:
+                    shard.build()
+            self.log.info(f"building {len(missing)} shards: END")
+        # Write the shard_lens file expected by Clip
+        super().__build__()
         return self
-
-    def valid(self):
-        return all(s.valid() for s in self._all_shards())
-
-    # ------------------------------------------------------------------
-    # Partition interface
-    # ------------------------------------------------------------------
-
-    def shards(self, fold) -> list[ShuffledShard]:
-        return [self._all_shards()[int(fold)]]
-
-    def shard(self, fold, idx: int) -> ShuffledShard:
-        assert idx == 0, "Each fold is a single ShuffledShard; use idx=0"
-        return self._all_shards()[int(fold)]
-
-    def shard_lens(self, fold) -> np.ndarray:
-        return np.array([len(self.shard(fold, 0))])
-
-    def shard_indices(self, fold) -> np.ndarray:
-        """Global sample-index array for *fold*."""
-        return self.shard(fold, 0).index
-
-    def n_shards(self, fold) -> int:
-        return 1
-
-    def n_folds(self) -> int:
-        return len(self.cfg.fold_fractions)
 
 
 class ClipDatasetBuilder(Datablock):

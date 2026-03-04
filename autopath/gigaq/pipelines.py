@@ -8,7 +8,7 @@ import torch.multiprocessing as mp
 
 import dbx
 
-from autopath.databits import ClipDatasetBuilder, ClipDataLoaderBuilder, ShuffledPartition
+from autopath.databits import ClipDatasetBuilder, ClipDataLoaderBuilder, ShuffledClip
 
 from autopath.pancan.pipelines import (
     pancan_tile_bag,
@@ -246,95 +246,6 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
         clip = BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers, build_missing_only=build_missing_only)
     return clip
 
-
-# git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_8020_7015', n_workers=4).build()"
-# git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_8020_8020', n_workers=4).build()"
-# git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_8020_404020', n_workers=4).build()"
-# git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_206020_051015203020', n_workers=16).build()"
-def gigapath_bipolar_featurebag_shuffled_partition(
-    name: str | None = None,
-    *,
-    root: str | None = None,
-    fold_fractions: list[float] | None = None,
-    seed: int = 42,
-    n_workers: int = 1,
-) -> ShuffledPartition:
-    """Build a ``ShuffledPartition`` over a ``BipolarFeatureBagClip`` dataset.
-
-    The ``name`` encodes both the underlying BipolarFeatureBagClip and the
-    fold fractions, separated by a ``'_'``-delimited suffix of integers that
-    sum to ≤ 100 (interpreted as percentages).  Example names::
-
-        'GIGAPATH_BASELINE_CPTAC_8020_7015'     # 70 % / 15 %  (15 % unused)
-        'GIGAPATH_BASELINE_CPTAC_8020_8020'     # 80 % / 20 %
-        'GIGAPATH_BASELINE_CPTAC_8020_404020'   # 40 % / 40 % / 20 %
-        'GIGAPATH_BASELINE_CPTAC_400159_7015'   # 70 % / 15 %
-
-    Alternatively pass ``fold_fractions`` explicitly and use the clip name
-    directly (e.g. ``'GIGAPATH_BASELINE_CPTAC_8020'``).
-
-    Returns a ``ShuffledPartition`` (not yet built) whose
-    ``ClipDatasetBuilder`` wraps the corresponding ``BipolarFeatureBagClip``.
-    """
-    if name is None:
-        return ShuffledPartition
-
-    # Known BipolarFeatureBagClip names that gigapath_bipolar_feature_bag_clip() accepts
-    _KNOWN_CLIPS = (
-        'GIGAPATH_BASELINE_CPTAC_8020',
-        'GIGAPATH_BASELINE_CPTAC_9802',
-        'GIGAPATH_BASELINE_CPTAC_206020',
-        'GIGAPATH_BASELINE_CPTAC_404020',
-        'GIGAPATH_BASELINE_CPTAC_400159',
-    )
-
-    if fold_fractions is not None:
-        # Caller supplied fractions explicitly; name is the raw clip name
-        clip_name = name
-    else:
-        # Parse fractions from the name suffix
-        clip_name = None
-        fraction_suffix = None
-        for clip in sorted(_KNOWN_CLIPS, key=len, reverse=True):
-            if name.startswith(clip + '_'):
-                clip_name = clip
-                fraction_suffix = name[len(clip) + 1:]
-                break
-        if clip_name is None:
-            raise ValueError(
-                f"Cannot determine BipolarFeatureBagClip from name {repr(name)}. "
-                f"Known clips: {_KNOWN_CLIPS}"
-            )
-        # fraction_suffix like '7015' -> [0.70, 0.15]  or '404020' -> [0.40, 0.40, 0.20]
-        import re
-        raw = [int(x) for x in re.findall(r'\d{2}', fraction_suffix)]
-        if not raw or sum(raw) > 100:
-            raise ValueError(
-                f"Cannot parse fold fractions from suffix {repr(fraction_suffix)} "
-                f"in name {repr(name)}: digits must be paired and sum ≤ 100"
-            )
-        fold_fractions = [r / 100.0 for r in raw]
-
-    transform = dbx.quote(FeaturesToFloat, dtype='float32')
-    target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
-    clip_dataset_builder = ClipDatasetBuilder(
-        spec=dict(
-            clip=dbx.quote(gigapath_bipolar_feature_bag_clip, clip_name),
-            transform=transform,
-            target_transform=target_transform,
-        )
-    )
-    return ShuffledPartition(
-        root=root,
-        spec=dict(
-            clip_dataset_builder=dbx.quote(clip_dataset_builder),
-            fold_fractions=fold_fractions,
-            seed=seed,
-        ),
-        n_workers=n_workers,
-    )
-
-
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159')[0]"
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_206020')[0]"
@@ -389,6 +300,48 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
             break
     if return_last:
         return _
+
+
+# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_8020', fraction=0.8, shard_size=512, n_workers=8).build()"
+# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_400159', fraction=0.8, shard_size=512, n_workers=8).build()"
+# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.8, shard_size=512, n_workers=8).build()"
+def gigapath_bipolar_shuffled_featurebag_clip(
+    name: str | None = None,
+    *,
+    root: str | None = None,
+    fraction: float = 1.0,
+    shuffle_seed: int = 42,
+    shard_size: int = 512,
+    n_workers: int = 1,
+    parallelizer: str = 'MultithreadingDatablocksBuilder',
+    n_devices: int = 1,
+    gpu_batch_size: int = 16,
+) -> ShuffledClip:
+    """A ``ShuffledClip`` wrapping a ``BipolarFeatureBagClip``.
+
+    Samples ``fraction`` of the underlying bag-level dataset, re-shards it
+    into ``shard_size``-sized ``ShuffledShard`` blocks, and builds them in
+    parallel when ``n_workers > 1``.
+
+    ``name`` accepts the same values as ``gigapath_bipolar_feature_bag_clip``
+    (e.g. ``'GIGAPATH_BASELINE_CPTAC_8020'``).
+    """
+    if name is None:
+        return ShuffledClip
+    featureclip = gigapath_bipolar_feature_bag_clip(
+        name, root=root, n_devices=n_devices, gpu_batch_size=gpu_batch_size
+    )
+    return ShuffledClip(
+        root=root,
+        spec=dict(
+            clip=dbx.quote(featureclip),
+            fraction=fraction,
+            shuffle_seed=shuffle_seed,
+            shard_size=shard_size,
+        ),
+        n_workers=n_workers,
+        parallelizer=parallelizer,
+    )
 
 
 # git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_BIPOLAR_HYDRO')"
