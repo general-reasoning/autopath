@@ -420,8 +420,9 @@ class ShuffledClip(Clip):
     def _make_shards(self, indices: list[int]) -> list[ShuffledShard]:
         """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
         s = self.cfg.shard_size
+        self.log.verbose(f"Forming shards: partitioning {len(indices)} indices into chunks of size {s}: BEGIN")
         chunks = [indices[i:i + s] for i in range(0, len(indices), s)]
-        return [
+        shards = [
             ShuffledShard(
                 root=self._root_,
                 spec=dict(
@@ -432,6 +433,8 @@ class ShuffledClip(Clip):
             )
             for idx, chunk in enumerate(chunks)
         ]
+        self.log.verbose(f"Forming shards: artitioning {len(indices)} indices into chunks of size {s}: END")
+        return shards
 
     # ------------------------------------------------------------------
     # Clip interface
