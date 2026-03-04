@@ -427,7 +427,7 @@ class ShuffledClip(Clip):
         self.log.verbose(f"Creating shards: BEGIN")
         chunkitor = chunks
         if self.verbose:
-            chunkitor = tqdm(chunks, desc="Creating shards")
+            chunkitor = tqdm.tqdm(chunks, desc="Creating shards")
         shards = [
             ShuffledShard(
                 root=self._root_,
