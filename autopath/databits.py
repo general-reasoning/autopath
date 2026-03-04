@@ -458,7 +458,7 @@ class ShuffledClip(Clip):
         if missing:
             self.log.info(f"building {len(missing)} shards: BEGIN")
             if self.n_workers > 1:
-                builder_cls = self._PARALLELIZERS[self.parallelizer]
+                builder_cls = self.PARALLELIZERS[self.parallelizer]
                 builder_cls(n_workers=self.n_workers, log=self.log).build_blocks(missing)
             else:
                 for shard in missing:
