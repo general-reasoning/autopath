@@ -420,8 +420,14 @@ class ShuffledClip(Clip):
     def _make_shards(self, indices: list[int]) -> list[ShuffledShard]:
         """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
         s = self.cfg.shard_size
-        self.log.verbose(f"Forming shards: partitioning {len(indices)} indices into chunks of size {s}: BEGIN")
+        self.log.verbose(f"Forming shards: BEGIN")
+        self.log.verbose(f"Partitioning {len(indices)} indices into chunks of size {s}: BEGIN")
         chunks = [indices[i:i + s] for i in range(0, len(indices), s)]
+        self.log.verbose(f"Partitioning {len(indices)} indices into chunks of size {s}: END")
+        self.log.verbose(f"Creating shards: BEGIN")
+        chunkitor = chunks
+        if self.verbose:
+            chunkitor = tqdm(chunks, desc="Creating shards")
         shards = [
             ShuffledShard(
                 root=self._root_,
@@ -431,9 +437,10 @@ class ShuffledClip(Clip):
                 ),
                 revision=self.revision,
             )
-            for idx, chunk in enumerate(chunks)
+            for idx, chunk in enumerate(chunkitor)
         ]
-        self.log.verbose(f"Forming shards: artitioning {len(indices)} indices into chunks of size {s}: END")
+        self.log.verbose(f"Creating shards: END")
+        self.log.verbose(f"Forming shards: END")
         return shards
 
     # ------------------------------------------------------------------
