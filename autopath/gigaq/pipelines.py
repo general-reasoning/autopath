@@ -250,7 +250,7 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 # git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_8020_7015', n_workers=4).build()"
 # git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_8020_8020', n_workers=4).build()"
 # git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_8020_404020', n_workers=4).build()"
-# git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_206020_201020', n_workers=16).build()"
+# git commit -am "gigaq: BipolarFeatureBagShuffledPartition: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_shuffled_partition('GIGAPATH_BASELINE_CPTAC_206020_051015203020', n_workers=16).build()"
 def gigapath_bipolar_featurebag_shuffled_partition(
     name: str | None = None,
     *,
@@ -286,6 +286,7 @@ def gigapath_bipolar_featurebag_shuffled_partition(
         'GIGAPATH_BASELINE_CPTAC_206020',
         'GIGAPATH_BASELINE_CPTAC_404020',
         'GIGAPATH_BASELINE_CPTAC_400159',
+        'GIGAPATH_BASELINE_CPTAC_206020',
     )
 
     if fold_fractions is not None:
