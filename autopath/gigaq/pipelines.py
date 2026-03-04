@@ -286,7 +286,6 @@ def gigapath_bipolar_featurebag_shuffled_partition(
         'GIGAPATH_BASELINE_CPTAC_206020',
         'GIGAPATH_BASELINE_CPTAC_404020',
         'GIGAPATH_BASELINE_CPTAC_400159',
-        'GIGAPATH_BASELINE_CPTAC_206020',
     )
 
     if fold_fractions is not None:

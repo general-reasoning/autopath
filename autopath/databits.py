@@ -301,12 +301,12 @@ class ShuffledShard(Shard):
     # ------------------------------------------------------------------
 
     def __build__(self):
-        self.log.verbose(
+        self.log.detailed(
             f"ShuffledShard fold={self.cfg.fold}: {len(self.cfg.indices)} samples"
         )
         np.save(
             self.path('index', ensure_dirpath=True),
-            self.cfg.indices.astype(np.int64),
+            np.asarray(self.cfg.indices, dtype=np.int64),
         )
         return self
 
@@ -393,15 +393,19 @@ class ShuffledPartition(Partition):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _compute_fold_slices(self, N: int) -> list[np.ndarray]:
-        """Single shuffled permutation split into per-fold index slices."""
+    def _compute_fold_slices(self, N: int) -> list[list[int]]:
+        """Single shuffled permutation split into per-fold index slices.
+
+        Returns plain ``list[int]`` slices so that they survive Datablock's
+        YAML-based spec serialisation without becoming ``list[np.int64]``.
+        """
         rng = np.random.default_rng(self.cfg.seed)
         perm = rng.permutation(N)
         slices, lo = [], 0
         for fraction in self.cfg.fold_fractions:
             k = int(math.floor(N * fraction))
             hi = min(lo + k, N)
-            slices.append(perm[lo:hi].astype(np.int64))
+            slices.append(perm[lo:hi].astype(np.int64).tolist())
             lo = hi
         return slices
 
