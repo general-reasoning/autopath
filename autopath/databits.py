@@ -354,7 +354,7 @@ class ShuffledShardMaker:
         self.fraction = fraction
         self.shuffle_seed = shuffle_seed
 
-    def __call__(self, spec):
+    def __call__(self):
         N = len(self.clip)
         n_samples = int(math.floor(N * self.fraction))
         rng = np.random.default_rng(self.shuffle_seed)
