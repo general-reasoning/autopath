@@ -393,6 +393,8 @@ class ShuffledClip(Clip):
         sc.build()
     """
 
+    VERBOSE_CONFIG = True
+
     @dataclass
     class CONFIG:
         clip: Clip
@@ -413,18 +415,17 @@ class ShuffledClip(Clip):
         parallelizer: str = 'Multiprocessing',
         **kwargs,
     ):
-        if parallelizer not in self.PARALLELIZERS:
-            raise ValueError(
-                f"Unknown parallelizer {repr(parallelizer)}. "
-                f"Choose one of: {list(self.PARALLELIZERS)}"
-            )
-        super().__init__(*args, n_workers=n_workers, **kwargs)
-        self.parallelizer = parallelizer
+        super().__init__(*args, n_workers=n_workers, parallelizer=parallelizer, **kwargs)
 
     def __post_init__(self):
         assert 0 < self.cfg.fraction <= 1.0, (
             f"fraction must be in (0, 1], got {self.cfg.fraction}"
         )
+        if self.parallelizer not in self.PARALLELIZERS:
+            raise ValueError(
+                f"Unknown parallelizer {repr(self.parallelizer)}. "
+                f"Choose one of: {list(self.PARALLELIZERS)}"
+            )
         return self
        
     # ------------------------------------------------------------------
@@ -449,7 +450,7 @@ class ShuffledClip(Clip):
             )
             for idx in range(n_shards)
         ]
-        shards = self.parallelizer['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
+        shards = self.PARALLELIZERS[self.parallelizer]['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
         self.log.verbose(f"Forming shards: END")
         return shards
 
@@ -471,7 +472,7 @@ class ShuffledClip(Clip):
             self.log.info(f"building {len(missing)} shards: BEGIN")
             
             if self.n_workers > 1:
-                self.parallelizer['datablock'](n_workers=self.n_workers, log=self.log).build_blocks(missing)
+                self.PARALLELIZERS[self.parallelizer]['datablock'](n_workers=self.n_workers, log=self.log).build_blocks(missing)
             else:
                 for shard in missing:
                     shard.build()
