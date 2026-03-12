@@ -303,7 +303,6 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
 
 
 # git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.2, shard_size=512, n_workers=8).build()"
-# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_400159', fraction=0.8, shard_size=512, n_workers=8).build()"
 # git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.8, shard_size=512, n_workers=8).build()"
 def gigapath_bipolar_shuffled_featurebag_clip(
     name: str | None = None,

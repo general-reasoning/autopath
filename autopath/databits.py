@@ -15,9 +15,9 @@ import torchvision
 import dbx
 from dbx import (
     Datablock,
-    MultithreadingDatablocksBuilder,
-    MultiprocessingDatablocksBuilder,
-    RemoteDatablocksBuilder,
+    MultithreadingCallableExecutor,
+    MultiprocessingCallableExecutor,
+    RemoteCallableExecutor,
 )
 
 
@@ -342,6 +342,20 @@ class ShuffledShard(Shard):
         return self.read('labels').tolist()
 
 
+class ShuffledShardBuilder:
+    def __init__(self, root, spec, revision):
+        self._root_ = root
+        self.spec = spec
+        self.revision = revision
+
+    def __call__(self):
+        shard = ShuffledShard(
+            root=self._root_,
+            spec=self.spec,
+            revision=self.revision,
+        )
+        shard.build()
+
 class ShuffledClip(Clip):
     """A ``Clip`` that draws a random subset of samples from an existing
     ``Clip`` and re-shards them into fixed-size ``ShuffledShard`` blocks.
@@ -375,9 +389,9 @@ class ShuffledClip(Clip):
         shuffle_seed: int = 42
 
     PARALLELIZERS = {
-        'MultithreadingDatablocksBuilder':  MultithreadingDatablocksBuilder,
-        'MultiprocessingDatablocksBuilder': MultiprocessingDatablocksBuilder,
-        'RemoteDatablocksBuilder':          RemoteDatablocksBuilder,
+        'MultithreadingDatablocksBuilder':  MultithreadingCallableExecutor,
+        'MultiprocessingDatablocksBuilder': MultiprocessingCallableExecutor,
+        'RemoteDatablocksBuilder':          RemoteCallableExecutor,
     }
 
     def __init__(
@@ -467,9 +481,18 @@ class ShuffledClip(Clip):
         )
         if missing:
             self.log.info(f"building {len(missing)} shards: BEGIN")
+            
             if self.n_workers > 1:
-                builder_cls = self.PARALLELIZERS[self.parallelizer]
-                builder_cls(n_workers=self.n_workers, log=self.log).build_blocks(missing)
+                callables = [
+                    ShuffledShardBuilder(
+                        root=shard._root_,
+                        spec=shard.spec,
+                        revision=shard.revision,
+                    )
+                    for shard in missing
+                ]
+                executor_cls = self.PARALLELIZERS[self.parallelizer]
+                executor_cls(n_workers=self.n_workers, log=self.log).execute(callables)
             else:
                 for shard in missing:
                     shard.build()
