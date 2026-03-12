@@ -434,6 +434,7 @@ class ShuffledClip(Clip):
 
     @functools.cached_property
     def shards(self) -> list[ShuffledShard]:
+        self.log.verbose(f"Forming shards: BEGIN")
         """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
         N = len(self.cfg.clip)
         n_samples = int(math.floor(N * self.cfg.fraction))
