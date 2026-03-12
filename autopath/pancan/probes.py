@@ -32,7 +32,7 @@ from dbx import (
     TorchMultiprocessingDatablocksBuilder,
     MultithreadingCallableExecutor,
     MultiprocessingDatablocksBuilder,
-    RemoteDatablocksBuilder,
+    RayDatablocksBuilder,
 )
 
 from autopath.databits import Bag, Clip

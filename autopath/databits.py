@@ -346,20 +346,21 @@ class ShuffledShard(Shard):
 
 
 class ShuffledShardMaker:
-    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, shuffle_seed: int = 42):
+    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, fraction: float = 1.0, shuffle_seed: int = 42):
         self.root = root
         self.clip = clip
         self.idx = idx
         self.shard_size = shard_size
+        self.fraction = fraction
         self.shuffle_seed = shuffle_seed
 
     def __call__(self, spec):
         N = len(self.clip)
-        indices = np.arange(N)
-        np.random.seed(self.shuffle_seed)
-        np.random.shuffle(indices)
-        indices = indices[self.idx*self.shard_size:(self.idx+1)*self.shard_size]
-        spec = dict(clip=self.clip, indices=indices)
+        n_samples = int(math.floor(N * self.fraction))
+        rng = np.random.default_rng(self.shuffle_seed)
+        sampled_indices = rng.permutation(N)[:n_samples]
+        shard_indices = sampled_indices[self.idx*self.shard_size:(self.idx+1)*self.shard_size]
+        spec = dict(clip=self.clip, indices=shard_indices)
         shard = ShuffledShard(
             root=self.root,
             spec=spec,
@@ -434,14 +435,16 @@ class ShuffledClip(Clip):
     def shards(self) -> list[ShuffledShard]:
         """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
         N = len(self.cfg.clip)
-        n_shards = int(math.ceil(N/self.cfg.shard_size))
-        self.log.verbose(f"Forming {n_shards} shards: BEGIN")
+        n_samples = int(math.floor(N * self.cfg.fraction))
+        n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
+        self.log.verbose(f"Forming {n_shards} shards from {n_samples} samples (fraction={self.cfg.fraction}): BEGIN")
         makers = [
             ShuffledShardMaker(
                 root=self._root_,
                 clip=self.spec['clip'],
                 idx=idx,
                 shard_size=self.cfg.shard_size,
+                fraction=self.cfg.fraction,
                 shuffle_seed=self.cfg.shuffle_seed,
             )
             for idx in range(n_shards)
