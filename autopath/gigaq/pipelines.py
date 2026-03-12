@@ -312,7 +312,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
     shuffle_seed: int = 42,
     shard_size: int = 512,
     n_workers: int = 1,
-    parallelizer: str = 'MultithreadingDatablocksBuilder',
+    parallelizer: str = 'Multiprocessing',
     n_devices: int = 1,
     gpu_batch_size: int = 16,
 ) -> ShuffledClip:

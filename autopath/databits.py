@@ -16,8 +16,11 @@ import dbx
 from dbx import (
     Datablock,
     MultithreadingCallableExecutor,
+    MultithreadingDatablocksBuilder,
     MultiprocessingCallableExecutor,
-    RemoteCallableExecutor,
+    MultiprocessingDatablocksBuilder,
+    RayCallableExecutor,
+    RayDatablocksBuilder,
 )
 
 
@@ -342,19 +345,27 @@ class ShuffledShard(Shard):
         return self.read('labels').tolist()
 
 
-class ShuffledShardBuilder:
-    def __init__(self, root, spec, revision):
-        self._root_ = root
-        self.spec = spec
-        self.revision = revision
+class ShuffledShardMaker:
+    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, shuffle_seed: int = 42):
+        self.root = root
+        self.clip = clip
+        self.idx = idx
+        self.shard_size = shard_size
+        self.shuffle_seed = shuffle_seed
 
-    def __call__(self):
+    def __call__(self, spec):
+        N = len(self.clip)
+        indices = np.arange(N)
+        np.random.seed(self.shuffle_seed)
+        np.random.shuffle(indices)
+        indices = indices[self.idx*self.shard_size:(self.idx+1)*self.shard_size]
+        spec = dict(clip=self.clip, indices=indices)
         shard = ShuffledShard(
-            root=self._root_,
-            spec=self.spec,
-            revision=self.revision,
+            root=self.root,
+            spec=spec,
         )
-        shard.build()
+        return shard
+
 
 class ShuffledClip(Clip):
     """A ``Clip`` that draws a random subset of samples from an existing
@@ -389,16 +400,16 @@ class ShuffledClip(Clip):
         shuffle_seed: int = 42
 
     PARALLELIZERS = {
-        'MultithreadingDatablocksBuilder':  MultithreadingCallableExecutor,
-        'MultiprocessingDatablocksBuilder': MultiprocessingCallableExecutor,
-        'RemoteDatablocksBuilder':          RemoteCallableExecutor,
+        'Multithreading':  {'callable': MultithreadingCallableExecutor, 'datablock': MultithreadingDatablocksBuilder},
+        'Multiprocessing': {'callable': MultiprocessingCallableExecutor, 'datablock': MultiprocessingDatablocksBuilder},
+        'Ray':             {'callable': RayCallableExecutor, 'datablock': RayDatablocksBuilder},
     }
 
     def __init__(
         self,
         *args,
         n_workers: int = 1,
-        parallelizer: str = 'MultithreadingDatablocksBuilder',
+        parallelizer: str = 'Multiprocessing',
         **kwargs,
     ):
         if parallelizer not in self.PARALLELIZERS:
@@ -414,56 +425,30 @@ class ShuffledClip(Clip):
             f"fraction must be in (0, 1], got {self.cfg.fraction}"
         )
         return self
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _shuffled_indices(self) -> list[int]:
-        """Return the full list of sampled global indices (Python ints)."""
-        dataset = ClipDatasetBuilder(
-            root=self._root_,
-            spec=dict(clip=self.spec['clip']),
-        ).dataset()
-        N = len(dataset)
-        n_samples = int(math.floor(N * self.cfg.fraction))
-        rng = np.random.default_rng(self.cfg.shuffle_seed)
-        perm = rng.permutation(N)[:n_samples]
-        return perm.tolist()   # plain list[int] — survives YAML serialisation
-
-    def _make_shards(self, indices: list[int]) -> list[ShuffledShard]:
-        """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
-        s = self.cfg.shard_size
-        self.log.verbose(f"Forming shards: BEGIN")
-        self.log.verbose(f"Partitioning {len(indices)} indices into chunks of size {s}: BEGIN")
-        chunks = [indices[i:i + s] for i in range(0, len(indices), s)]
-        self.log.verbose(f"Partitioning {len(indices)} indices into chunks of size {s}: END")
-        self.log.verbose(f"Creating shards: BEGIN")
-        chunkitor = chunks
-        if self.verbose:
-            chunkitor = tqdm.tqdm(chunks, desc="Creating shards")
-        shards = [
-            ShuffledShard(
-                root=self._root_,
-                spec=dict(
-                    clip=self.spec['clip'],
-                    indices=chunk,
-                ),
-                revision=self.revision,
-            )
-            for idx, chunk in enumerate(chunkitor)
-        ]
-        self.log.verbose(f"Creating shards: END")
-        self.log.verbose(f"Forming shards: END")
-        return shards
-
+       
     # ------------------------------------------------------------------
     # Clip interface
     # ------------------------------------------------------------------
 
     @functools.cached_property
     def shards(self) -> list[ShuffledShard]:
-        return self._make_shards(self._shuffled_indices())
+         """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
+        N = len(self.cfg.clip)
+        n_shards = int(math.ceil(N/self.cfg.shard_size))
+        self.log.verbose(f"Forming {n_shards} shards: BEGIN")
+        makers = [
+            ShuffledShardMaker(
+                root=self._root_,
+                clip=self.spec['clip'],
+                idx=idx,
+                shard_size=self.cfg.shard_size,
+                shuffle_seed=self.cfg.shuffle_seed,
+            )
+            for idx in range(n_shards)
+        ]
+        shards = self.parallelizer['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
+        self.log.verbose(f"Forming shards: END")
+        return shards
 
     def shard(self, idx: int) -> ShuffledShard:
         return self.shards[idx]
@@ -483,16 +468,7 @@ class ShuffledClip(Clip):
             self.log.info(f"building {len(missing)} shards: BEGIN")
             
             if self.n_workers > 1:
-                callables = [
-                    ShuffledShardBuilder(
-                        root=shard._root_,
-                        spec=shard.spec,
-                        revision=shard.revision,
-                    )
-                    for shard in missing
-                ]
-                executor_cls = self.PARALLELIZERS[self.parallelizer]
-                executor_cls(n_workers=self.n_workers, log=self.log).execute(callables)
+                self.parallelizer['datablock'](n_workers=self.n_workers, log=self.log).build_blocks(missing)
             else:
                 for shard in missing:
                     shard.build()
