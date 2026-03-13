@@ -325,7 +325,13 @@ class ShuffledShard(Shard):
             labels = np.empty(0)
         else:
             tensor = torch.stack([torch.as_tensor(s[0]) for s in samples])
-            labels = np.array([s[1] for s in samples])
+            try:
+                label_list = [s[1] for s in samples]
+                labels = np.array(label_list)
+            except Exception as e:
+                self.log.error(f"Could not stack labels: {e}")
+                self.log.error(f"Labels: {label_list}")
+                raise e
         self.log.verbose(f"writing tensor and labels: BEGIN")
         dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
         dbx.write_npz(self.path('labels', ensure_dirpath=True), labels=labels)
@@ -463,7 +469,7 @@ class ShuffledClip(Clip):
         super().__build__()
         return self
 
-    def __make_shards__(self, build: bool = True):
+    def __make_shards__(self, build: bool = False):
         self.log.verbose(f"{'Forming' if not build else 'Building'} shards: BEGIN")
         """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
         N = len(self.cfg.clip)
