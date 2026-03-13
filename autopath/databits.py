@@ -312,7 +312,11 @@ class ShuffledShard(Shard):
             root=self._root_,
             spec=dict(clip=self.spec['clip']),
         ).dataset()
-        samples = [dataset[i] for i in self.cfg.indices]
+        if self.verbose:
+            itor = tqdm.tqdm(self.cfg.indices)
+        else:
+            itor = self.cfg.indices
+        samples = [dataset[i] for i in itor]
         self.log.verbose(f"fetching {len(self.cfg.indices)} samples: END")
         if not samples:
             self.log.warning(f"No samples to build")
