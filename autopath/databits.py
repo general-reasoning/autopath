@@ -327,10 +327,9 @@ class ShuffledShard(Shard):
             tensor = torch.stack([torch.as_tensor(s[0]) for s in samples])
             try:
                 label_list = [s[1] for s in samples]
-                labels = np.array(label_list)
+                labels = np.array(label_list, dtype=object)
             except Exception as e:
                 self.log.error(f"Could not stack labels: {e}")
-                self.log.error(f"Labels: len: {len(label_list)}, first types: {[type(l[0]) for l in label_list]}, second shapes: {[l[1].shape for l in label_list]}")
                 raise e
         self.log.verbose(f"writing tensor and labels: BEGIN")
         dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
