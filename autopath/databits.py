@@ -523,9 +523,9 @@ class ClipDatasetBuilder(Datablock):
     @functools.lru_cache(maxsize=3)
     def shard(self, shard_idx):
         if shard_idx != self._shard_idx:
-            del self._shard
-            del self._shard_label
-            del self._shard_slide
+            self._shard = None
+            self._shard_label = None
+            self._shard_slide = None
             gc.collect()
             self._shard_idx = shard_idx
             self._shard = self.cfg.clip.shard(self._shard_indices[self._shard_idx])
