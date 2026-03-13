@@ -419,7 +419,7 @@ class ShuffledClip(Clip):
         self,
         *args,
         n_workers: int = 1,
-        parallelization: str = 'Multiprocessing',
+        parallelization: str | None = None,
         **kwargs,
     ):
         super().__init__(*args, n_workers=n_workers, parallelization=parallelization, **kwargs)
@@ -428,7 +428,7 @@ class ShuffledClip(Clip):
         assert 0 < self.cfg.fraction <= 1.0, (
             f"fraction must be in (0, 1], got {self.cfg.fraction}"
         )
-        if self.parallelization not in self.PARALLELIZERS:
+        if self.parallelization is not None and self.parallelization not in self.PARALLELIZERS:
             raise ValueError(
                 f"Unknown parallelization {repr(self.parallelization)}. "
                 f"Choose one of: {list(self.PARALLELIZERS)}"
@@ -475,7 +475,10 @@ class ShuffledClip(Clip):
             )
             for idx in range(n_shards)
         ]
-        shards = self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
+        if self.parallelization is None or self.n_workers < 2:
+            shards = [maker() for maker in makers]
+        else:
+            shards = self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
         self.log.verbose(f"{'Forming' if not build else 'Building'} shards: END")
         return shards
 
