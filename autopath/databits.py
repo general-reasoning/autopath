@@ -351,7 +351,7 @@ class ShuffledShard(Shard):
 
 
 class ShuffledShardMaker:
-    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, n_samples: int, N: int, shuffle_seed: int = 42 build: bool = True):
+    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, n_samples: int, N: int, shuffle_seed: int = 42, build: bool = True):
         self.root = root
         self.clip = clip
         self.idx = idx
