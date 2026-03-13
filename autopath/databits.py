@@ -314,8 +314,13 @@ class ShuffledShard(Shard):
         ).dataset()
         samples = [dataset[i] for i in self.cfg.indices]
         self.log.verbose(f"fetching {len(self.cfg.indices)} samples: END")
-        tensor = torch.stack([torch.as_tensor(s[0]) for s in samples])
-        labels = np.array([s[1] for s in samples])
+        if not samples:
+            self.log.warning(f"No samples to build")
+            tensor = torch.empty(0)
+            labels = np.empty(0)
+        else:
+            tensor = torch.stack([torch.as_tensor(s[0]) for s in samples])
+            labels = np.array([s[1] for s in samples])
         self.log.verbose(f"writing tensor and labels: BEGIN")
         dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
         dbx.write_npz(self.path('labels', ensure_dirpath=True), labels=labels)
@@ -346,25 +351,27 @@ class ShuffledShard(Shard):
 
 
 class ShuffledShardMaker:
-    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, fraction: float = 1.0, shuffle_seed: int = 42):
+    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, n_samples: int, N: int, shuffle_seed: int = 42 build: bool = True):
         self.root = root
         self.clip = clip
         self.idx = idx
         self.shard_size = shard_size
-        self.fraction = fraction
+        self.n_samples = n_samples
+        self.N = N
         self.shuffle_seed = shuffle_seed
+        self.build = build
 
     def __call__(self):
-        N = len(self.clip)
-        n_samples = int(math.floor(N * self.fraction))
         rng = np.random.default_rng(self.shuffle_seed)
-        sampled_indices = rng.permutation(N)[:n_samples]
+        sampled_indices = rng.permutation(self.N)[:self.n_samples]
         shard_indices = sampled_indices[self.idx*self.shard_size:(self.idx+1)*self.shard_size]
         spec = dict(clip=self.clip, indices=shard_indices)
         shard = ShuffledShard(
             root=self.root,
             spec=spec,
         )
+        if self.build:
+            shard.build()
         return shard
 
 
@@ -412,18 +419,18 @@ class ShuffledClip(Clip):
         self,
         *args,
         n_workers: int = 1,
-        parallelizer: str = 'Multiprocessing',
+        parallelization: str = 'Multiprocessing',
         **kwargs,
     ):
-        super().__init__(*args, n_workers=n_workers, parallelizer=parallelizer, **kwargs)
+        super().__init__(*args, n_workers=n_workers, parallelization=parallelization, **kwargs)
 
     def __post_init__(self):
         assert 0 < self.cfg.fraction <= 1.0, (
             f"fraction must be in (0, 1], got {self.cfg.fraction}"
         )
-        if self.parallelizer not in self.PARALLELIZERS:
+        if self.parallelization not in self.PARALLELIZERS:
             raise ValueError(
-                f"Unknown parallelizer {repr(self.parallelizer)}. "
+                f"Unknown parallelization {repr(self.parallelization)}. "
                 f"Choose one of: {list(self.PARALLELIZERS)}"
             )
         return self
@@ -434,26 +441,7 @@ class ShuffledClip(Clip):
 
     @functools.cached_property
     def shards(self) -> list[ShuffledShard]:
-        self.log.verbose(f"Forming shards: BEGIN")
-        """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
-        N = len(self.cfg.clip)
-        n_samples = int(math.floor(N * self.cfg.fraction))
-        n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
-        self.log.verbose(f"Forming {n_shards} shards from {n_samples} samples (fraction={self.cfg.fraction}): BEGIN")
-        makers = [
-            ShuffledShardMaker(
-                root=self._root_,
-                clip=self.spec['clip'],
-                idx=idx,
-                shard_size=self.cfg.shard_size,
-                fraction=self.cfg.fraction,
-                shuffle_seed=self.cfg.shuffle_seed,
-            )
-            for idx in range(n_shards)
-        ]
-        shards = self.PARALLELIZERS[self.parallelizer]['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
-        self.log.verbose(f"Forming shards: END")
-        return shards
+        return self.__make_shards__()
 
     def shard(self, idx: int) -> ShuffledShard:
         return self.shards[idx]
@@ -463,24 +451,33 @@ class ShuffledClip(Clip):
     # ------------------------------------------------------------------
 
     def __build__(self):
-        all_shards = self.shards
-        missing = [s for s in all_shards if not s.valid()]
-        self.log.info(
-            f"{len(all_shards)} shards total, "
-            f"{len(missing)} need building, n_workers={self.n_workers}"
-        )
-        if missing:
-            self.log.info(f"building {len(missing)} shards: BEGIN")
-            
-            if self.n_workers > 1:
-                self.PARALLELIZERS[self.parallelizer]['datablock'](n_workers=self.n_workers, log=self.log).build_blocks(missing)
-            else:
-                for shard in missing:
-                    shard.build()
-            self.log.info(f"building {len(missing)} shards: END")
-        # Write the shard_lens file expected by Clip
+        self.__make_shards__(build=True)
         super().__build__()
         return self
+
+    def __make_shards__(self, build: bool = True):
+        self.log.verbose(f"{'Forming' if not build else 'Building'} shards: BEGIN")
+        """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
+        N = len(self.cfg.clip)
+        n_samples = int(math.floor(N * self.cfg.fraction))
+        n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
+        self.log.verbose(f"{'Forming' if not build else 'Building'} {n_shards} shards from {n_samples} samples (fraction={self.cfg.fraction}): BEGIN")
+        makers = [
+            ShuffledShardMaker(
+                root=self._root_,
+                clip=self.spec['clip'],
+                idx=idx,
+                shard_size=self.cfg.shard_size,
+                n_samples=n_samples,
+                N=N,
+                shuffle_seed=self.cfg.shuffle_seed,
+                build=build,
+            )
+            for idx in range(n_shards)
+        ]
+        shards = self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
+        self.log.verbose(f"{'Forming' if not build else 'Building'} shards: END")
+        return shards
 
 
 class ClipDatasetBuilder(Datablock):

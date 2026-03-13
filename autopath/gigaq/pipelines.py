@@ -303,7 +303,7 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
 
 
 # git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.2, shard_size=512, n_workers=8).build()"
-# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.8, shard_size=512, n_workers=8).build()"
+# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.3, shard_size=512, n_workers=8, parallelization='Ray').build()"
 def gigapath_bipolar_shuffled_featurebag_clip(
     name: str | None = None,
     *,
@@ -312,7 +312,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
     shuffle_seed: int = 42,
     shard_size: int = 512,
     n_workers: int = 1,
-    parallelizer: str = 'Multiprocessing',
+    parallelization: str = 'Multiprocessing',
     n_devices: int = 1,
     gpu_batch_size: int = 16,
 ) -> ShuffledClip:
@@ -339,7 +339,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
             shard_size=shard_size,
         ),
         n_workers=n_workers,
-        parallelizer=parallelizer,
+        parallelization=parallelization,
     )
 
 
