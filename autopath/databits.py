@@ -77,7 +77,7 @@ class Bag(Shard):
 class Clip(Datablock):
     TOPICFILE = "shard_lens.npz"
     def __len__(self):
-        return len(self.shards)
+        return sum(self.shard_lens)
     
     def __build__(self):
         self.log.verbose(f"Obtaining shard lens")
@@ -314,7 +314,7 @@ class ShuffledShard(Shard):
         ).dataset()
         samples = [dataset[i] for i in self.cfg.indices]
         self.log.verbose(f"fetching {len(self.cfg.indices)} samples: END")
-        tensor = torch.stack([s[0] for s in samples])
+        tensor = torch.stack([torch.as_tensor(s[0]) for s in samples])
         labels = np.array([s[1] for s in samples])
         self.log.verbose(f"writing tensor and labels: BEGIN")
         dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
