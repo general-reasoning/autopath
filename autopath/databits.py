@@ -330,7 +330,7 @@ class ShuffledShard(Shard):
                 labels = np.array(label_list)
             except Exception as e:
                 self.log.error(f"Could not stack labels: {e}")
-                self.log.error(f"Labels: {label_list}")
+                self.log.error(f"Labels: len: {len(label_list)}, first types: {[type(l[0]) for l in label_list]}, second shapes: {[l[1].shape for l in label_list]}")
                 raise e
         self.log.verbose(f"writing tensor and labels: BEGIN")
         dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
