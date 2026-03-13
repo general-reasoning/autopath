@@ -377,7 +377,10 @@ class ShuffledShardMaker:
         )
         if self.build:
             shard.build()
-        return shard
+            del shard
+            gc.collect()
+        else:
+            return shard
 
 
 class ShuffledClip(Clip):
