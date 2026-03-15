@@ -273,22 +273,15 @@ class FeatureBagClip(Clip):
     @functools.cached_property
     def bags(self):
         self.log.verbose(f"FORMING FeatureBags: BEGIN")
-        self.log.silent(f"bags: traceback:\n{''.join(tb.format_stack())}")
-        self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: BEGIN ")
         if self.verbose:
-            tilebagitor = tqdm.tqdm(self.cfg.tilebagclip.shards, desc=f"{self.anchor}: FORMING FeatureBags")
+            bagidxitor = tqdm.tqdm(range(self.n_bags), desc=f"{self.anchor}: FORMING FeatureBags")
         else:
-            tilebagitor = self.cfg.tilebagclip.shards
+            bagidxitor = range(self.n_bags)
         bags = [
-            FeatureBag(
-                root=self._root_, 
-                spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor'],), 
-                gpu_batch_size=self.gpu_batch_size,
-                revision=self.revision,
-            )
-            for tilebag in tilebagitor
+            self.bag(idx)
+            for idx in bagidxitor
         ]
-        self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: END")
+        self.log.verbose(f"FORMING FeatureBags: END")
         return bags
 
     def bag(self, idx: int):
@@ -379,19 +372,17 @@ class BipolarFeatureBag(Bag):
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        probehandle: str
+        probe: BipolarFeatureBagProbe
         bag_index: int
         featurebag: FeatureBag
 
-    def __build__(self, *, probe: BipolarFeatureBagProbe):
-        assert self.cfg.probehandle == probe.handle(), \
-            f"Handle mismatch: {self.cfg.probehandle} != {probe.handle}"
-        assert self.cfg.featurebag.handle() == probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle(), \
-            f"Featurebag handle mismatch: {self.cfg.featurebag.handle()} != {probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle()}"
+    def __build__(self):
+        assert self.cfg.featurebag.handle() == self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle(), \
+            f"Featurebag handle mismatch: {self.cfg.featurebag.handle()} != {self.cfg.probe.cfg.featurebagclip.bags[self.cfg.bag_index].handle()}"
         self.log.detailed(f" BipolarFeatureBag {self.cfg.bag_index}: build: BEGIN")
-        all_features = probe.tile_bipolar_features
-        lo = probe.bag_bounds[self.cfg.bag_index]
-        hi = probe.bag_bounds[self.cfg.bag_index+1]
+        all_features = self.cfg.probe.tile_bipolar_features
+        lo = self.cfg.probe.bag_bounds[self.cfg.bag_index]
+        hi = self.cfg.probe.bag_bounds[self.cfg.bag_index+1]
         my_features = all_features[lo:hi, :]
         write_npz(self.path('bipolar_features', ensure_dirpath=True), bipolar_features=my_features)
         self.log.detailed(f" BipolarFeatureBag {self.cfg.bag_index}: build:END")
@@ -476,7 +467,7 @@ class BipolarFeatureBagClip(Clip):
             else:
                 bagitor = missing_bags
             for bag in bagitor:
-                bag.__build__(probe=self.cfg.probe)
+                bag.__build__()
         self.log.verbose(f"BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: END")
         self.log.verbose(f"COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
         if not self.build_missing_only:
@@ -505,7 +496,7 @@ class BipolarFeatureBagClip(Clip):
             BipolarFeatureBag(
                 root=self._root_,
                 spec=dict(
-                    probehandle=self.cfg.probe.handle(),
+                    probe=self.cfg.probe,
                     bag_index=i,
                     featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
                 )
