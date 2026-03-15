@@ -104,9 +104,9 @@ def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TEST', n_workers=16).build()"
 #
-# git commit -am "gigaq: FeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TEST', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TEST', n_workers=16, cpu_parallelization='ray').build()"
 
 def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, 
                                  gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'multithreading', 
