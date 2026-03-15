@@ -221,16 +221,20 @@ def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_ba
 
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_8020_TRAIN').build()"
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE').build()"
-def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size: int = 16) -> FeatureBagMedianProbe:
-    return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size),))
+def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size: int = 16, n_workers: int = 1, 
+                                    cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
+    ) -> FeatureBagMedianProbe:
+    return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),))
 
 
 # git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
 # git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', n_devices=1).build_tree()"
-def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_size: int = 16) -> BipolarFeatureBagProbe:
+def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_size: int = 16, n_workers: int = 1, 
+                                        cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
+    ) -> BipolarFeatureBagProbe:
     return BipolarFeatureBagProbe(
-        spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TRAIN", n_devices=n_devices, gpu_batch_size=gpu_batch_size), 
-                  medianprobe=gigapath_feature_bags_median_probe(f"{name}_CALIBRATE", n_devices=n_devices, gpu_batch_size=gpu_batch_size),
+        spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TRAIN", n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization), 
+                  medianprobe=gigapath_feature_bags_median_probe(f"{name}_CALIBRATE", n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),
         ),
         devices=[f'cuda:{i}' for i in range(n_devices)],
     )
@@ -244,9 +248,10 @@ def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_s
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=1).build()"
 def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 0, build_missing_only: bool = False, n_devices: int = 1, gpu_batch_size: int = 16, single: int|None = None, 
-                                     cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline'
+                                     cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline',
+                                     gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'Multithreading'
     ) -> BipolarFeatureBagClip:
-    probe = gigapath_bipolar_feature_bags_probe(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size)
+    probe = gigapath_bipolar_feature_bags_probe(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     if single is not None:
         dbx.Logger(name='gigapath_bipolar_feature_bag_clip').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
         clip = BipolarSingleFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe), idx=single))
