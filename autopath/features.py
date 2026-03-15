@@ -202,6 +202,12 @@ class FeatureBagClip(Clip):
     def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline', **kwargs):
         super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, parallelization=parallelization, **kwargs)
         self.log.debug(f"n_workers={self.n_workers}, devices={self.devices}, gpu_batch_size={self.gpu_batch_size}, skip_unreadable={self.skip_unreadable}")
+        self.executor_cls = {
+            'Ray': RayCallableExecutor,
+            'Multiprocessing': MultiprocessingCallableExecutor,
+            'Multithreading': MultithreadingCallableExecutor,
+            'Inline': InlineCallableExecutor,
+        }[parallelization]
 
     def __build__(self):
         bags = self.bags
@@ -452,6 +458,7 @@ class BipolarFeatureBagClip(Clip):
             'Ray': RayDatablocksBuilder,
             'Multiprocessing': MultiprocessingDatablocksBuilder,
             'Multithreading': MultithreadingDatablocksBuilder,
+            'Inline': InlineDatablocksBuilder,
         }[parallelization]
 
     def __build__(self):
