@@ -334,13 +334,14 @@ class ClipShardQueue:
             return
         
         src_idx = self.my_src_shards[self.current_src_ptr]
-        self.log.debug(f"[Queue {self.queue_idx}] Reading source shard {src_idx}...")
+        self.log.debug(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: BEGIN")
         shard = self.clip.shards[src_idx]
         tensor = shard.tensor
         labels = shard.labels
         
         offset = self.offsets[src_idx]
         _p_inv = self.p_inv # Fetch once from Object Store
+        count = 0
         for i in range(len(tensor)):
             p = offset + i
             k = _p_inv[p]
@@ -348,10 +349,13 @@ class ClipShardQueue:
                 target_idx = k // self.shard_size
                 # Store (data, label, k, global_p)
                 self.buffers[target_idx].append((tensor[i], labels[i], k, p))
+                count += 1
         
         self.current_src_ptr += 1
+        self.log.debug(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: END ({count} samples collected)")
 
     def pull(self, target_shard_idx: int):
+        self.log.debug(f"[Queue {self.queue_idx}] Pull request for target shard {target_shard_idx}: BEGIN")
         needed = self.target_to_srcs.get(target_shard_idx, None)
         
         # Advance current_src_ptr if any needed shards are not yet read.
@@ -361,7 +365,10 @@ class ClipShardQueue:
             while self.current_src_ptr < len(self.my_src_shards) and self.my_src_shards[self.current_src_ptr] <= max_needed:
                 self._read_next()
         
-        return self.buffers.pop(target_shard_idx, [])
+        samples = self.buffers.pop(target_shard_idx, [])
+        self.log.debug(f"[Queue {self.queue_idx}] Pull request for target shard {target_shard_idx}: END ({len(samples)} samples returned)")
+        return samples
+
 
 
 class ShuffledShard(Shard):
