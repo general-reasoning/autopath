@@ -301,10 +301,10 @@ class FeatureBagClip(Clip):
     
     @functools.cached_property
     def bags(self):
-        self.log.verbose(f"FORMING FeatureBags: using {self.executor_cls.__name__}: BEGIN")
+        self.log.verbose(f"FORMING FeatureBags: BEGIN")
         executables = [FeatureBagClip.FeatureBagMaker(self, idx) for idx in range(self.cfg.tilebagclip.n_bags)]
-        bags = InlineCallableExecutor(n_workers=self.n_workers, log=self.log).exec_callables(executables) # multiprocesssing is actually slower
-        self.log.verbose(f"FORMING FeatureBags: using {self.executor_cls.__name__}: END")
+        bags = InlineCallableExecutor(n_workers=self.n_workers, log=self.log).exec_callables(executables) # multiprocessing is actually slower
+        self.log.verbose(f"FORMING FeatureBags: END")
         return bags
 
     def bag(self, idx: int):
@@ -530,12 +530,12 @@ class BipolarFeatureBagClip(Clip):
 
     @functools.cached_property
     def bags(self):
-        self.log.verbose(f"bags: FORMING BipolarFeatureBags: using {self.executor_cls.__name__}: BEGIN")
+        self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
         self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
         executables = [FeatureBagClip.FeatureBagMaker(self, idx) for idx in range(n_bags)]
-        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
-        self.log.verbose(f"bags: FORMING BipolarFeatureBags: using {self.executor_cls.__name__}: END")
+        bags = InlineCallableExecutor(n_workers=self.n_workers, log=self.log).exec_callables(executables) # multiprocessing is actually slower
+        self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return bags
 
     def bag(self, idx: int):
