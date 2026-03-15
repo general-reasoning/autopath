@@ -295,12 +295,10 @@ class ClipShardQueue:
         self.log.debug(f"[Queue {queue_idx}] Initializing actor...")
         self.queue_idx = queue_idx
         
-        # Instantiate a fresh Clip object from the quote.
-        # If serialized as a string (path), wrap it back in a Quote.
         if isinstance(clip_quote, str):
-            self.clip = dbx.Quote(clip_quote)()
+            self.clip = dbx.eval_term(clip_quote)
         else:
-            self.clip = clip_quote()
+            self.clip = clip_quote
             
         self.clip_lens = clip_lens
         self.fraction = fraction
