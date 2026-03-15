@@ -5,7 +5,7 @@ import gc
 import itertools
 import math
 import traceback as tb
-from typing import Callable
+from typing import Callable, Literal
 
 import tqdm
 import numpy as np
@@ -439,11 +439,17 @@ class BipolarFeatureBagClip(Clip):
         from autopath.pancan.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
 
-    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, **kwargs):
+    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading'] = 'multithreading', **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
+        self.parallelization = parallelization
+        self.builder_cls = {
+            'Ray': RayDatablocksBuilder,
+            'Multiprocessing': MultiprocessingDatablocksBuilder,
+            'Multithreading': MultithreadingDatablocksBuilder,
+        }[parallelization]
 
     def __build__(self):
-        self.log.verbose(f"__build__: BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes: BEGIN")
+        self.log.verbose(f"__build__: BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes with {self.parallelization}: BEGIN")
         bags = self.bags
         missing_bags = [] 
         bag_lens = []
@@ -459,21 +465,21 @@ class BipolarFeatureBagClip(Clip):
         else:
             missing_bags = bags
 
-        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: BEGIN")
+        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.parallelization}: BEGIN")
         if self.n_workers > 0:
-            missing_blocks = RayDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
+            missing_blocks = self.builder_cls(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
         else:   
             if self.verbose:
-                bagitor = tqdm.tqdm(missing_bags, desc=f"{self.anchor}: BUILDING BipolarFeatureBags")
+                bagitor = tqdm.tqdm(missing_bags, desc=f"{self.anchor}: __build__: BUILDING BipolarFeatureBags")
             else:
                 bagitor = missing_bags
             for bag in bagitor:
                 bag.__build__()
-        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: END")
+        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.parallelization}: END")
         self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
         if not self.build_missing_only:
             if self.verbose:
-                    bagitor = tqdm.tqdm(bags, desc=f"{self.anchor}: COMPUTING bag_lens")
+                    bagitor = tqdm.tqdm(bags, desc=f"{self.anchor}: __build__: COMPUTING bag_lens")
             else:
                 bagitor = bags
             bag_lens = [len(bag) for bag in bagitor]
@@ -486,11 +492,11 @@ class BipolarFeatureBagClip(Clip):
 
     @functools.cached_property
     def bags(self):
-        self.log.verbose(f"FORMING BipolarFeatureBags: BEGIN")
+        self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
         self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
         if self.verbose:
-            bagitor = tqdm.tqdm(range(n_bags), desc=f"{self.anchor}: FORMING BipolarFeatureBags")
+            bagitor = tqdm.tqdm(range(n_bags), desc=f"{self.anchor}: bags: FORMING BipolarFeatureBags")
         else:
             bagitor = range(n_bags)
         bags = [
@@ -504,7 +510,7 @@ class BipolarFeatureBagClip(Clip):
             )
             for i in bagitor
         ]
-        self.log.verbose(f"FORMING BipolarFeatureBags: END")
+        self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return bags
 
     def bag(self, idx: int):
