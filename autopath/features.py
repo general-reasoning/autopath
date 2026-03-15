@@ -189,9 +189,18 @@ class FeatureBagClip(Clip):
             return len(self.featurebag)
         def __repr__(self):
             return f"FeatureBagLengthComputer({self.featurebag})"
+
+    class FeatureBagMaker:
+        def __init__(self, featurebagclip, idx):
+            self.featurebagclip = dbx.eval_term(featurebagclip)
+            self.idx = idx
+        def __call__(self):
+            return self.featurebagclip.bag(self.idx)
+        def __repr__(self):
+            return f"FeatureBagMaker({dbx.quote(self.featurebagclip)}, {self.idx})"
     
-    def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, **kwargs):
-        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, **kwargs)
+    def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline', **kwargs):
+        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, parallelization=parallelization, **kwargs)
         self.log.debug(f"n_workers={self.n_workers}, devices={self.devices}, gpu_batch_size={self.gpu_batch_size}, skip_unreadable={self.skip_unreadable}")
 
     def __build__(self):
@@ -276,14 +285,8 @@ class FeatureBagClip(Clip):
     @functools.cached_property
     def bags(self):
         self.log.verbose(f"FORMING FeatureBags: BEGIN")
-        if self.verbose:
-            bagidxitor = tqdm.tqdm(range(self.n_bags), desc=f"{self.anchor}: FORMING FeatureBags")
-        else:
-            bagidxitor = range(self.n_bags)
-        bags = [
-            self.bag(idx)
-            for idx in bagidxitor
-        ]
+        executables = [FeatureBagClip.FeatureBagMaker(self.cfg.tilebagclip, idx) for idx in range(self.cfg.tilebagclip.n_bags)]
+        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
         self.log.verbose(f"FORMING FeatureBags: END")
         return bags
 
@@ -442,7 +445,7 @@ class BipolarFeatureBagClip(Clip):
         from autopath.pancan.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
 
-    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading'] = 'Multithreading', **kwargs):
+    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline', **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
         self.parallelization = parallelization
         self.builder_cls = {
@@ -470,7 +473,7 @@ class BipolarFeatureBagClip(Clip):
 
         self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.parallelization}: BEGIN")
         if self.n_workers > 0:
-            missing_blocks = self.builder_cls(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
+            missing_blocks = self.builder_cls(n_workers=self.n_workers, log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
         else:   
             if self.verbose:
                 bagitor = tqdm.tqdm(missing_bags, desc=f"{self.anchor}: __build__: BUILDING BipolarFeatureBags")
