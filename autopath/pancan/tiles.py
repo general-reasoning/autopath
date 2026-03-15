@@ -240,8 +240,11 @@ def pancan_tilebag_dataset_builder(
 ):
 		clip = dbx.eval_term(clip)
 		transform = dbx.eval_term(transform)
-		return ClipDatasetBuilder(spec=dict(clip=clip, transform=transform,),
-								  debug=debug, 
-								  verbose=verbose,
-								  log=log,
+		kwargs = dict(
+			debug=debug, 
+			verbose=verbose,
 		)
+		if log is not None:
+			kwargs['log'] = log
+
+		return ClipDatasetBuilder(spec=dict(clip=clip, transform=transform,), **kwargs)
