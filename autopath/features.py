@@ -372,6 +372,7 @@ class BipolarFeatureBag(Bag):
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
+        from autopath.pancan.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
         bag_index: int
         featurebag: FeatureBag
