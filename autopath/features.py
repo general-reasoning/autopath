@@ -463,22 +463,22 @@ class BipolarFeatureBagClip(Clip):
         probe: BipolarFeatureBagProbe
 
     def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, 
-                 cpu_parallelization: str = 'Inline',
-                 gpu_parallelization: str = 'Multithreading',
+                 cpu_parallelization: str = 'inline',
+                 gpu_parallelization: str = 'multithreading',
                  **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
         self.executor_cls = {
-            'Ray': RayCallableExecutor,
-            'Multiprocessing': MultiprocessingCallableExecutor,
-            'Multithreading': MultithreadingCallableExecutor,
-            'Inline': InlineCallableExecutor,
-        }[cpu_parallelization.title()]
+            'ray': RayCallableExecutor,
+            'multiprocessing': MultiprocessingCallableExecutor,
+            'multithreading': MultithreadingCallableExecutor,
+            'inline': InlineCallableExecutor,
+        }[cpu_parallelization.lower()]
         self.builder_cls = {
-            'Ray': RayDatablocksBuilder,
-            'Multiprocessing': MultiprocessingDatablocksBuilder,
-            'Multithreading': MultithreadingDatablocksBuilder,
-            'Inline': InlineDatablocksBuilder,
-        }[cpu_parallelization.title()]
+            'ray': RayDatablocksBuilder,
+            'multiprocessing': MultiprocessingDatablocksBuilder,
+            'multithreading': MultithreadingDatablocksBuilder,
+            'inline': InlineDatablocksBuilder,
+        }[cpu_parallelization.lower()]
 
     def __build__(self):
         self.log.verbose(f"__build__: BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes with {self.cpu_parallelization}: BEGIN")
