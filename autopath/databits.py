@@ -588,7 +588,10 @@ class ShuffledClip(Clip):
         n_samples = int(math.floor(N * self.cfg.fraction))
         n_shards = int(math.ceil(n_samples / self.cfg.shard_size))
         
-        self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues")
+        self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: BEGIN")
+        q_itor = range(self.cfg.n_queues)
+        if self.verbose:
+            q_itor = tqdm.tqdm(q_itor, desc="Setting up ClipShardQueues")
         RemoteQueue = ray.remote(ClipShardQueue)
         queues = [
             RemoteQueue.remote(
@@ -600,9 +603,14 @@ class ShuffledClip(Clip):
                 shard_size=self.cfg.shard_size,
                 shuffle_seed=self.cfg.shuffle_seed
             )
-            for i in range(self.cfg.n_queues)
+            for i in q_itor
         ]
+        self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: END")
 
+        self.log.info(f"Setting up {n_shards} ShuffledShardMakers: BEGIN")
+        shards_itor = range(n_shards)
+        if self.verbose:
+            shards_itor = tqdm.tqdm(shards_itor, desc="Setting up ShuffledShardMakers")
         makers = [
             ShuffledShardMaker(
                 root=self._root_,
@@ -616,9 +624,11 @@ class ShuffledClip(Clip):
                 verbose=self.verbose,
                 build=True,
             )
-            for idx in range(n_shards)
+            for idx in shards_itor
         ]
+        self.log.info(f"Setting up {n_shards} ShuffledShardMakers: END")
 
+        self.log.info(f"Building ShuffledClip shards: BEGIN")
         if self.parallelization is None or self.n_workers < 2:
             if self.verbose:
                 makers_itor = tqdm.tqdm(makers, desc="Building ShuffledClip shards")
