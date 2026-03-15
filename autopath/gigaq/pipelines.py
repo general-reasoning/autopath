@@ -164,14 +164,20 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: in
 # git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE')[0]"
 # git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TRAIN')[0]"
 # git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TEST')[0]"
-def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
-    featureclip = gigapath_feature_bag_clip(name, root=root)
+def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None, 
+                              n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024,
+                              cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
+    ) -> torch.utils.data.Dataset:
+    featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip={dbx.quote(featureclip)}")
     return featurebag_dataset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
-def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
-    featureclip = gigapath_feature_bag_clip(name, root=root)
+def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, 
+                                          n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024,
+                                          cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading',
+                                          **dataloader_kwargs):
+    featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), shuffle_seed=shuffle_bags_seed))
     return ClipDataLoaderBuilder(spec=dict(
                             clip_dataset_builder=clip_dataset_builder,
@@ -248,15 +254,16 @@ def gigapath_bipolar_feature_bags_probe(name, *, n_devices: int = 1, gpu_batch_s
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=1).build()"
 def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int = 0, build_missing_only: bool = False, n_devices: int = 1, gpu_batch_size: int = 16, single: int|None = None, 
-                                     cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline',
-                                     gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'Multithreading'
+                                     cpu_parallelization: str = 'Inline',
+                                     gpu_parallelization: str = 'Multithreading'
     ) -> BipolarFeatureBagClip:
+    devices = [f'cuda:{i}' for i in range(n_devices)]
     probe = dbx.quote(gigapath_bipolar_feature_bags_probe, name=name, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     if single is not None:
         dbx.Logger(name='gigapath_bipolar_feature_bag_clip').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
-        clip = BipolarSingleFeatureBagClip(root=root, spec=dict(probe=probe, idx=single))
+        clip = BipolarSingleFeatureBagClip(root=root, spec=dict(probe=probe, idx=single), n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     else:
-        clip = BipolarFeatureBagClip(root=root, spec=dict(probe=probe), n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization)
+        clip = BipolarFeatureBagClip(root=root, spec=dict(probe=probe), n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, devices=devices)
     return clip
 
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
@@ -265,27 +272,33 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
 #
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0')[0]"
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1')[0]"
-def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None) -> torch.utils.data.Dataset:
+def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None,
+                                      n_workers: int = 0, n_devices: int = 1, gpu_batch_size: int = 16,
+                                      cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
+    ) -> torch.utils.data.Dataset:
     if 'SINGLE' in name:
         single = int(name.split('_')[-1])
         name = name.split('_SINGLE')[0]
         dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     else:
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
     return featurebag_dataset(dbx.quote(featureclip), transform=transform, target_transform=target_transform, bags_shuffle_seed=shuffle_bags_seed)
 
 
-def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, **dataloader_kwargs):
+def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, 
+                                                  n_workers: int = 0, n_devices: int = 1, gpu_batch_size: int = 16,
+                                                  cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading',
+                                                  **dataloader_kwargs):
     if 'SINGLE' in name:
         single = int(name.split('_')[-1])
         name = name.split('_SINGLE')[0]
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     else:
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
     clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), transform=transform, target_transform=target_transform, shuffle_seed=shuffle_bags_seed))
@@ -331,6 +344,8 @@ def gigapath_bipolar_shuffled_featurebag_clip(
     n_workers: int = 1,
     n_shuffle_queues: int = 1,
     parallelization: str = 'Ray',
+    cpu_parallelization: str = 'Inline',
+    gpu_parallelization: str = 'Multithreading',
     n_devices: int = 1,
     gpu_batch_size: int = 16,
 ) -> ShuffledClip:
@@ -346,7 +361,8 @@ def gigapath_bipolar_shuffled_featurebag_clip(
     if name is None:
         return ShuffledClip
     featureclip = gigapath_bipolar_feature_bag_clip(
-        name, root=root, n_devices=n_devices, gpu_batch_size=gpu_batch_size
+        name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size,
+        cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization
     )
     return ShuffledClip(
         root=root,
@@ -638,8 +654,11 @@ def gigapath_bipolar_hydro_still(
 #
 # git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, aggregation='cdf').build()"
 
-def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool = False, aggregation: str = 'mean') -> LogisticFeatureBagProbe:
-    return LogisticFeatureBagProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name), n_bins=n_bins, polarize=polarize, aggregation=aggregation))
+def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool = False, aggregation: str = 'mean',
+                                         n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024,
+                                         cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
+    ) -> LogisticFeatureBagProbe:
+    return LogisticFeatureBagProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization), n_bins=n_bins, polarize=polarize, aggregation=aggregation))
     
 
 # git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000').set(n_devices=3).build()"

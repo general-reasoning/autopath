@@ -311,6 +311,14 @@ class FeatureBagMedianProbe(Datablock):
     class CONFIG:
         featurebagclip: FeatureBagClip
 
+    def __init__(self, *args, n_workers: int = 1, 
+                 cpu_parallelization: str = 'Inline',
+                 gpu_parallelization: str = 'Multithreading',
+                 **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
+
     def __build__(self):
         bag_feature_list = []
         self.log.verbose(f"READING featurebags: BEGIN")
@@ -477,8 +485,13 @@ class BipolarFeatureBagProbe(Datablock):
         bag: np.array
         label: np.array
 
-    def __init__(self, *args, devices=['cuda:0'], gpu_batch_size: int = 1024, **kwargs):
-        super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, **kwargs)
+    def __init__(self, *args, devices=['cuda:0'], gpu_batch_size: int = 1024, 
+                 n_workers: int = 1, cpu_parallelization: str = 'Inline',
+                 gpu_parallelization: str = 'Multithreading',
+                 **kwargs):
+        super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
 
     def __build__(self):
         if not self.validtopics([

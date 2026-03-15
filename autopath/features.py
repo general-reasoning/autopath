@@ -204,13 +204,13 @@ class FeatureBagClip(Clip):
             return f"FeatureBagMaker({dbx.quote(self.featurebagclip)}, {self.idx})"
 
     def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, 
-                 gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'Multithreading', 
-                 cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline', 
+                 gpu_parallelization: str = 'Multithreading', 
+                 cpu_parallelization: str = 'Inline', 
                  **kwargs
     ):
-        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, 
-        cpu_parallelization=cpu_parallelization, **kwargs)
-        self.log.debug(f"n_workers={self.n_workers}, devices={self.devices}, gpu_batch_size={self.gpu_batch_size}, skip_unreadable={self.skip_unreadable}")
+        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
         self.executor_cls = {
             'Ray': RayCallableExecutor,
             'Multiprocessing': MultiprocessingCallableExecutor,
@@ -464,9 +464,13 @@ class BipolarFeatureBagClip(Clip):
         from autopath.pancan.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
 
-    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline', **kwargs):
+    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, 
+                 cpu_parallelization: str = 'Inline',
+                 gpu_parallelization: str = 'Multithreading',
+                 **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
         self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
         self.builder_cls = {
             'Ray': RayDatablocksBuilder,
             'Multiprocessing': MultiprocessingDatablocksBuilder,
@@ -582,7 +586,13 @@ class BipolarSingleFeatureBagClip(Clip):
 
     VERSION = 1
 
-    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+    def __init__(self, *args, n_workers: int = 1, 
+                 cpu_parallelization: str = 'Inline',
+                 gpu_parallelization: str = 'Multithreading',
+                 **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
