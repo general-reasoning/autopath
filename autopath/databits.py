@@ -320,9 +320,13 @@ class ClipShardQueue:
     @property
     def p_inv(self):
         if self._p_inv is None:
-            self.log.debug(f"[Queue {self.queue_idx}] Fetching p_inv from Ray Object Store...")
-            self._p_inv = ray.get(self.p_inv_ref)
-            self.log.debug(f"[Queue {self.queue_idx}] p_inv fetch complete.")
+            if isinstance(self.p_inv_ref, ray.ObjectRef):
+                self.log.debug(f"[Queue {self.queue_idx}] Fetching p_inv from Ray Object Store...")
+                self._p_inv = ray.get(self.p_inv_ref)
+                self.log.debug(f"[Queue {self.queue_idx}] p_inv fetch complete.")
+            else:
+                # Ray likely already dereferenced it automatically during actor construction
+                self._p_inv = self.p_inv_ref
         return self._p_inv
 
     def _read_next(self):
