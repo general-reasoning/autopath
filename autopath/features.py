@@ -499,7 +499,7 @@ class BipolarFeatureBagClip(Clip):
 
         self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.cpu_parallelization}: BEGIN")
         if self.n_workers > 0:
-            missing_blocks = self.builder_cls(n_workers=self.n_workers, log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
+            missing_blocks = self.builder_cls(n_workers=self.n_workers, log=self.log).build_blocks(missing_bags)
         else:   
             if self.verbose:
                 bagitor = tqdm.tqdm(missing_bags, desc=f"{self.anchor}: __build__: BUILDING BipolarFeatureBags")
