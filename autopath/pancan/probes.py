@@ -477,10 +477,26 @@ class BipolarFeatureBagProbe(Datablock):
         bag: np.array
         label: np.array
 
-    def __init__(self, *args, devices=['cuda:0'], gpu_batch_size: int = 1024, **kwargs):
-        super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, **kwargs)
+    def __init__(self, *args, devices=['cuda:0'], gpu_batch_size: int = 1024, 
+                 n_workers: int = 1, cpu_parallelization: str = 'Inline', **kwargs):
+        super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
 
     def __build__(self):
+        # Propagate settings to children before they are used
+        self.cfg.featurebagclip.n_workers = self.n_workers
+        if hasattr(self.cfg.featurebagclip, 'cpu_parallelization'):
+            self.cfg.featurebagclip.cpu_parallelization = self.cpu_parallelization
+            
+        self.cfg.medianprobe.n_workers = self.n_workers
+        if hasattr(self.cfg.medianprobe, 'cpu_parallelization'):
+            self.cfg.medianprobe.cpu_parallelization = self.cpu_parallelization
+        # Recursively propagate to the median probe's clip if it exists
+        if hasattr(self.cfg.medianprobe.cfg, 'featurebagclip'):
+            self.cfg.medianprobe.cfg.featurebagclip.n_workers = self.n_workers
+            if hasattr(self.cfg.medianprobe.cfg.featurebagclip, 'cpu_parallelization'):
+                self.cfg.medianprobe.cfg.featurebagclip.cpu_parallelization = self.cpu_parallelization
+
         if not self.validtopics([
             'labels',
             'bags',

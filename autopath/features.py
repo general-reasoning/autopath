@@ -397,21 +397,37 @@ class BipolarFeatureBag(Bag):
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        from autopath.pancan.probes import BipolarFeatureBagProbe
-        probe: BipolarFeatureBagProbe
-        bag_index: int
-        featurebag: FeatureBag
+        probehandle: str
 
-    def __build__(self):
-        assert self.cfg.featurebag.handle() == self.cfg.probe.cfg.featurebagclip.bag(self.cfg.bag_index).handle(), \
-            f"Featurebag handle mismatch: {self.cfg.featurebag.handle()} != {self.cfg.probe.cfg.featurebagclip.bag(self.cfg.bag_index).handle()}"
-        self.log.detailed(f" BipolarFeatureBag {self.cfg.bag_index}: build: BEGIN")
-        all_features = self.cfg.probe.tile_bipolar_features
-        lo = self.cfg.probe.bag_bounds[self.cfg.bag_index]
-        hi = self.cfg.probe.bag_bounds[self.cfg.bag_index+1]
+    def __init__(self, *args, n_workers: int = 1, 
+                 cpu_parallelization: str = 'Inline',
+                 gpu_parallelization: str = 'Multithreading',
+                 **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
+
+    def __build__(self, *, probe: 'BipolarFeatureBagProbe' = None, **kwargs):
+        # Use provided probe or fall back to self.probe if passed to __init__
+        probe = probe or getattr(self, 'probe', None)
+        assert probe is not None, "BipolarFeatureBag.__build__ requires a 'probe' argument."
+
+        # Propagate settings to the internal featurebag
+        self.featurebag.n_workers = kwargs.get('n_workers', self.n_workers)
+        if hasattr(self.featurebag, 'cpu_parallelization'):
+            self.featurebag.cpu_parallelization = kwargs.get('cpu_parallelization', self.cpu_parallelization)
+        if hasattr(self.featurebag, 'gpu_parallelization'):
+            self.featurebag.gpu_parallelization = kwargs.get('gpu_parallelization', self.gpu_parallelization)
+
+        assert self.featurebag.handle() == probe.cfg.featurebagclip.bag(self.bag_index).handle(), \
+            f"Featurebag handle mismatch: {self.featurebag.handle()} != {probe.cfg.featurebagclip.bag(self.bag_index).handle()}"
+        self.log.detailed(f" BipolarFeatureBag {self.bag_index}: build: BEGIN")
+        all_features = probe.tile_bipolar_features
+        lo = probe.bag_bounds[self.bag_index]
+        hi = probe.bag_bounds[self.bag_index+1]
         my_features = all_features[lo:hi, :]
         write_npz(self.path('bipolar_features', ensure_dirpath=True), bipolar_features=my_features)
-        self.log.detailed(f" BipolarFeatureBag {self.cfg.bag_index}: build:END")
+        self.log.detailed(f" BipolarFeatureBag {self.bag_index}: build:END")
         self._len = hi - lo
         return self
 
@@ -432,25 +448,25 @@ class BipolarFeatureBag(Bag):
 
     @functools.cached_property
     def features(self):
-        self.log.silent(f"Reading features from {self.cfg.featurebag}: BEGIN")
-        result = self.cfg.featurebag.features
-        self.log.silent(f"Reading features from {self.cfg.featurebag}: END")
+        self.log.silent(f"Reading features from {self.featurebag}: BEGIN")
+        result = self.featurebag.features
+        self.log.silent(f"Reading features from {self.featurebag}: END")
         return result
 
     @property
     def name(self):
-        return self.cfg.featurebag.name
+        return self.featurebag.name
 
     @functools.cached_property    
     def labels(self):
-        self.log.silent(f"Reading labels from {self.cfg.featurebag}: BEGIN")
-        result = self.cfg.featurebag.labels
-        self.log.silent(f"Reading labels from {self.cfg.featurebag}: END")
+        self.log.silent(f"Reading labels from {self.featurebag}: BEGIN")
+        result = self.featurebag.labels
+        self.log.silent(f"Reading labels from {self.featurebag}: END")
         return result
 
     def __len__(self):
         if not hasattr(self, '_len'):
-            self._len = len(self.cfg.featurebag)
+            self._len = len(self.featurebag)
         return self._len
 
 
@@ -529,10 +545,14 @@ class BipolarFeatureBagClip(Clip):
             BipolarFeatureBag(
                 root=self._root_,
                 spec=dict(
-                    probe=self.cfg.probe,
-                    bag_index=i,
-                    featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
-                )
+                    probehandle=self.cfg.probe.handle(),
+                ),
+                bag_index=i,
+                featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
+                probe=self.cfg.probe,
+                n_workers=self.n_workers,
+                cpu_parallelization=self.cpu_parallelization,
+                gpu_parallelization=self.gpu_parallelization,
             )
             for i in bagitor
         ]
@@ -543,10 +563,14 @@ class BipolarFeatureBagClip(Clip):
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
-                probe=self.cfg.probe,
-                bag_index=idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx),
-            )
+                probehandle=self.cfg.probe.handle(),
+            ),
+            bag_index=idx,
+            featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx),
+            probe=self.cfg.probe,
+            n_workers=self.n_workers,
+            cpu_parallelization=self.cpu_parallelization,
+            gpu_parallelization=self.gpu_parallelization,
         )
         return bag
 
@@ -611,9 +635,13 @@ class BipolarSingleFeatureBagClip(Clip):
             root=self._root_,
             spec=dict(
                 probehandle=self.cfg.probe.handle(),
-                bag_index=idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
-            )
+            ),
+            bag_index=idx,
+            featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
+            probe=self.cfg.probe,
+            n_workers=self.n_workers,
+            cpu_parallelization=self.cpu_parallelization,
+            gpu_parallelization=self.gpu_parallelization,
         )
         return [bag]
 
@@ -624,9 +652,13 @@ class BipolarSingleFeatureBagClip(Clip):
             root=self._root_,
             spec=dict(
                 probehandle=self.cfg.probe.handle(),
-                bag_index=real_idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
-            )
+            ),
+            bag_index=real_idx,
+            featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
+            probe=self.cfg.probe,
+            n_workers=self.n_workers,
+            cpu_parallelization=self.cpu_parallelization,
+            gpu_parallelization=self.gpu_parallelization,
         )
         return bag
 
