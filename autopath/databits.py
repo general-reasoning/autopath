@@ -310,8 +310,11 @@ class ClipShardQueue:
         self.target_to_srcs = target_to_srcs
         self._p_inv = None # Lazy fetch from Ray Object Store
 
-        # Partition source shards among queues
-        self.my_src_shards = list(range(self.queue_idx, len(self.clip_lens), self.n_queues))
+        # Partition only the source shards that actually contain our samples
+        all_needed_srcs = set()
+        for srcs in self.target_to_srcs.values():
+            all_needed_srcs.update(srcs)
+        self.my_src_shards = sorted(list(all_needed_srcs))
         
         self.offsets = np.cumsum([0] + list(self.clip_lens))
         self.current_src_ptr = 0  # Index into self.my_src_shards
@@ -336,6 +339,8 @@ class ClipShardQueue:
         src_idx = self.my_src_shards[self.current_src_ptr]
         self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: BEGIN")
         shard = self.clip.shards[src_idx]
+        
+        # Load and hold local references
         tensor = shard.tensor
         labels = shard.labels
         
@@ -347,9 +352,24 @@ class ClipShardQueue:
             k = _p_inv[p]
             if k != -1:
                 target_idx = k // self.shard_size
+                
+                # IMPORTANT: Clone/Copy to break view-based memory pinning.
+                # If we don't, the entire source shard stays in memory as long as any slice is buffered.
+                data = tensor[i]
+                if torch.is_tensor(data):
+                    data = data.clone()
+                elif isinstance(data, np.ndarray):
+                    data = data.copy()
+                
+                label = labels[i]
                 # Store (data, label, k, global_p)
-                self.buffers[target_idx].append((tensor[i], labels[i], k, p))
+                self.buffers[target_idx].append((data, label, k, p))
                 count += 1
+        
+        # Explicitly clear the source shard's cache so it doesn't linger in self.clip.shards
+        if hasattr(shard, '__dict__'):
+            for key in ['tensor', 'labels', 'tiles']:
+                shard.__dict__.pop(key, None)
         
         self.current_src_ptr += 1
         self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: END ({count} samples collected)")
@@ -458,8 +478,9 @@ class ShuffledShardMaker:
         else:
             q_itor = q_indices
 
-        for q_idx in q_itor:
-            res = ray.get(self.queues[q_idx].pull.remote(self.shard_idx))
+        # Trigger all pulls in parallel
+        futures = [self.queues[q_idx].pull.remote(self.shard_idx) for q_idx in q_itor]
+        for res in ray.get(futures):
             all_results.extend(res)
 
         # Reassemble in deterministic order (by k)
@@ -708,7 +729,10 @@ class ShuffledClip(Clip):
         else:
             self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers, verbose=self.verbose)
 
-        super().__build__()
+        # Calculate and save shard lens without reading all shards back
+        shard_lens = [self.cfg.shard_size] * (n_shards - 1) + [n_samples - (n_shards - 1) * self.cfg.shard_size]
+        dbx.write_npz(self.path(), shard_lens=shard_lens)
+
         self.log.verbose(f"Building ShuffledClip: END")
         return self
 
