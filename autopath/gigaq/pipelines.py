@@ -251,12 +251,12 @@ def gigapath_bipolar_feature_bag_clip(name, *, root: str = None, n_workers: int 
                                      cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline',
                                      gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'Multithreading'
     ) -> BipolarFeatureBagClip:
-    probe = gigapath_bipolar_feature_bags_probe(name, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
+    probe = dbx.quote(gigapath_bipolar_feature_bags_probe, name=name, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     if single is not None:
         dbx.Logger(name='gigapath_bipolar_feature_bag_clip').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
-        clip = BipolarSingleFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe), idx=single))
+        clip = BipolarSingleFeatureBagClip(root=root, spec=dict(probe=probe, idx=single))
     else:
-        clip = BipolarFeatureBagClip(root=root, spec=dict(probe=dbx.quote(probe)), n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization)
+        clip = BipolarFeatureBagClip(root=root, spec=dict(probe=probe), n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization)
     return clip
 
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
