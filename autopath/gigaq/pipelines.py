@@ -301,12 +301,12 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
     if return_last:
         return _
 
-### git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=16, parallelization='Multithreading', n_workers=16).build()"
-### git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=32, parallelization='Multithreading', n_workers=8).build()"
-### git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=32, parallelization='Ray', n_workers=8).build()"
-## git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=32, parallelization='Multithreading', n_workers=4).build()"
-#git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.02, shuffle_seed=43, shard_size=64, parallelization='Multithreading', n_workers=32).build()"
-# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.05, shuffle_seed=44, shard_size=64, parallelization='Ray', n_workers=32).build()"
+### git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=16, n_workers=16).build()"
+### git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=32, n_workers=8).build()"
+### git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=32, n_workers=8).build()"
+## git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.01, shard_size=32, n_workers=4, n_shuffle_queues=4).build()"
+#git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.02, shuffle_seed=43, shard_size=64, n_workers=32).build()"
+# git commit -am "gigaq: BipolarShuffledFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_shuffled_featurebag_clip('GIGAPATH_BASELINE_CPTAC_206020', fraction=0.05, shuffle_seed=44, shard_size=64, n_workers=32).build()"
 def gigapath_bipolar_shuffled_featurebag_clip(
     name: str | None = None,
     *,
@@ -315,7 +315,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
     shuffle_seed: int = 42,
     shard_size: int = 512,
     n_workers: int = 1,
-    n_queues: int = 1,
+    n_shuffle_queues: int = 1,
     parallelization: str = 'Ray',
     n_devices: int = 1,
     gpu_batch_size: int = 16,
@@ -341,7 +341,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
             fraction=fraction,
             shuffle_seed=shuffle_seed,
             shard_size=shard_size,
-            n_queues=n_queues,
+            n_queues=n_shuffle_queues,
         ),
         n_workers=n_workers,
         parallelization=parallelization,
