@@ -334,7 +334,7 @@ class ClipShardQueue:
             return
         
         src_idx = self.my_src_shards[self.current_src_ptr]
-        self.log.debug(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: BEGIN")
+        self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: BEGIN")
         shard = self.clip.shards[src_idx]
         tensor = shard.tensor
         labels = shard.labels
@@ -352,7 +352,7 @@ class ClipShardQueue:
                 count += 1
         
         self.current_src_ptr += 1
-        self.log.debug(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: END ({count} samples collected)")
+        self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: END ({count} samples collected)")
 
     def pull(self, target_shard_idx: int):
         self.log.debug(f"[Queue {self.queue_idx}] Pull request for target shard {target_shard_idx}: BEGIN")
