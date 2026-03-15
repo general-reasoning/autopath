@@ -288,68 +288,35 @@ class Fold(Clip):
 
 class ClipShardQueue:
     """
-    A queue of shards from a Clip, sampled with replacement.
-
-    How the logic works:
-    Pull Schedule: In the constructor, the queue uses its p_inv and global sample map (perm) to pre-calculate exactly which of its assigned source shards will be needed by which target shards. This is stored in self.target_to_srcs.
-    Sequential Reading: The queue keeps a pointer (current_src_ptr) to its assigned source shards. It only reads a source shard when a 
-
-    pull()
-    request asks for a target shard that depends on a shard further down the line.
-    Automatic Exhaustion: When 
-
-    _read_next()
-    is called, it loads a single source shard, distributes its samples into the target buffers, and then the source shard data is naturally garbage-collected when the method finishes (as 
-
-    tensor
-    and 
-
-    labels
-    are local variables).
-    Buffer Management: Samples wait in self.buffers[target_idx] until they are pulled. This ensures that even if target shards are pulled out of order, we never read a source shard twice.
-    This implementation guarantees that at any given time, the memory footprint is roughly currently_loaded_source_shard + samples_waiting_in_buffers, which is optimal for a random-pull-order requirement.
+    A queue of shards from a Clip.
     """
-    def __init__(self, queue_idx: int, clip: Clip, fraction: float, n_shards: int, n_queues: int, shard_size: int, shuffle_seed: int):
+    def __init__(self, queue_idx: int, clip_quote, clip_lens, fraction: float, n_shards: int, n_queues: int, shard_size: int, shuffle_seed: int, p_inv_ref, target_to_srcs):
         self.queue_idx = queue_idx
-        self.clip = clip
+        # Instantiate a fresh Clip object from the quote.
+        # This keeps serialization lightweight while preserving the clip's configuration.
+        self.clip = clip_quote()
+        self.clip_lens = clip_lens
         self.fraction = fraction
         self.n_shards = n_shards
         self.n_queues = n_queues
         self.shard_size = shard_size
         self.shuffle_seed = shuffle_seed
-
-        # Determine total samples and selection
-        N = len(self.clip)
-        self.n_samples = int(math.floor(N * self.fraction))
+        self.p_inv_ref = p_inv_ref
+        self.target_to_srcs = target_to_srcs
+        self._p_inv = None # Lazy fetch from Ray Object Store
 
         # Partition source shards among queues
-        self.my_src_shards = list(range(self.queue_idx, len(self.clip.shard_lens), self.n_queues))
-        self.my_src_shards_set = set(self.my_src_shards)
-
-        # Precompute pull schedule (target_idx -> set of src_idxs needed from this queue)
-        shard_lens = self.clip.shard_lens
-        self.offsets = np.cumsum([0] + list(shard_lens))
+        self.my_src_shards = list(range(self.queue_idx, len(self.clip_lens), self.n_queues))
         
-        rng = np.random.default_rng(self.shuffle_seed)
-        perm = rng.permutation(N)[:self.n_samples]
-        
-        # p_inv stores the destination index k for each source index p
-        self.p_inv = np.full(N, -1, dtype=np.int32)
-        self.p_inv[perm] = np.arange(self.n_samples, dtype=np.int32)
-        # If p_inv[500] = 10, it means the 500th element of the source clip is 
-        # destined to be the 10th element in the final result.
-        # If p_inv[p] == -1, that element wasn't sampled (since we only take a fraction).
-
-        self.target_to_srcs = collections.defaultdict(set)
-        for k, p in enumerate(perm):
-            target_idx = k // self.shard_size
-            # Find which source shard index p belongs to
-            src_idx = np.searchsorted(self.offsets, p, side='right') - 1
-            if src_idx in self.my_src_shards_set:
-                self.target_to_srcs[target_idx].add(src_idx)
-
+        self.offsets = np.cumsum([0] + list(self.clip_lens))
         self.current_src_ptr = 0  # Index into self.my_src_shards
         self.buffers = collections.defaultdict(list)
+
+    @property
+    def p_inv(self):
+        if self._p_inv is None:
+            self._p_inv = ray.get(self.p_inv_ref)
+        return self._p_inv
 
     def _read_next(self):
         if self.current_src_ptr >= len(self.my_src_shards):
@@ -589,32 +556,85 @@ class ShuffledClip(Clip):
         n_shards = int(math.ceil(n_samples / self.cfg.shard_size))
         
         self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: BEGIN")
+        if not ray.is_initialized():
+            self.log.verbose("Initializing Ray...")
+            ray.init(ignore_reinit_error=True)
+
+        # ------------------------------------------------------------------
+        # Driver-side precomputation (Moved from actor to driver for visibility)
+        # ------------------------------------------------------------------
+        shard_lens = self.cfg.clip.shard_lens
+        offsets = np.cumsum([0] + list(shard_lens))
+        
+        self.log.verbose(f"Generating permutation for {N} samples")
+        rng = np.random.default_rng(self.cfg.shuffle_seed)
+        perm = rng.permutation(N)[:n_samples]
+        
+        self.log.verbose("Generating inverse permutation map")
+        p_inv = np.full(N, -1, dtype=np.int32)
+        p_inv[perm] = np.arange(n_samples, dtype=np.int32)
+        p_inv_ref = ray.put(p_inv)
+        del p_inv # Free up driver memory
+        
+        self.log.verbose("Precomputing pull schedules for queues")
+        queue_schedules = [collections.defaultdict(set) for _ in range(self.cfg.n_queues)]
+        
+        src_shards_itor = range(len(shard_lens))
+        if self.verbose:
+            src_shards_itor = tqdm.tqdm(src_shards_itor, desc="Analyzing source shards")
+            
+        p_inv_local = ray.get(p_inv_ref) # Get back once for local heavy loop
+        for src_idx in src_shards_itor:
+            q_idx = src_idx % self.cfg.n_queues
+            lo, hi = offsets[src_idx], offsets[src_idx+1]
+            p_slice = p_inv_local[lo:hi]
+            dest_ks = p_slice[p_slice != -1]
+            if dest_ks.size > 0:
+                target_ids = np.unique(dest_ks // self.cfg.shard_size)
+                for t_idx in target_ids:
+                    queue_schedules[q_idx][int(t_idx)].add(src_idx)
+        del p_inv_local
+
+        # ------------------------------------------------------------------
+        # Actor Setup
+        # ------------------------------------------------------------------
+        clip_quote = dbx.quote(self.cfg.clip)
+        
         q_itor = range(self.cfg.n_queues)
         if self.verbose:
-            q_itor = tqdm.tqdm(q_itor, desc="Setting up ClipShardQueues")
+            q_itor = tqdm.tqdm(q_itor, desc="Launching ClipShardQueues")
+        
         RemoteQueue = ray.remote(ClipShardQueue)
-        queues = [
-            RemoteQueue.remote(
-                queue_idx=i,
-                clip=self.cfg.clip,
-                fraction=self.cfg.fraction,
-                n_shards=n_shards,
-                n_queues=self.cfg.n_queues,
-                shard_size=self.cfg.shard_size,
-                shuffle_seed=self.cfg.shuffle_seed
+        queues = []
+        for i in q_itor:
+            queues.append(
+                RemoteQueue.remote(
+                    queue_idx=i,
+                    clip_quote=clip_quote,
+                    clip_lens=shard_lens,
+                    fraction=self.cfg.fraction,
+                    n_shards=n_shards,
+                    n_queues=self.cfg.n_queues,
+                    shard_size=self.cfg.shard_size,
+                    shuffle_seed=self.cfg.shuffle_seed,
+                    p_inv_ref=p_inv_ref,
+                    target_to_srcs=queue_schedules[i]
+                )
             )
-            for i in q_itor
-        ]
         self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: END")
 
         self.log.info(f"Setting up {n_shards} ShuffledShardMakers: BEGIN")
         shards_itor = range(n_shards)
         if self.verbose:
             shards_itor = tqdm.tqdm(shards_itor, desc="Setting up ShuffledShardMakers")
+        
+        # Consistent clip reference for makers
+        clip_quoted = dbx.quote(self.cfg.clip)
+        
         makers = [
             ShuffledShardMaker(
                 root=self._root_,
-                clip=self.spec['clip'],
+                clip=clip_quoted,
                 fraction=self.cfg.fraction,
                 shard_size=self.cfg.shard_size,
                 shuffle_seed=self.cfg.shuffle_seed,
@@ -654,7 +674,7 @@ class ShuffledClip(Clip):
             self.cfg.shuffled_shard_cls(
                 root=self._root_,
                 spec=dict(
-                    clip=self.spec['clip'],
+                    clip=dbx.quote(self.cfg.clip),
                     fraction=self.cfg.fraction,
                     shard_size=self.cfg.shard_size,
                     shuffle_seed=self.cfg.shuffle_seed,
