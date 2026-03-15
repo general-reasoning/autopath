@@ -221,7 +221,7 @@ class FeatureBagClip(Clip):
         self.log.verbose(f"Built all missing features shards: {len(built_bags)}")
         self.log.verbose(f"Building bag_lens: BEGIN")
         self.log.detailed(f"Building bag_lens for bags with hash paths {[bag.hashpath() for bag in bags]}")
-        executor = dbx.RayCallableExecutor(n_workers=self.n_workers)
+        executor = self.executor_cls(n_workers=self.n_workers, log=self.log)
         executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
         bag_lens_list = executor.exec_callables(executables)
         bag_lens = torch.tensor(bag_lens_list)
