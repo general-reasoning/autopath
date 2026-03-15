@@ -219,14 +219,14 @@ class FeatureBagClip(Clip):
         self.log.verbose(f"Building all missing features bags using devices {self.devices} and gpu_batch_size {self.gpu_batch_size}")
         built_bags = self.builder_cls(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)
         self.log.verbose(f"Built all missing features shards: {len(built_bags)}")
-        self.log.verbose(f"Building bag_lens: BEGIN")
+        self.log.verbose(f"Building bag_lens: using {self.cpu_parallelization} parallelization with {self.n_workers} workers: BEGIN")
         self.log.detailed(f"Building bag_lens for bags with hash paths {[bag.hashpath() for bag in bags]}")
         executor = self.executor_cls(n_workers=self.n_workers, log=self.log)
         executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
         bag_lens_list = executor.exec_callables(executables)
         bag_lens = torch.tensor(bag_lens_list)
         self.log.debug(f"bag_lens: {bag_lens}")
-        self.log.verbose(f"Building bag_lens: END")
+        self.log.verbose(f"Building bag_lens: using {self.cpu_parallelization} parallelization with {self.n_workers} workers: END")
         dbx.write_tensor(bag_lens, self.path("bag_lens", ensure_dirpath=True))
         return self
     
