@@ -338,7 +338,7 @@ class ClipShardQueue:
         
         src_idx = self.my_src_shards[self.current_src_ptr]
         self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: BEGIN")
-        shard = self.clip.shards[src_idx]
+        shard = self.clip.shard(src_idx)
         
         # Load and hold local references
         tensor = shard.tensor
@@ -361,15 +361,25 @@ class ClipShardQueue:
                 elif isinstance(data, np.ndarray):
                     data = data.copy()
                 
-                label = labels[i]
+                def deep_clone(obj):
+                    if torch.is_tensor(obj):
+                        return obj.clone()
+                    if isinstance(obj, np.ndarray):
+                        return obj.copy()
+                    if isinstance(obj, tuple):
+                        return tuple(deep_clone(x) for x in obj)
+                    if isinstance(obj, list):
+                        return [deep_clone(x) for x in obj]
+                    return obj
+
+                label = deep_clone(labels[i])
                 # Store (data, label, k, global_p)
                 self.buffers[target_idx].append((data, label, k, p))
                 count += 1
         
-        # Explicitly clear the source shard's cache so it doesn't linger in self.clip.shards
-        if hasattr(shard, '__dict__'):
-            for key in ['tensor', 'labels', 'tiles']:
-                shard.__dict__.pop(key, None)
+        # Ensure we don't hold references to the source shard beyond this method
+        del shard
+        gc.collect()
         
         self.current_src_ptr += 1
         self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: END ({count} samples collected)")

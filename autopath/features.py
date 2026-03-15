@@ -276,17 +276,17 @@ class FeatureBagClip(Clip):
         self.log.silent(f"bags: traceback:\n{''.join(tb.format_stack())}")
         self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: BEGIN ")
         if self.verbose:
-            tilebagitor = tqdm.tqdm(self.cfg.tilebagclip.shards, desc=f"{self.anchor}: FORMING FeatureBags")
+            bagitor = tqdm.tqdm(range(self.cfg.tilebagclip.n_shards), desc=f"{self.anchor}: FORMING FeatureBags")
         else:
-            tilebagitor = self.cfg.tilebagclip.shards
+            bagitor = range(self.cfg.tilebagclip.n_shards)
         bags = [
             FeatureBag(
                 root=self._root_, 
-                spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor'],), 
+                spec=dict(tilebag=dbx.quote(self.cfg.tilebagclip.shard(i)), extractor=self.spec['extractor'],), 
                 gpu_batch_size=self.gpu_batch_size,
                 revision=self.revision,
             )
-            for tilebag in tilebagitor
+            for i in bagitor
         ]
         self.log.verbose(f"FORMING FeatureBags from tilebagclip {self.cfg.tilebagclip} with revision {self.revision}: END")
         return bags
@@ -507,7 +507,7 @@ class BipolarFeatureBagClip(Clip):
                 spec=dict(
                     probehandle=self.cfg.probe.handle(),
                     bag_index=i,
-                    featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
+                    featurebag=self.cfg.probe.cfg.featurebagclip.bag(i),
                 )
             )
             for i in bagitor
