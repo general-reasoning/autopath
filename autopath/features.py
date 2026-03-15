@@ -518,7 +518,7 @@ class BipolarFeatureBagClip(Clip):
 
     @functools.cached_property
     def bags(self):
-        self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
+        self.log.verbose(f"bags: FORMING BipolarFeatureBags: using {self.executor_cls.__name__}: BEGIN")
         self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
         if self.verbose:
@@ -536,7 +536,7 @@ class BipolarFeatureBagClip(Clip):
             )
             for i in bagitor
         ]
-        self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
+        self.log.verbose(f"bags: FORMING BipolarFeatureBags: using {self.executor_cls.__name__}: END")
         return bags
 
     def bag(self, idx: int):
