@@ -248,7 +248,7 @@ def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_ba
 
 
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_8020_TRAIN').build()"
-# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', n_workers=4, cpu_parallelization='Multithreading').build()"
+# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', n_workers=4, cpu_parallelization='multithreading').build()"
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE').build()"
 def gigapath_feature_bags_median_probe(name, n_devices: int = 1, gpu_batch_size: int = 16, n_workers: int = 1, 
                                     cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
