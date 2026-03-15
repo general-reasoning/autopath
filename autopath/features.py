@@ -301,10 +301,10 @@ class FeatureBagClip(Clip):
     
     @functools.cached_property
     def bags(self):
-        self.log.verbose(f"FORMING FeatureBags: BEGIN")
+        self.log.verbose(f"FORMING FeatureBags: using {self.executor_cls.__name__}: BEGIN")
         executables = [FeatureBagClip.FeatureBagMaker(self, idx) for idx in range(self.cfg.tilebagclip.n_bags)]
         bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
-        self.log.verbose(f"FORMING FeatureBags: END")
+        self.log.verbose(f"FORMING FeatureBags: using {self.executor_cls.__name__}: END")
         return bags
 
     def bag(self, idx: int):
