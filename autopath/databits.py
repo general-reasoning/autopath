@@ -315,7 +315,11 @@ class ClipShardQueue:
     @property
     def p_inv(self):
         if self._p_inv is None:
+            # Note: We can't easily use self.log here if it's not a Datablock, 
+            # so we use a simple print or ensure logger availability.
+            print(f"DEBUG: [Queue {self.queue_idx}] Fetching p_inv from Ray Object Store...")
             self._p_inv = ray.get(self.p_inv_ref)
+            print(f"DEBUG: [Queue {self.queue_idx}] p_inv fetch complete.")
         return self._p_inv
 
     def _read_next(self):
@@ -323,11 +327,13 @@ class ClipShardQueue:
             return
         
         src_idx = self.my_src_shards[self.current_src_ptr]
+        print(f"DEBUG: [Queue {self.queue_idx}] Reading source shard {src_idx}...")
         shard = self.clip.shards[src_idx]
         tensor = shard.tensor
         labels = shard.labels
         
         offset = self.offsets[src_idx]
+        p_inv = self.p_inv # Trigger fetch if needed
         for i in range(len(tensor)):
             p = offset + i
             k = self.p_inv[p]
@@ -551,49 +557,66 @@ class ShuffledClip(Clip):
     def __build__(self):
         self.log.verbose(f"Building ShuffledClip with {self.cfg.n_queues} queues: BEGIN")
         
+        # Access shard_lens early to trigger any I/O before Ray setup
+        shard_lens = self.cfg.clip.shard_lens
         N = len(self.cfg.clip)
         n_samples = int(math.floor(N * self.cfg.fraction))
         n_shards = int(math.ceil(n_samples / self.cfg.shard_size))
         
         self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: BEGIN")
         if not ray.is_initialized():
-            self.log.verbose("Initializing Ray...")
+            self.log.info("Initializing Ray session...")
             ray.init(ignore_reinit_error=True)
 
         # ------------------------------------------------------------------
-        # Driver-side precomputation (Moved from actor to driver for visibility)
+        # Driver-side precomputation 
         # ------------------------------------------------------------------
-        shard_lens = self.cfg.clip.shard_lens
+        self.log.info("Driver-side precomputation: BEGIN")
         offsets = np.cumsum([0] + list(shard_lens))
         
-        self.log.verbose(f"Generating permutation for {N} samples")
+        self.log.info(f"Generating permutation for {N} samples: BEGIN")
         rng = np.random.default_rng(self.cfg.shuffle_seed)
         perm = rng.permutation(N)[:n_samples]
+        self.log.info(f"Generating permutation for {N} samples: END")
         
-        self.log.verbose("Generating inverse permutation map")
+        self.log.info("Generating inverse permutation map: BEGIN")
         p_inv = np.full(N, -1, dtype=np.int32)
         p_inv[perm] = np.arange(n_samples, dtype=np.int32)
-        p_inv_ref = ray.put(p_inv)
-        del p_inv # Free up driver memory
+        self.log.info("Generating inverse permutation map: END")
         
-        self.log.verbose("Precomputing pull schedules for queues")
+        self.log.info("Precomputing pull schedules for queues: BEGIN")
         queue_schedules = [collections.defaultdict(set) for _ in range(self.cfg.n_queues)]
         
-        src_shards_itor = range(len(shard_lens))
-        if self.verbose:
-            src_shards_itor = tqdm.tqdm(src_shards_itor, desc="Analyzing source shards")
+        # Vectorized schedule calculation
+        # 1. Find all samples that were actually selected
+        valid_indices = np.where(p_inv != -1)[0]
+        # 2. Get their target shard indices
+        v_dest_ks = p_inv[valid_indices]
+        v_target_idxs = v_dest_ks // self.cfg.shard_size
+        # 3. Get their source shard indices
+        v_src_idxs = np.searchsorted(offsets, valid_indices, side='right') - 1
+        
+        # 4. Unique (src_idx, target_idx) pairs to find demand
+        # We use a combined 64-bit value for faster uniquing: (src_idx << 32) | target_idx
+        combined = (v_src_idxs.astype(np.int64) << 32) | v_target_idxs.astype(np.int64)
+        unique_combined = np.unique(combined)
+        
+        # 5. Populate schedules
+        for val in unique_combined:
+            s_idx = int(val >> 32)
+            t_idx = int(val & 0xFFFFFFFF)
+            q_idx = s_idx % self.cfg.n_queues
+            queue_schedules[q_idx][t_idx].add(s_idx)
             
-        p_inv_local = ray.get(p_inv_ref) # Get back once for local heavy loop
-        for src_idx in src_shards_itor:
-            q_idx = src_idx % self.cfg.n_queues
-            lo, hi = offsets[src_idx], offsets[src_idx+1]
-            p_slice = p_inv_local[lo:hi]
-            dest_ks = p_slice[p_slice != -1]
-            if dest_ks.size > 0:
-                target_ids = np.unique(dest_ks // self.cfg.shard_size)
-                for t_idx in target_ids:
-                    queue_schedules[q_idx][int(t_idx)].add(src_idx)
-        del p_inv_local
+        self.log.info("Precomputing pull schedules for queues: END")
+
+        # Now put p_inv in Ray and free driver memory
+        self.log.info("Broadcasting data to Ray Object Store: BEGIN")
+        p_inv_ref = ray.put(p_inv)
+        del p_inv
+        gc.collect()
+        self.log.info("Broadcasting data to Ray Object Store: END")
+        self.log.info("Driver-side precomputation: END")
 
         # ------------------------------------------------------------------
         # Actor Setup
