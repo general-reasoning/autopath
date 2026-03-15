@@ -404,9 +404,7 @@ class BipolarFeatureBag(Bag):
                  cpu_parallelization: str = 'Inline',
                  gpu_parallelization: str = 'Multithreading',
                  **kwargs):
-        super().__init__(*args, n_workers=n_workers, **kwargs)
-        self.cpu_parallelization = cpu_parallelization
-        self.gpu_parallelization = gpu_parallelization
+        super().__init__(*args, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
 
     def __build__(self):
         assert self.cfg.featurebag.handle() == self.cfg.probe.cfg.featurebagclip.bag(self.cfg.bag_index).handle(), \
@@ -598,9 +596,7 @@ class BipolarSingleFeatureBagClip(Clip):
                  cpu_parallelization: str = 'Inline',
                  gpu_parallelization: str = 'Multithreading',
                  **kwargs):
-        super().__init__(*args, n_workers=n_workers, **kwargs)
-        self.cpu_parallelization = cpu_parallelization
-        self.gpu_parallelization = gpu_parallelization
+        super().__init__(*args, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
 
     def __build__(self):
         idx = self.cfg.idx
