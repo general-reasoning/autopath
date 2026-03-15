@@ -535,11 +535,15 @@ class BipolarFeatureBagClip(Clip):
     def bags(self):
         self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
+        """
         if self.verbose:
             idxitor = tqdm.tqdm(range(n_bags), desc=f"{self.anchor}: bags: FORMING BipolarFeatureBags")
         else:
             idxitor = range(n_bags)
         bags = [self.bag(idx) for idx in idxitor]
+        """
+        callables = [lambda idx=idx: self.bag(idx) for idx in range(n_bags)]
+        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).execute(callables)
         self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return bags
 
