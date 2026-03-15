@@ -16,6 +16,9 @@ import torch
 import dbx
 from dbx import (
     Datablock, 
+    MultiprocessingDatablocksBuilder,
+    MultiprocessingCallableExecutor,
+    MultithreadingDatablocksBuilder,
     MultithreadingCallableExecutor,
     RayDatablocksBuilder,
     RayCallableExecutor,
@@ -439,7 +442,7 @@ class BipolarFeatureBagClip(Clip):
         from autopath.pancan.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
 
-    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading'] = 'multithreading', **kwargs):
+    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading'] = 'Multithreading', **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
         self.parallelization = parallelization
         self.builder_cls = {
