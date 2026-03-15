@@ -38,8 +38,12 @@ def tileset(tilebagclip: Clip,
 ):
     tilebagclip = dbx.eval_term(tilebagclip)
     transform = dbx.eval_term(transform)
-    return ClipDatasetBuilder(spec=dict(clip=tilebagclip, transform=transform,), 
-                       debug=debug, 
-                       verbose=verbose,
-                       log=log,
-    ).dataset()
+    
+    kwargs = dict(
+        debug=debug, 
+        verbose=verbose,
+    )
+    if log is not None:
+        kwargs['log'] = log
+
+    return ClipDatasetBuilder(spec=dict(clip=tilebagclip, transform=transform,), **kwargs).dataset()
