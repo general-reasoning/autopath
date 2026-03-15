@@ -348,12 +348,12 @@ class ClipShardQueue:
         self.current_src_ptr += 1
 
     def pull(self, target_shard_idx: int):
-        needed = self.target_to_srcs.get(target_shard_idx, set())
+        needed = self.target_to_srcs.get(target_shard_idx, None)
         
         # Advance current_src_ptr if any needed shards are not yet read.
         # Since we read in order, we just need to check the maximum needed src_idx.
-        if needed:
-            max_needed = max(needed)
+        if needed is not None and len(needed) > 0:
+            max_needed = np.max(needed)
             while self.current_src_ptr < len(self.my_src_shards) and self.my_src_shards[self.current_src_ptr] <= max_needed:
                 self._read_next()
         
