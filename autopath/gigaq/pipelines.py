@@ -146,6 +146,12 @@ def gigapath_feature_bag_clip(name:str = None, *, root:str = None, n_workers: in
         tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TEST')
     elif name == "GIGAPATH_BASELINE_5B_CPTAC_8020_TEST":
         tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TEST')
+    elif name == "GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE":
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_CALIBRATE')
+    elif name == "GIGAPATH_BASELINE_CPTAC_200179_TRAIN":
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TRAIN')
+    elif name == "GIGAPATH_BASELINE_CPTAC_200179_TEST":
+        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TEST')
     else:
         raise ValueError(f"Unknown gigapath_feature_clip: {repr(name)}")
     return FeatureBagClip(

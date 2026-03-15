@@ -194,6 +194,12 @@ def pancan_tilebag_dataset(name=None) -> ClipDatasetBuilder:
         builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TRAIN'),)
     elif name == "CPTAC_400159_TEST":
         builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TEST'),)
+    elif name == "CPTAC_200179_CALIBRATE":
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_CALIBRATE'),)
+    elif name == "CPTAC_200179_TRAIN":
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TRAIN'),)
+    elif name == "CPTAC_200179_TEST":
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TEST'),)   
     else:
         raise ValueError(f"Unknown pancan_tilebag_dataset: {name}")
     return builder.dataset()
