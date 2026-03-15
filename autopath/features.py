@@ -400,6 +400,14 @@ class BipolarFeatureBag(Bag):
         bag_index: int
         featurebag: FeatureBag
 
+    def __init__(self, *args, n_workers: int = 1, 
+                 cpu_parallelization: str = 'Inline',
+                 gpu_parallelization: str = 'Multithreading',
+                 **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
+
     def __build__(self):
         assert self.cfg.featurebag.handle() == self.cfg.probe.cfg.featurebagclip.bag(self.cfg.bag_index).handle(), \
             f"Featurebag handle mismatch: {self.cfg.featurebag.handle()} != {self.cfg.probe.cfg.featurebagclip.bag(self.cfg.bag_index).handle()}"
@@ -467,6 +475,12 @@ class BipolarFeatureBagClip(Clip):
                  gpu_parallelization: str = 'Multithreading',
                  **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
+        self.executor_cls = {
+            'Ray': RayCallableExecutor,
+            'Multiprocessing': MultiprocessingCallableExecutor,
+            'Multithreading': MultithreadingCallableExecutor,
+            'Inline': InlineCallableExecutor,
+        }[cpu_parallelization.title()]
         self.builder_cls = {
             'Ray': RayDatablocksBuilder,
             'Multiprocessing': MultiprocessingDatablocksBuilder,
@@ -521,21 +535,8 @@ class BipolarFeatureBagClip(Clip):
         self.log.verbose(f"bags: FORMING BipolarFeatureBags: using {self.executor_cls.__name__}: BEGIN")
         self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
-        if self.verbose:
-            bagitor = tqdm.tqdm(range(n_bags), desc=f"{self.anchor}: bags: FORMING BipolarFeatureBags")
-        else:
-            bagitor = range(n_bags)
-        bags = [
-            BipolarFeatureBag(
-                root=self._root_,
-                spec=dict(
-                    probe=self.cfg.probe,
-                    bag_index=i,
-                    featurebag=self.cfg.probe.cfg.featurebagclip.bags[i],
-                )
-            )
-            for i in bagitor
-        ]
+        executables = [FeatureBagClip.FeatureBagMaker(self, idx) for idx in range(n_bags)]
+        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
         self.log.verbose(f"bags: FORMING BipolarFeatureBags: using {self.executor_cls.__name__}: END")
         return bags
 
@@ -546,7 +547,10 @@ class BipolarFeatureBagClip(Clip):
                 probe=self.cfg.probe,
                 bag_index=idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx),
-            )
+            ),
+            n_workers=self.n_workers,
+            cpu_parallelization=self.cpu_parallelization,
+            gpu_parallelization=self.gpu_parallelization,
         )
         return bag
 
@@ -590,6 +594,14 @@ class BipolarSingleFeatureBagClip(Clip):
         probe: BipolarFeatureBagProbe
         idx: int
 
+    def __init__(self, *args, n_workers: int = 1, 
+                 cpu_parallelization: str = 'Inline',
+                 gpu_parallelization: str = 'Multithreading',
+                 **kwargs):
+        super().__init__(*args, n_workers=n_workers, **kwargs)
+        self.cpu_parallelization = cpu_parallelization
+        self.gpu_parallelization = gpu_parallelization
+
     def __build__(self):
         idx = self.cfg.idx
         self.log.verbose(f"BUILDING single BipolarFeatureBag {repr(idx)} from {self.cfg.probe}: BEGIN")
@@ -610,10 +622,13 @@ class BipolarSingleFeatureBagClip(Clip):
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
-                probehandle=self.cfg.probe.handle(),
+                probe=self.cfg.probe,
                 bag_index=idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
-            )
+            ),
+            n_workers=self.n_workers,
+            cpu_parallelization=self.cpu_parallelization,
+            gpu_parallelization=self.gpu_parallelization,
         )
         return [bag]
 
@@ -623,10 +638,13 @@ class BipolarSingleFeatureBagClip(Clip):
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
-                probehandle=self.cfg.probe.handle(),
+                probe=self.cfg.probe,
                 bag_index=real_idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
-            )
+            ),
+            n_workers=self.n_workers,
+            cpu_parallelization=self.cpu_parallelization,
+            gpu_parallelization=self.gpu_parallelization,
         )
         return bag
 
