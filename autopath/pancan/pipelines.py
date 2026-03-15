@@ -148,6 +148,12 @@ def pancan_tile_bag_fold(name=None) -> PancanTileBagFold:
         return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="1"))
     elif name == "CPTAC_400159_TEST":
         return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_400159'), fold="2"))
+    elif name == "CPTAC_200179_CALIBRATE":
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_200179'), fold="0"))
+    elif name == "CPTAC_200179_TRAIN":
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_200179'), fold="1"))
+    elif name == "CPTAC_200179_TEST":
+        return PancanTileBagFold(spec=dict(partition=dbx.quote(pancan_tile_bag_partition, 'CPTAC_200179'), fold="2"))
     else:
         raise ValueError(f"Unknown tile_fold: {name}")
 
