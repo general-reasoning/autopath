@@ -294,9 +294,14 @@ class ClipShardQueue:
         self.log = log
         self.log.debug(f"[Queue {queue_idx}] Initializing actor...")
         self.queue_idx = queue_idx
+        
         # Instantiate a fresh Clip object from the quote.
-        # This keeps serialization lightweight while preserving the clip's configuration.
-        self.clip = clip_quote()
+        # If serialized as a string (path), wrap it back in a Quote.
+        if isinstance(clip_quote, str):
+            self.clip = dbx.Quote(clip_quote)()
+        else:
+            self.clip = clip_quote()
+            
         self.clip_lens = clip_lens
         self.fraction = fraction
         self.n_shards = n_shards
@@ -431,7 +436,7 @@ class ShuffledShardMaker:
         self.verbose = verbose
         self.build = build
 
-    def __call__(self):
+    def __call__(self, **kwargs):
         # Poll queues in random order
         n_queues = len(self.queues)
         q_indices = list(range(n_queues))
