@@ -208,9 +208,7 @@ class FeatureBagClip(Clip):
                  cpu_parallelization: str = 'Inline', 
                  **kwargs
     ):
-        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, **kwargs)
-        self.cpu_parallelization = cpu_parallelization
-        self.gpu_parallelization = gpu_parallelization
+        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, **kwargs)
         self.executor_cls = {
             'Ray': RayCallableExecutor,
             'Multiprocessing': MultiprocessingCallableExecutor,
@@ -468,9 +466,7 @@ class BipolarFeatureBagClip(Clip):
                  cpu_parallelization: str = 'Inline',
                  gpu_parallelization: str = 'Multithreading',
                  **kwargs):
-        super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
-        self.cpu_parallelization = cpu_parallelization
-        self.gpu_parallelization = gpu_parallelization
+        super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
         self.builder_cls = {
             'Ray': RayDatablocksBuilder,
             'Multiprocessing': MultiprocessingDatablocksBuilder,
@@ -586,13 +582,7 @@ class BipolarSingleFeatureBagClip(Clip):
 
     VERSION = 1
 
-    def __init__(self, *args, n_workers: int = 1, 
-                 cpu_parallelization: str = 'Inline',
-                 gpu_parallelization: str = 'Multithreading',
-                 **kwargs):
-        super().__init__(*args, n_workers=n_workers, **kwargs)
-        self.cpu_parallelization = cpu_parallelization
-        self.gpu_parallelization = gpu_parallelization
+    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
