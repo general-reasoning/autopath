@@ -16,10 +16,12 @@ import torch
 import dbx
 from dbx import (
     Datablock, 
-    MultiprocessingDatablocksBuilder,
+    TorchMultithreadingDatablocksBuilder,
+    TorchMultiprocessingDatablocksBuilder,
     MultiprocessingCallableExecutor,
-    MultithreadingDatablocksBuilder,
+    MultiprocessingDatablocksBuilder,
     MultithreadingCallableExecutor,
+    MultithreadingDatablocksBuilder,
     RayDatablocksBuilder,
     RayCallableExecutor,
     InlineCallableExecutor,
@@ -194,22 +196,31 @@ class FeatureBagClip(Clip):
 
     class FeatureBagMaker:
         def __init__(self, featurebagclip, idx):
-            self.featurebagclip = dbx.eval_term(featurebagclip)
+            self.featurebagclip = featurebagclip
             self.idx = idx
         def __call__(self):
-            return self.featurebagclip.bag(self.idx)
+            return dbx.eval_term(self.featurebagclip).bag(self.idx)
         def __repr__(self):
             return f"FeatureBagMaker({dbx.quote(self.featurebagclip)}, {self.idx})"
-    
-    def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline', **kwargs):
-        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, parallelization=parallelization, **kwargs)
+
+    def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, 
+                 gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'Multithreading', 
+                 cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'Inline', 
+                 **kwargs
+    ):
+        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, 
+        cpu_parallelization=cpu_parallelization, **kwargs)
         self.log.debug(f"n_workers={self.n_workers}, devices={self.devices}, gpu_batch_size={self.gpu_batch_size}, skip_unreadable={self.skip_unreadable}")
         self.executor_cls = {
             'Ray': RayCallableExecutor,
             'Multiprocessing': MultiprocessingCallableExecutor,
             'Multithreading': MultithreadingCallableExecutor,
             'Inline': InlineCallableExecutor,
-        }[parallelization]
+        }[cpu_parallelization]
+        self.builder_cls = {
+            'Multiprocessing': TorchMultiprocessingDatablocksBuilder,
+            'Multithreading': TorchMultithreadingDatablocksBuilder,
+        }[gpu_parallelization]
 
     def __build__(self):
         bags = self.bags
@@ -217,7 +228,7 @@ class FeatureBagClip(Clip):
         missing_bags = [bag for bag in bags if not bag.valid()]
         self.log.verbose(f"Found {len(missing_bags)} missing bags")
         self.log.verbose(f"Building all missing features bags using devices {self.devices} and gpu_batch_size {self.gpu_batch_size}")
-        built_bags = dbx.TorchMultithreadingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)
+        built_bags = self.builder_cls(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)
         self.log.verbose(f"Built all missing features shards: {len(built_bags)}")
         self.log.verbose(f"Building bag_lens: BEGIN")
         self.log.detailed(f"Building bag_lens for bags with hash paths {[bag.hashpath() for bag in bags]}")
@@ -293,7 +304,7 @@ class FeatureBagClip(Clip):
     @functools.cached_property
     def bags(self):
         self.log.verbose(f"FORMING FeatureBags: BEGIN")
-        executables = [FeatureBagClip.FeatureBagMaker(self.cfg.tilebagclip, idx) for idx in range(self.cfg.tilebagclip.n_bags)]
+        executables = [FeatureBagClip.FeatureBagMaker(self, idx) for idx in range(self.cfg.tilebagclip.n_bags)]
         bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
         self.log.verbose(f"FORMING FeatureBags: END")
         return bags
@@ -532,7 +543,7 @@ class BipolarFeatureBagClip(Clip):
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
-                probehandle=self.cfg.probe.handle(),
+                probe=self.cfg.probe,
                 bag_index=idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx),
             )
