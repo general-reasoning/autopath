@@ -317,11 +317,9 @@ class ClipShardQueue:
     @property
     def p_inv(self):
         if self._p_inv is None:
-            # Note: We can't easily use self.log here if it's not a Datablock, 
-            # so we use a simple print or ensure logger availability.
-            print(f"DEBUG: [Queue {self.queue_idx}] Fetching p_inv from Ray Object Store...")
+            self.log.debug(f"[Queue {self.queue_idx}] Fetching p_inv from Ray Object Store...")
             self._p_inv = ray.get(self.p_inv_ref)
-            print(f"DEBUG: [Queue {self.queue_idx}] p_inv fetch complete.")
+            self.log.debug(f"[Queue {self.queue_idx}] p_inv fetch complete.")
         return self._p_inv
 
     def _read_next(self):
@@ -329,7 +327,7 @@ class ClipShardQueue:
             return
         
         src_idx = self.my_src_shards[self.current_src_ptr]
-        print(f"DEBUG: [Queue {self.queue_idx}] Reading source shard {src_idx}...")
+        self.log.debug(f"[Queue {self.queue_idx}] Reading source shard {src_idx}...")
         shard = self.clip.shards[src_idx]
         tensor = shard.tensor
         labels = shard.labels
@@ -607,14 +605,27 @@ class ShuffledClip(Clip):
         # ------------------------------------------------------------------
         self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: BEGIN")
         if not ray.is_initialized():
-            self.log.info("Initializing Ray session...")
+            self.log.debug("Initializing Ray session...")
             ray.init(ignore_reinit_error=True)
+            self.log.debug("Ray initialization returned.")
 
-        self.log.info("Broadcasting data to Ray Object Store: BEGIN")
+        import time
+        time.sleep(1) # Give the system a second to stabilize
+
+        self.log.debug("Broadcasting p_inv to Ray Object Store...")
         p_inv_ref = ray.put(p_inv)
         del p_inv
         gc.collect()
-        self.log.info("Broadcasting data to Ray Object Store: END")
+        self.log.debug("Broadcasting complete.")
+
+        # Convert schedules to standard dicts with numpy arrays for faster serialization
+        self.log.debug("Serializing schedules for actors...")
+        serialized_schedules = []
+        for sched in queue_schedules:
+            s = {int(k): np.array(list(v), dtype=np.int32) for k, v in sched.items()}
+            serialized_schedules.append(s)
+        del queue_schedules
+        self.log.debug("Serialization complete.")
 
         clip_quote = dbx.quote(self.cfg.clip)
 
@@ -629,6 +640,7 @@ class ShuffledClip(Clip):
         RemoteQueue = ray.remote(ClipShardQueue)
         queues = []
         for i in q_itor:
+            self.log.debug(f"Launching actor {i}...")
             queues.append(
                 RemoteQueue.remote(
                     queue_idx=i,
@@ -640,9 +652,11 @@ class ShuffledClip(Clip):
                     shard_size=self.cfg.shard_size,
                     shuffle_seed=self.cfg.shuffle_seed,
                     p_inv_ref=p_inv_ref,
-                    target_to_srcs=queue_schedules[i]
+                    target_to_srcs=serialized_schedules[i],
+                    log=self.log
                 )
             )
+        self.log.debug("All actors launched.")
         self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: END")
 
         self.log.info(f"Setting up {n_shards} ShuffledShardMakers: BEGIN")
