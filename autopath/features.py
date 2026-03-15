@@ -22,6 +22,8 @@ from dbx import (
     MultithreadingCallableExecutor,
     RayDatablocksBuilder,
     RayCallableExecutor,
+    InlineCallableExecutor,
+    InlineDatablocksBuilder,
     write_npz,
     read_npz,
 )
