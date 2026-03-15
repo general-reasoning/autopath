@@ -443,7 +443,7 @@ class BipolarFeatureBagClip(Clip):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, **kwargs)
 
     def __build__(self):
-        self.log.verbose(f"BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes: BEGIN")
+        self.log.verbose(f"__build__: BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes: BEGIN")
         bags = self.bags
         missing_bags = [] 
         bag_lens = []
@@ -459,7 +459,7 @@ class BipolarFeatureBagClip(Clip):
         else:
             missing_bags = bags
 
-        self.log.verbose(f"BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: BEGIN")
+        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: BEGIN")
         if self.n_workers > 0:
             missing_blocks = RayDatablocksBuilder(log=self.log).build_blocks(missing_bags, probe=self.cfg.probe)
         else:   
@@ -469,15 +469,15 @@ class BipolarFeatureBagClip(Clip):
                 bagitor = missing_bags
             for bag in bagitor:
                 bag.__build__()
-        self.log.verbose(f"BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: END")
-        self.log.verbose(f"COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
+        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes: END")
+        self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
         if not self.build_missing_only:
             if self.verbose:
                     bagitor = tqdm.tqdm(bags, desc=f"{self.anchor}: COMPUTING bag_lens")
             else:
                 bagitor = bags
             bag_lens = [len(bag) for bag in bagitor]
-        self.log.verbose(f"COMPUTING bag_lens: for {len(bags)} bags: END")
+        self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: END")
         write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         return self
 
