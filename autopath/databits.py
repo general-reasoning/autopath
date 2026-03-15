@@ -1,5 +1,4 @@
-
-from dataclasses import dataclass
+import collections
 import functools
 import gc
 import math
@@ -9,6 +8,7 @@ from typing import Union
 import tqdm
 
 import numpy as np
+import ray
 import torch
 import torchvision
 
@@ -285,56 +285,134 @@ class Fold(Clip):
 
 
 
+class ClipShardQueue:
+    """
+    A queue of shards from a Clip, sampled with replacement.
+
+    How the logic works:
+    Pull Schedule: In the constructor, the queue uses its p_inv and global sample map (perm) to pre-calculate exactly which of its assigned source shards will be needed by which target shards. This is stored in self.target_to_srcs.
+    Sequential Reading: The queue keeps a pointer (current_src_ptr) to its assigned source shards. It only reads a source shard when a 
+
+    pull()
+    request asks for a target shard that depends on a shard further down the line.
+    Automatic Exhaustion: When 
+
+    _read_next()
+    is called, it loads a single source shard, distributes its samples into the target buffers, and then the source shard data is naturally garbage-collected when the method finishes (as 
+
+    tensor
+    and 
+
+    labels
+    are local variables).
+    Buffer Management: Samples wait in self.buffers[target_idx] until they are pulled. This ensures that even if target shards are pulled out of order, we never read a source shard twice.
+    This implementation guarantees that at any given time, the memory footprint is roughly currently_loaded_source_shard + samples_waiting_in_buffers, which is optimal for a random-pull-order requirement.
+    """
+    def __init__(self, queue_idx: int, clip: Clip, fraction: float, n_shards: int, n_queues: int, shard_size: int, shuffle_seed: int):
+        self.queue_idx = queue_idx
+        self.clip = clip
+        self.fraction = fraction
+        self.n_shards = n_shards
+        self.n_queues = n_queues
+        self.shard_size = shard_size
+        self.shuffle_seed = shuffle_seed
+
+        # Determine total samples and selection
+        N = len(self.clip)
+        self.n_samples = int(math.floor(N * self.fraction))
+
+        # Partition source shards among queues
+        self.my_src_shards = list(range(self.queue_idx, len(self.clip.shard_lens), self.n_queues))
+        self.my_src_shards_set = set(self.my_src_shards)
+
+        # Precompute pull schedule (target_idx -> set of src_idxs needed from this queue)
+        shard_lens = self.clip.shard_lens
+        self.offsets = np.cumsum([0] + list(shard_lens))
+        
+        rng = np.random.default_rng(self.shuffle_seed)
+        perm = rng.permutation(N)[:self.n_samples]
+        
+        # p_inv stores the destination index k for each source index p
+        self.p_inv = np.full(N, -1, dtype=np.int32)
+        self.p_inv[perm] = np.arange(self.n_samples, dtype=np.int32)
+        # If p_inv[500] = 10, it means the 500th element of the source clip is 
+        # destined to be the 10th element in the final result.
+        # If p_inv[p] == -1, that element wasn't sampled (since we only take a fraction).
+
+        self.target_to_srcs = collections.defaultdict(set)
+        for k, p in enumerate(perm):
+            target_idx = k // self.shard_size
+            # Find which source shard index p belongs to
+            src_idx = np.searchsorted(self.offsets, p, side='right') - 1
+            if src_idx in self.my_src_shards_set:
+                self.target_to_srcs[target_idx].add(src_idx)
+
+        self.current_src_ptr = 0  # Index into self.my_src_shards
+        self.buffers = collections.defaultdict(list)
+
+    def _read_next(self):
+        if self.current_src_ptr >= len(self.my_src_shards):
+            return
+        
+        src_idx = self.my_src_shards[self.current_src_ptr]
+        shard = self.clip.shards[src_idx]
+        tensor = shard.tensor
+        labels = shard.labels
+        
+        offset = self.offsets[src_idx]
+        for i in range(len(tensor)):
+            p = offset + i
+            k = self.p_inv[p]
+            if k != -1:
+                target_idx = k // self.shard_size
+                # Store (data, label, k, global_p)
+                self.buffers[target_idx].append((tensor[i], labels[i], k, p))
+        
+        self.current_src_ptr += 1
+
+    def pull(self, target_shard_idx: int):
+        needed = self.target_to_srcs.get(target_shard_idx, set())
+        
+        # Advance current_src_ptr if any needed shards are not yet read.
+        # Since we read in order, we just need to check the maximum needed src_idx.
+        if needed:
+            max_needed = max(needed)
+            while self.current_src_ptr < len(self.my_src_shards) and self.my_src_shards[self.current_src_ptr] <= max_needed:
+                self._read_next()
+        
+        return self.buffers.pop(target_shard_idx, [])
+
+
 class ShuffledShard(Shard):
     """A ``Shard`` that holds a fixed subset of samples drawn from a ``Clip``.
 
-    ``__build__`` instantiates ``ClipDatasetBuilder(cfg.clip).dataset()``,
-    fetches the assigned sample indices, and persists the resulting tensors
-    and labels as ``tensor.npy`` / ``labels.npy``.
-
-    All ``Shard`` methods (``tensor``, ``labels``, ``__len__``) are served
-    directly from those on-disk files after the first build.
+    ``__build__`` accepts pre-assembled tensors, labels, and indices,
+    saving them as ``tensor.npz``, ``labels.npz``, and ``index.npz``.
     """
 
-    TOPICFILES = {'tensor': 'tensor.npz', 'labels': 'labels.npz'}
+    TOPICFILES = {'tensor': 'tensor.npz', 'labels': 'labels.npz', 'index': 'index.npz'}
 
     @dataclass
     class CONFIG(Shard.CONFIG):
         clip: Clip
-        indices: list[int]      # global sample indices assigned to this shard
+        fraction: float
+        shard_size: int
+        shuffle_seed: int
+        shard_idx: int
 
     # ------------------------------------------------------------------
     # Build / read
     # ------------------------------------------------------------------
 
-    def __build__(self):
-        self.log.verbose(f"fetching {len(self.cfg.indices)} samples: BEGIN")
-        dataset = ClipDatasetBuilder(
-            root=self._root_,
-            spec=dict(clip=self.spec['clip']),
-        ).dataset()
-        if self.verbose:
-            itor = tqdm.tqdm(self.cfg.indices)
-        else:
-            itor = self.cfg.indices
-        samples = [dataset[i] for i in itor]
-        self.log.verbose(f"fetching {len(self.cfg.indices)} samples: END")
-        if not samples:
-            self.log.warning(f"No samples to build")
-            tensor = torch.empty(0)
-            labels = np.empty(0)
-        else:
-            tensor = torch.stack([torch.as_tensor(s[0]) for s in samples])
-            try:
-                label_list = [s[1] for s in samples]
-                labels = np.array(label_list, dtype=object)
-            except Exception as e:
-                self.log.error(f"Could not stack labels: {e}")
-                raise e
-        self.log.verbose(f"writing tensor and labels: BEGIN")
+    def __build__(self, tensor=None, labels=None, indices=None):
+        if tensor is None or labels is None or indices is None:
+            raise ValueError("ShuffledShard.__build__ requires tensor, labels, and indices")
+
+        self.log.verbose(f"writing shard {self.cfg.shard_idx} ({len(tensor)} samples): BEGIN")
         dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
         dbx.write_npz(self.path('labels', ensure_dirpath=True), labels=labels)
-        self.log.verbose(f"writing tensor and labels: END")
+        dbx.write_npz(self.path('index', ensure_dirpath=True), index=indices)
+        self.log.verbose(f"writing shard {self.cfg.shard_idx}: END")
         return self
 
     def __read__(self, topic):
@@ -342,6 +420,8 @@ class ShuffledShard(Shard):
             return dbx.read_tensors(self.path('tensor'), 'tensor')['tensor']
         if topic == 'labels':
             return dbx.read_npz(self.path('labels'), 'labels')['labels']
+        if topic == 'index':
+            return dbx.read_npz(self.path('index'), 'index')['index']
         raise ValueError(f"Unknown topic: {topic!r}")
 
     # ------------------------------------------------------------------
@@ -349,7 +429,7 @@ class ShuffledShard(Shard):
     # ------------------------------------------------------------------
 
     def __len__(self) -> int:
-        return len(self.cfg.indices)
+        return len(self.index)
 
     @functools.cached_property
     def tensor(self):
@@ -359,29 +439,68 @@ class ShuffledShard(Shard):
     def labels(self):
         return self.read('labels').tolist()
 
+    @functools.cached_property
+    def index(self):
+        return self.read('index')
+
 
 class ShuffledShardMaker:
-    def __init__(self, root, *, clip: Clip|str, idx: int, shard_size: int, n_samples: int, N: int, shuffle_seed: int = 42, build: bool = True):
+    def __init__(self, root, *, clip, fraction, shard_size, shuffle_seed, shard_idx, queues, shuffled_shard_cls=ShuffledShard, verbose=False, build=True):
         self.root = root
         self.clip = clip
-        self.idx = idx
+        self.fraction = fraction
         self.shard_size = shard_size
-        self.n_samples = n_samples
-        self.N = N
         self.shuffle_seed = shuffle_seed
+        self.shard_idx = shard_idx
+        self.queues = queues
+        self.shuffled_shard_cls = shuffled_shard_cls
+        self.verbose = verbose
         self.build = build
 
     def __call__(self):
-        rng = np.random.default_rng(self.shuffle_seed)
-        sampled_indices = rng.permutation(self.N)[:self.n_samples]
-        shard_indices = sampled_indices[self.idx*self.shard_size:(self.idx+1)*self.shard_size]
-        spec = dict(clip=self.clip, indices=shard_indices)
-        shard = ShuffledShard(
-            root=self.root,
-            spec=spec,
+        # Poll queues in random order
+        n_queues = len(self.queues)
+        q_indices = list(range(n_queues))
+        rng = np.random.default_rng(self.shuffle_seed + self.shard_idx)
+        rng.shuffle(q_indices)
+
+        all_results = []
+        if self.verbose:
+            q_itor = tqdm.tqdm(q_indices, desc=f"Shard {self.shard_idx} assembly", leave=False)
+        else:
+            q_itor = q_indices
+
+        for q_idx in q_itor:
+            res = ray.get(self.queues[q_idx].pull.remote(self.shard_idx))
+            all_results.extend(res)
+
+        # Reassemble in deterministic order (by k)
+        all_results.sort(key=lambda x: x[2])
+
+        if not all_results:
+            tensor = torch.empty(0)
+            labels = np.empty(0)
+            indices = np.empty(0, dtype=int)
+        else:
+            first_data = all_results[0][0]
+            if isinstance(first_data, torch.Tensor):
+                tensor = torch.stack([x[0] for x in all_results])
+            else:
+                tensor = np.array([x[0] for x in all_results])
+            
+            labels = np.array([x[1] for x in all_results], dtype=object)
+            indices = np.array([x[3] for x in all_results], dtype=int)
+
+        spec = dict(
+            clip=self.clip,
+            fraction=self.fraction,
+            shard_size=self.shard_size,
+            shuffle_seed=self.shuffle_seed,
+            shard_idx=self.shard_idx
         )
+        shard = self.shuffled_shard_cls(root=self.root, spec=spec)
         if self.build:
-            shard.build()
+            shard.build(tensor=tensor, labels=labels, indices=indices)
             del shard
             gc.collect()
         else:
@@ -421,6 +540,8 @@ class ShuffledClip(Clip):
         fraction: float
         shard_size: int
         shuffle_seed: int = 42
+        n_queues: int = 1
+        shuffled_shard_cls: type[ShuffledShard] = ShuffledShard
 
     PARALLELIZERS = {
         'Multithreading':  {'callable': MultithreadingCallableExecutor, 'datablock': MultithreadingDatablocksBuilder},
@@ -432,7 +553,7 @@ class ShuffledClip(Clip):
         self,
         *args,
         n_workers: int = 1,
-        parallelization: str | None = None,
+        parallelization: str | None = 'Ray',
         **kwargs,
     ):
         super().__init__(*args, n_workers=n_workers, parallelization=parallelization, **kwargs)
@@ -441,11 +562,7 @@ class ShuffledClip(Clip):
         assert 0 < self.cfg.fraction <= 1.0, (
             f"fraction must be in (0, 1], got {self.cfg.fraction}"
         )
-        if self.parallelization is not None and self.parallelization not in self.PARALLELIZERS:
-            raise ValueError(
-                f"Unknown parallelization {repr(self.parallelization)}. "
-                f"Choose one of: {list(self.PARALLELIZERS)}"
-            )
+        assert self.parallelization == 'Ray', f"ShuffledClip currently only supports 'Ray' parallelization, got {repr(self.parallelization)}"
         return self
        
     # ------------------------------------------------------------------
@@ -464,36 +581,77 @@ class ShuffledClip(Clip):
     # ------------------------------------------------------------------
 
     def __build__(self):
-        self.__make_shards__(build=True)
-        super().__build__()
-        return self
-
-    def __make_shards__(self, build: bool = False):
-        self.log.verbose(f"{'Forming' if not build else 'Building'} shards: BEGIN")
-        """Partition *indices* into chunks and return the ``ShuffledShard`` list."""
+        self.log.verbose(f"Building ShuffledClip with {self.cfg.n_queues} queues: BEGIN")
+        
         N = len(self.cfg.clip)
         n_samples = int(math.floor(N * self.cfg.fraction))
-        n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
-        self.log.verbose(f"{'Forming' if not build else 'Building'} {n_shards} shards from {n_samples} samples (fraction={self.cfg.fraction}): BEGIN")
+        n_shards = int(math.ceil(n_samples / self.cfg.shard_size))
+        
+        self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues")
+        RemoteQueue = ray.remote(ClipShardQueue)
+        queues = [
+            RemoteQueue.remote(
+                queue_idx=i,
+                clip=self.cfg.clip,
+                fraction=self.cfg.fraction,
+                n_shards=n_shards,
+                n_queues=self.cfg.n_queues,
+                shard_size=self.cfg.shard_size,
+                shuffle_seed=self.cfg.shuffle_seed
+            )
+            for i in range(self.cfg.n_queues)
+        ]
+
         makers = [
             ShuffledShardMaker(
                 root=self._root_,
                 clip=self.spec['clip'],
-                idx=idx,
+                fraction=self.cfg.fraction,
                 shard_size=self.cfg.shard_size,
-                n_samples=n_samples,
-                N=N,
                 shuffle_seed=self.cfg.shuffle_seed,
-                build=build,
+                shard_idx=idx,
+                queues=queues,
+                shuffled_shard_cls=self.cfg.shuffled_shard_cls,
+                verbose=self.verbose,
+                build=True,
             )
             for idx in range(n_shards)
         ]
+
         if self.parallelization is None or self.n_workers < 2:
-            shards = [maker() for maker in makers]
+            if self.verbose:
+                makers_itor = tqdm.tqdm(makers, desc="Building ShuffledClip shards")
+            else:
+                makers_itor = makers
+            [maker() for maker in makers_itor]
         else:
-            shards = self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers)
-        self.log.verbose(f"{'Forming' if not build else 'Building'} shards: END")
-        return shards
+            self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers, verbose=self.verbose)
+
+        super().__build__()
+        self.log.verbose(f"Building ShuffledClip: END")
+        return self
+
+    def __make_shards__(self, build: bool = False):
+        if build:
+            return self.build().shards
+
+        N = len(self.cfg.clip)
+        n_samples = int(math.floor(N * self.cfg.fraction))
+        n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
+        
+        return [
+            self.cfg.shuffled_shard_cls(
+                root=self._root_,
+                spec=dict(
+                    clip=self.spec['clip'],
+                    fraction=self.cfg.fraction,
+                    shard_size=self.cfg.shard_size,
+                    shuffle_seed=self.cfg.shuffle_seed,
+                    shard_idx=idx
+                )
+            )
+            for idx in range(n_shards)
+        ]
 
 
 class ClipDatasetBuilder(Datablock):
