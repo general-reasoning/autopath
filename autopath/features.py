@@ -196,7 +196,7 @@ class FeatureBagClip(Clip):
 
     def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, 
                  gpu_parallelization: str = 'multithreading', 
-                 cpu_parallelization: str = None, 
+                 cpu_parallelization: str|None = None, 
                  **kwargs
     ):
         super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, **kwargs)
@@ -472,18 +472,16 @@ class BipolarFeatureBagClip(Clip):
             'multiprocessing': MultiprocessingCallableExecutor,
             'multithreading': MultithreadingCallableExecutor,
             'inline': InlineCallableExecutor,
-            None: InlineCallableExecutor,
         }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
         self.builder_cls = {
             'ray': RayDatablocksBuilder,
             'multiprocessing': MultiprocessingDatablocksBuilder,
             'multithreading': MultithreadingDatablocksBuilder,
             'inline': InlineDatablocksBuilder,
-            None: InlineDatablocksBuilder,
         }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
 
     def __build__(self):
-        self.log.verbose(f"__build__: BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes with {self.cpu_parallelization}: BEGIN")
+        self.log.verbose(f"__build__: BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes with {self.cpu_parallelization} parallelization: BEGIN")
         bags = self.bags
         missing_bags = [] 
         bag_lens = []
@@ -499,7 +497,7 @@ class BipolarFeatureBagClip(Clip):
         else:
             missing_bags = bags
 
-        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.cpu_parallelization}: BEGIN")
+        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.cpu_parallelization} parallelization: BEGIN")
         if self.n_workers > 0:
             missing_blocks = self.builder_cls(n_workers=self.n_workers, log=self.log).build_blocks(missing_bags)
         else:   
@@ -509,7 +507,7 @@ class BipolarFeatureBagClip(Clip):
                 bagitor = missing_bags
             for bag in bagitor:
                 bag.__build__()
-        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.cpu_parallelization}: END")
+        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.cpu_parallelization} parallelization: END")
         self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
         if not self.build_missing_only:
             if self.verbose:
