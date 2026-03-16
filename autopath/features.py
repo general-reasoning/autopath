@@ -48,6 +48,7 @@ def cat_tensor_dicts(tensor_dicts):
             tensors[k].append(v)
     _tensors = {k: torch.cat(v) for k, v in tensors.items()}
     return _tensors
+    
 
 class FeatureBagMaker:
     def __init__(self, clip, idx):
@@ -67,6 +68,7 @@ class BipolarFeatureBagMaker:
         return dbx.eval_term(self.clip).bag(self.idx)
     def __repr__(self):
         return f"BipolarFeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
+
 
 class FeatureBag(Bag):
     VERSION = 1
@@ -644,7 +646,7 @@ class BipolarSingleFeatureBagClip(Clip):
             spec=dict(
                 probe=self.cfg.probe,
                 bag_index=real_idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bags[real_idx],
+                featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
             ),
             n_workers=self.n_workers,
             cpu_parallelization=self.cpu_parallelization,
