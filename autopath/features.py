@@ -681,13 +681,4 @@ class BipolarSingleFeatureBagClip(Clip):
 
     @property
     def n_shards(self):
-        return self.n_bags
-
-
-
-        
-
-
-
-
-        
+        return 
