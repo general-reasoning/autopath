@@ -254,7 +254,7 @@ class FeatureBagClip(Clip):
         self.log.detailed(f"Building bag_lens for bags with hash paths {[bag.hashpath() for bag in bags]}")
         executor = self.executor_cls(n_workers=self.n_workers, batch_size=self.cpu_batch_size, log=self.log)
         executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
-        bag_lens_list = executor.exec_callables(executables)
+        bag_lens_list = executor.execute(executables)
         bag_lens = torch.tensor(bag_lens_list)
         self.log.debug(f"bag_lens: {bag_lens}")
         self.log.verbose(f"Building bag_lens: using {self.cpu_parallelization} parallelization with {self.n_workers} workers: END")
@@ -327,7 +327,7 @@ class FeatureBagClip(Clip):
             self.log.verbose(f"FORMING FeatureBags: BEGIN")
             n_bags = self.cfg.tilebagclip.n_bags
             executables = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='FeatureBagClip bag formation').exec_callables(executables)
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='FeatureBagClip bag formation').execute(executables)
             self._bags = list(results)
             self.log.verbose(f"FORMING FeatureBags: END")
         return self._bags
@@ -564,7 +564,7 @@ class BipolarFeatureBagClip(Clip):
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
             n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
             executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').exec_callables(executables)
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
             self._bags = list(results)
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return self._bags
