@@ -313,9 +313,10 @@ class FeatureBagMedianProbe(Datablock):
 
     def __init__(self, *args, n_workers: int = 1, 
                  cpu_parallelization: str = 'Inline',
+                 cpu_batch_size: int|None = None,
                  gpu_parallelization: str = 'Multithreading',
                  **kwargs):
-        super().__init__(*args, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
+        super().__init__(*args, n_workers=n_workers, cpu_parallelization=cpu_parallelization, cpu_batch_size=cpu_batch_size, gpu_parallelization=gpu_parallelization, **kwargs)
 
     def __build__(self):
         bag_feature_list = []
@@ -488,10 +489,11 @@ class BipolarFeatureBagProbe(Datablock):
                  devices=['cuda:0'], 
                  gpu_batch_size: int = 1024, 
                  n_workers: int = 1, 
+                 cpu_batch_size: int|None = None,
                  cpu_parallelization: str = 'Inline',
                  gpu_parallelization: str = 'Multithreading',
                  **kwargs):
-        super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
+        super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
 
     def __build__(self):
         if not self.validtopics([
