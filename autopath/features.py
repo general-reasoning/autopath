@@ -242,7 +242,7 @@ class FeatureBagClip(Clip):
         self.log.verbose(f"Built all missing features shards: {len(built_bags)}")
         self.log.verbose(f"Building bag_lens: using {self.cpu_parallelization} parallelization with {self.n_workers} workers: BEGIN")
         self.log.detailed(f"Building bag_lens for bags with hash paths {[bag.hashpath() for bag in bags]}")
-        executor = self.executor_cls(n_workers=self.n_workers, batch_size=self.cpu_batch_size, streaming=True, log=self.log)
+        executor = self.executor_cls(n_workers=self.n_workers, batch_size=self.cpu_batch_size, log=self.log)
         executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
         bag_lens_list = executor.exec_callables(executables)
         bag_lens = torch.tensor(bag_lens_list)
@@ -317,7 +317,7 @@ class FeatureBagClip(Clip):
             self.log.verbose(f"FORMING FeatureBags: BEGIN")
             n_bags = self.cfg.tilebagclip.n_bags
             executables = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, streaming=True).exec_callables(executables)
+            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, ).exec_callables(executables)
             if self.cpu_batch_size is not None:
                 self._bags = list(itertools.chain.from_iterable(results))
             else:
@@ -555,7 +555,7 @@ class BipolarFeatureBagClip(Clip):
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
             n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
             executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, streaming=True).exec_callables(executables)
+            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, ).exec_callables(executables)
             if self.cpu_batch_size is not None:
                 self._bags = list(itertools.chain.from_iterable(results))
             else:
