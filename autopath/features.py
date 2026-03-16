@@ -57,6 +57,7 @@ class FeatureBagMaker:
         return dbx.eval_term(self.clip).bag(self.idx)
     def __repr__(self):
         return f"FeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
+        
 
 class BipolarFeatureBagMaker:
     def __init__(self, clip, idx):
@@ -308,16 +309,19 @@ class FeatureBagClip(Clip):
     def layer(self, layer=None):
         return self.sideband(layer) if layer is not None else self.features()
     
-    @functools.cached_property
+    @property
     def bags(self):
-        self.log.verbose(f"FORMING FeatureBags: BEGIN")
-        n_bags = self.cfg.tilebagclip.n_bags
-        executabes = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
-        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executabes)
-        self.log.verbose(f"FORMING FeatureBags: END")
-        return bags
+        if not hasattr(self, '_bags'):
+            self.log.verbose(f"FORMING FeatureBags: BEGIN")
+            n_bags = self.cfg.tilebagclip.n_bags
+            executables = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
+            self._bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
+            self.log.verbose(f"FORMING FeatureBags: END")
+        return self._bags
 
     def bag(self, idx: int):
+        if hasattr(self, '_bags'):
+            return self._bags[idx]
         tilebag = self.cfg.tilebagclip.bag(idx)
         bag = FeatureBag(
             root=self._root_, 
@@ -538,16 +542,19 @@ class BipolarFeatureBagClip(Clip):
     def __read__(self, topic):
         return read_npz(self.path(topic), topic)[topic]
 
-    @functools.cached_property
+    @property
     def bags(self):
-        self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
-        n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
-        executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
-        self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
-        return bags
+        if not hasattr(self, '_bags'):
+            self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
+            n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
+            executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
+            self._bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
+            self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
+        return self._bags
 
     def bag(self, idx: int):
+        if hasattr(self, '_bags'):
+            return self._bags[idx]
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
@@ -621,31 +628,23 @@ class BipolarSingleFeatureBagClip(Clip):
     def __read__(self, topic):
         return read_npz(self.path(topic), topic)[topic]
 
-    @functools.cached_property
+    @property
     def bags(self):
-        idx = self.cfg.idx
-        bag = BipolarFeatureBag(
-            root=self._root_,
-            spec=dict(
-                probe=self.cfg.probe,
-                bag_index=idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
-            ),
-            n_workers=self.n_workers,
-            cpu_parallelization=self.cpu_parallelization,
-            gpu_parallelization=self.gpu_parallelization,
-        )
-        return [bag]
+        if not hasattr(self, '_bags'):
+            self._bags = [self.bag(0)]
+        return self._bags
 
     def bag(self, idx: int = 0):
         assert idx == 0, f"BipolarSingleFeatureBagClip contains exactly one bag, got {idx=}"
+        if hasattr(self, '_bags'):
+            return self._bags[0]
         real_idx = self.cfg.idx
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
                 probe=self.cfg.probe,
                 bag_index=real_idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
+                featurebag=self.cfg.probe.cfg.featurebagclip.bags[real_idx],
             ),
             n_workers=self.n_workers,
             cpu_parallelization=self.cpu_parallelization,
