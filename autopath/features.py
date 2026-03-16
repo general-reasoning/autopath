@@ -577,7 +577,7 @@ class BipolarFeatureBagClip(Clip):
             spec=dict(
                 probe=self.cfg.probe,
                 bag_index=idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
+                featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx),
             ),
         )
         return bag
