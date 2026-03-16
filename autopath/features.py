@@ -574,10 +574,13 @@ class BipolarFeatureBagClip(Clip):
 
     def _persist_bags(self):
         """Serialize self._bags as quotes to the bags TOPICFILE."""
-        if self._root_ is None:
+        bags_path = self.path('bags', ensure_dirpath=True)
+        if bags_path is None:
             return
+        self.log.verbose(f"_persist_bags: writing {len(self._bags)} bag quotes to {bags_path}")
         bag_quotes = np.array([dbx.quote(bag) for bag in self._bags], dtype=object)
-        write_npz(self.path('bags', ensure_dirpath=True), bag_quotes=bag_quotes)
+        write_npz(bags_path, bag_quotes=bag_quotes)
+        self.log.verbose(f"_persist_bags: done")
 
     @property
     def bags(self):
