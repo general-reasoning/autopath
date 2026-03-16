@@ -587,7 +587,11 @@ class BipolarFeatureBagClip(Clip):
                 data = read_npz(self.path('bags'), 'bag_quotes')
                 self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
                 self.log.verbose(f"bags: INSTANTIATING {len(data['bag_quotes'])} bags from quotes: BEGIN")
-                self._bags = [self._instantiate_bag(str(q)) for q in data['bag_quotes']]
+                if self.verbose:
+                    bagitor = tqdm.tqdm(data['bag_quotes'], desc=f"{self.anchor}: bags: INSTANTIATING {len(data['bag_quotes'])} bags from quotes")
+                else:
+                    bagitor = data['bag_quotes']
+                self._bags = [self._instantiate_bag(str(q)) for q in bagitor]
                 self.log.verbose(f"bags: INSTANTIATING {len(data['bag_quotes'])} bags from quotes: END")
             else:
                 self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
