@@ -30,6 +30,14 @@ from dbx import (
     read_npz,
 )
 
+def get_executor_cls(parallelization):
+    return {
+        'ray': RayCallableExecutor,
+        'multiprocessing': MultiprocessingCallableExecutor,
+        'multithreading': MultithreadingCallableExecutor,
+        'inline': InlineCallableExecutor,
+    }[parallelization.lower() if parallelization is not None else 'inline']
+
 from autopath.databits import Shard, Bag, Clip, ClipDatasetBuilder
 from .tiles import TileBag
 
@@ -218,15 +226,17 @@ class FeatureBagClip(Clip):
     def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, cpu_batch_size: int|None = None, skip_unreadable: bool = True, 
                  gpu_parallelization: str = 'multithreading', 
                  cpu_parallelization: str|None = None, 
+                 bag_n_workers: int = 1,
+                 bag_cpu_batch_size: int|None = None,
+                 bag_cpu_parallelization: str|None = None,
                  **kwargs
     ):
         super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, **kwargs)
-        self.executor_cls = {
-            'ray': RayCallableExecutor,
-            'multiprocessing': MultiprocessingCallableExecutor,
-            'multithreading': MultithreadingCallableExecutor,
-            'inline': InlineCallableExecutor,
-        }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
+        self.bag_n_workers = bag_n_workers
+        self.bag_cpu_batch_size = bag_cpu_batch_size
+        self.bag_cpu_parallelization = bag_cpu_parallelization
+        self.executor_cls = get_executor_cls(cpu_parallelization)
+        self.bag_executor_cls = get_executor_cls(bag_cpu_parallelization)
         self.builder_cls = {
             'multiprocessing': TorchMultiprocessingDatablocksBuilder,
             'multithreading': TorchMultithreadingDatablocksBuilder,
@@ -317,11 +327,8 @@ class FeatureBagClip(Clip):
             self.log.verbose(f"FORMING FeatureBags: BEGIN")
             n_bags = self.cfg.tilebagclip.n_bags
             executables = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, ).exec_callables(executables)
-            if self.cpu_batch_size is not None:
-                self._bags = list(itertools.chain.from_iterable(results))
-            else:
-                self._bags = list(results)
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size).exec_callables(executables)
+            self._bags = list(results)
             self.log.verbose(f"FORMING FeatureBags: END")
         return self._bags
 
@@ -420,11 +427,8 @@ class BipolarFeatureBag(Bag):
         bag_index: int
         featurebag: FeatureBag
 
-    def __init__(self, *args, n_workers: int = 1, 
-                 cpu_parallelization: str = 'Inline',
-                 gpu_parallelization: str = 'Multithreading',
-                 **kwargs):
-        super().__init__(*args, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def __build__(self):
         assert self.cfg.featurebag.handle() == self.cfg.probe.cfg.featurebagclip.bag(self.cfg.bag_index).handle(), \
@@ -488,18 +492,23 @@ class BipolarFeatureBagClip(Clip):
         from autopath.pancan.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
 
-    def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, 
+    def __init__(self, 
+                 *args, 
+                 build_missing_only: bool = False, 
                  cpu_parallelization: str = None,
+                 n_workers: int = 1, 
                  cpu_batch_size: int|None = None,
                  gpu_parallelization: str = 'multithreading',
+                 bag_cpu_parallelization: str|None = None,
+                 bag_n_workers: int = 1,
+                 bag_cpu_batch_size: int|None = None,
                  **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, cpu_batch_size=cpu_batch_size, gpu_parallelization=gpu_parallelization, **kwargs)
-        self.executor_cls = {
-            'ray': RayCallableExecutor,
-            'multiprocessing': MultiprocessingCallableExecutor,
-            'multithreading': MultithreadingCallableExecutor,
-            'inline': InlineCallableExecutor,
-        }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
+        self.bag_n_workers = bag_n_workers
+        self.bag_cpu_batch_size = bag_cpu_batch_size
+        self.bag_cpu_parallelization = bag_cpu_parallelization
+        self.executor_cls = get_executor_cls(cpu_parallelization)
+        self.bag_executor_cls = get_executor_cls(bag_cpu_parallelization)
         self.builder_cls = {
             'ray': RayDatablocksBuilder,
             'multiprocessing': MultiprocessingDatablocksBuilder,
@@ -555,11 +564,8 @@ class BipolarFeatureBagClip(Clip):
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
             n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
             executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, ).exec_callables(executables)
-            if self.cpu_batch_size is not None:
-                self._bags = list(itertools.chain.from_iterable(results))
-            else:
-                self._bags = list(results)
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size).exec_callables(executables)
+            self._bags = list(results)
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return self._bags
 
@@ -573,9 +579,6 @@ class BipolarFeatureBagClip(Clip):
                 bag_index=idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
             ),
-            n_workers=self.n_workers,
-            cpu_parallelization=self.cpu_parallelization,
-            gpu_parallelization=self.gpu_parallelization,
         )
         return bag
 
@@ -619,11 +622,8 @@ class BipolarSingleFeatureBagClip(Clip):
         probe: BipolarFeatureBagProbe
         idx: int
 
-    def __init__(self, *args, n_workers: int = 1, 
-                 cpu_parallelization: str = 'Inline',
-                 gpu_parallelization: str = 'Multithreading',
-                 **kwargs):
-        super().__init__(*args, n_workers=n_workers, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def __build__(self):
         idx = self.cfg.idx
@@ -657,9 +657,6 @@ class BipolarSingleFeatureBagClip(Clip):
                 bag_index=real_idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
             ),
-            n_workers=self.n_workers,
-            cpu_parallelization=self.cpu_parallelization,
-            gpu_parallelization=self.gpu_parallelization,
         )
         return bag
 

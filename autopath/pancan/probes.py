@@ -312,9 +312,9 @@ class FeatureBagMedianProbe(Datablock):
         featurebagclip: FeatureBagClip
 
     def __init__(self, *args, n_workers: int = 1, 
-                 cpu_parallelization: str = 'Inline',
+                 cpu_parallelization: str = 'inline',
                  cpu_batch_size: int|None = None,
-                 gpu_parallelization: str = 'Multithreading',
+                 gpu_parallelization: str = 'multithreading',
                  **kwargs):
         super().__init__(*args, n_workers=n_workers, cpu_parallelization=cpu_parallelization, cpu_batch_size=cpu_batch_size, gpu_parallelization=gpu_parallelization, **kwargs)
 
@@ -490,8 +490,8 @@ class BipolarFeatureBagProbe(Datablock):
                  gpu_batch_size: int = 1024, 
                  n_workers: int = 1, 
                  cpu_batch_size: int|None = None,
-                 cpu_parallelization: str = 'Inline',
-                 gpu_parallelization: str = 'Multithreading',
+                 cpu_parallelization: str = 'inline',
+                 gpu_parallelization: str = 'multithreading',
                  **kwargs):
         super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
 
