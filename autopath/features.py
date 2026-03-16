@@ -483,9 +483,9 @@ class BipolarFeatureBag(Bag):
 
 
 class BipolarFeatureBagClip(Clip):
-    VERSION = 2
+    VERSION = 3
 
-    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+    TOPICFILES = {'bag_lens': 'bag_lens.npy', 'bags': 'bags.npz'}
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -558,15 +558,43 @@ class BipolarFeatureBagClip(Clip):
     def __read__(self, topic):
         return read_npz(self.path(topic), topic)[topic]
 
+    def _bag_extra_kwargs(self) -> dict:
+        """Extra kwargs to set on each bag after instantiation from a persisted
+        quote.  Override or extend here when BipolarFeatureBagClip needs to
+        inject GPU-related or other runtime attributes into the loaded bags."""
+        return {}
+
+    def _instantiate_bag(self, quote: str) -> 'BipolarFeatureBag':
+        """Instantiate a BipolarFeatureBag from a persisted quote and apply
+        any extra kwargs from this clip."""
+        bag = dbx.eval_term(quote)
+        for k, v in self._bag_extra_kwargs().items():
+            setattr(bag, k, v)
+        return bag
+
+    def _persist_bags(self):
+        """Serialize self._bags as quotes to the bags TOPICFILE."""
+        if self._root_ is None:
+            return
+        bag_quotes = np.array([dbx.quote(bag) for bag in self._bags], dtype=object)
+        write_npz(self.path('bags', ensure_dirpath=True), bag_quotes=bag_quotes)
+
     @property
     def bags(self):
         if not hasattr(self, '_bags'):
-            self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
-            n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
-            executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
-            self._bags = list(results)
-            self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
+            if self.valid('bags'):
+                self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
+                data = read_npz(self.path('bags'), 'bag_quotes')
+                self._bags = [self._instantiate_bag(str(q)) for q in data['bag_quotes']]
+                self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
+            else:
+                self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
+                n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
+                executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
+                results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
+                self._bags = list(results)
+                self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
+                self._persist_bags()
         return self._bags
 
     def bag(self, idx: int):
