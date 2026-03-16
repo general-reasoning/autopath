@@ -49,6 +49,24 @@ def cat_tensor_dicts(tensor_dicts):
     _tensors = {k: torch.cat(v) for k, v in tensors.items()}
     return _tensors
 
+class FeatureBagMaker:
+    def __init__(self, clip, idx):
+        self.clip = clip
+        self.idx = idx
+    def __call__(self):
+        return dbx.eval_term(self.clip).bag(self.idx)
+    def __repr__(self):
+        return f"FeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
+
+class BipolarFeatureBagMaker:
+    def __init__(self, clip, idx):
+        self.clip = clip
+        self.idx = idx
+    def __call__(self):
+        return dbx.eval_term(self.clip).bag(self.idx)
+    def __repr__(self):
+        return f"BipolarFeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
+
 class FeatureBag(Bag):
     VERSION = 1
 
@@ -293,11 +311,9 @@ class FeatureBagClip(Clip):
     @functools.cached_property
     def bags(self):
         self.log.verbose(f"FORMING FeatureBags: BEGIN")
-        if self.verbose:
-            idxitor = tqdm.tqdm(range(self.cfg.tilebagclip.n_bags), desc=f"{self.anchor}: FORMING FeatureBags")
-        else:
-            idxitor = range(self.cfg.tilebagclip.n_bags)
-        bags = [self.bag(idx) for idx in idxitor]
+        n_bags = self.cfg.tilebagclip.n_bags
+        executabes = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
+        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executabes)
         self.log.verbose(f"FORMING FeatureBags: END")
         return bags
 
@@ -526,11 +542,8 @@ class BipolarFeatureBagClip(Clip):
     def bags(self):
         self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
         n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
-        if self.verbose:
-            idxitor = tqdm.tqdm(range(n_bags), desc=f"{self.anchor}: bags: FORMING BipolarFeatureBags")
-        else:
-            idxitor = range(n_bags)
-        bags = [self.bag(idx) for idx in idxitor]
+        executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
+        bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
         self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return bags
 
@@ -540,7 +553,7 @@ class BipolarFeatureBagClip(Clip):
             spec=dict(
                 probe=self.cfg.probe,
                 bag_index=idx,
-                featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx),
+                featurebag=self.cfg.probe.cfg.featurebagclip.bags[idx],
             ),
             n_workers=self.n_workers,
             cpu_parallelization=self.cpu_parallelization,
