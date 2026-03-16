@@ -337,7 +337,7 @@ class FeatureBagClip(Clip):
             return self._bags[idx]
         tilebag = self.cfg.tilebagclip.bag(idx)
         bag = FeatureBag(
-            root=self._root_, 
+            root=self.root, 
             spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor'],),
             gpu_batch_size=self.gpu_batch_size,
             revision=self.revision,
@@ -604,7 +604,7 @@ class BipolarFeatureBagClip(Clip):
         if hasattr(self, '_bags'):
             return self._bags[idx]
         bag = BipolarFeatureBag(
-            root=self._root_,
+            root=self.root,
             spec=dict(
                 probe=self.cfg.probe,
                 bag_index=idx,
@@ -682,7 +682,7 @@ class BipolarSingleFeatureBagClip(Clip):
             return self._bags[0]
         real_idx = self.cfg.idx
         bag = BipolarFeatureBag(
-            root=self._root_,
+            root=self.root,
             spec=dict(
                 probe=self.cfg.probe,
                 bag_index=real_idx,
