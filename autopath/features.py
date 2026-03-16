@@ -195,21 +195,21 @@ class FeatureBagClip(Clip):
             return f"FeatureBagLengthComputer({self.featurebag})"
 
     def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, 
-                 gpu_parallelization: str = 'Multithreading', 
-                 cpu_parallelization: str = 'Inline', 
+                 gpu_parallelization: str = 'multithreading', 
+                 cpu_parallelization: str = None, 
                  **kwargs
     ):
         super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, **kwargs)
         self.executor_cls = {
-            'Ray': RayCallableExecutor,
-            'Multiprocessing': MultiprocessingCallableExecutor,
-            'Multithreading': MultithreadingCallableExecutor,
-            'Inline': InlineCallableExecutor,
-        }[cpu_parallelization.title()]
+            'ray': RayCallableExecutor,
+            'multiprocessing': MultiprocessingCallableExecutor,
+            'multithreading': MultithreadingCallableExecutor,
+            'inline': InlineCallableExecutor,
+        }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
         self.builder_cls = {
-            'Multiprocessing': TorchMultiprocessingDatablocksBuilder,
-            'Multithreading': TorchMultithreadingDatablocksBuilder,
-        }[gpu_parallelization.title()]
+            'multiprocessing': TorchMultiprocessingDatablocksBuilder,
+            'multithreading': TorchMultithreadingDatablocksBuilder,
+        }[gpu_parallelization.lower()]
 
     def __build__(self):
         bags = self.bags
@@ -463,7 +463,7 @@ class BipolarFeatureBagClip(Clip):
         probe: BipolarFeatureBagProbe
 
     def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, 
-                 cpu_parallelization: str = 'inline',
+                 cpu_parallelization: str = None,
                  gpu_parallelization: str = 'multithreading',
                  **kwargs):
         super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
@@ -472,13 +472,15 @@ class BipolarFeatureBagClip(Clip):
             'multiprocessing': MultiprocessingCallableExecutor,
             'multithreading': MultithreadingCallableExecutor,
             'inline': InlineCallableExecutor,
-        }[cpu_parallelization.lower()]
+            None: InlineCallableExecutor,
+        }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
         self.builder_cls = {
             'ray': RayDatablocksBuilder,
             'multiprocessing': MultiprocessingDatablocksBuilder,
             'multithreading': MultithreadingDatablocksBuilder,
             'inline': InlineDatablocksBuilder,
-        }[cpu_parallelization.lower()]
+            None: InlineDatablocksBuilder,
+        }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
 
     def __build__(self):
         self.log.verbose(f"__build__: BUILDING BipolarFeatureBags from {self.cfg.probe} using {self.n_workers} processes with {self.cpu_parallelization}: BEGIN")
