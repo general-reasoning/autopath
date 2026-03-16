@@ -48,7 +48,7 @@ def cat_tensor_dicts(tensor_dicts):
             tensors[k].append(v)
     _tensors = {k: torch.cat(v) for k, v in tensors.items()}
     return _tensors
-    
+
 
 class FeatureBagMaker:
     def __init__(self, clip, idx):
@@ -215,12 +215,12 @@ class FeatureBagClip(Clip):
         def __repr__(self):
             return f"FeatureBagLengthComputer({self.featurebag})"
 
-    def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, skip_unreadable: bool = True, 
+    def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, cpu_batch_size: int|None = None, skip_unreadable: bool = True, 
                  gpu_parallelization: str = 'multithreading', 
                  cpu_parallelization: str|None = None, 
                  **kwargs
     ):
-        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, **kwargs)
+        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, **kwargs)
         self.executor_cls = {
             'ray': RayCallableExecutor,
             'multiprocessing': MultiprocessingCallableExecutor,
@@ -317,7 +317,11 @@ class FeatureBagClip(Clip):
             self.log.verbose(f"FORMING FeatureBags: BEGIN")
             n_bags = self.cfg.tilebagclip.n_bags
             executables = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
-            self._bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
+            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, streaming=True).exec_callables(executables)
+            if self.cpu_batch_size is not None:
+                self._bags = list(itertools.chain.from_iterable(results))
+            else:
+                self._bags = list(results)
             self.log.verbose(f"FORMING FeatureBags: END")
         return self._bags
 
@@ -486,9 +490,10 @@ class BipolarFeatureBagClip(Clip):
 
     def __init__(self, *args, n_workers: int = 1, build_missing_only: bool = False, 
                  cpu_parallelization: str = None,
+                 cpu_batch_size: int|None = None,
                  gpu_parallelization: str = 'multithreading',
                  **kwargs):
-        super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
+        super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, cpu_batch_size=cpu_batch_size, gpu_parallelization=gpu_parallelization, **kwargs)
         self.executor_cls = {
             'ray': RayCallableExecutor,
             'multiprocessing': MultiprocessingCallableExecutor,
@@ -550,7 +555,11 @@ class BipolarFeatureBagClip(Clip):
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
             n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
             executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-            self._bags = self.executor_cls(n_workers=self.n_workers, log=self.log).exec_callables(executables)
+            results = self.executor_cls(n_workers=self.n_workers, log=self.log, batch_size=self.cpu_batch_size, streaming=True).exec_callables(executables)
+            if self.cpu_batch_size is not None:
+                self._bags = list(itertools.chain.from_iterable(results))
+            else:
+                self._bags = list(results)
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return self._bags
 
