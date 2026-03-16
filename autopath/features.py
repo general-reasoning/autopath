@@ -582,7 +582,7 @@ class BipolarFeatureBagClip(Clip):
     @property
     def bags(self):
         if not hasattr(self, '_bags'):
-            if self.validtopic('bags'):
+            if self.valid('bags'):
                 self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
                 data = read_npz(self.path('bags'), 'bag_quotes')
                 self._bags = [self._instantiate_bag(str(q)) for q in data['bag_quotes']]
