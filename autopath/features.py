@@ -574,10 +574,10 @@ class BipolarFeatureBagClip(Clip):
 
     def _persist_bags(self):
         """Serialize self._bags as quotes to the bags TOPICFILE."""
-        self.log.verbose(f"_persist_bags: writing {len(self._bags)} bag quotes")
+        self.log.verbose(f"_persist_bags: writing {len(self._bags)} bag quotes: BEGIN")
         bag_quotes = np.array([dbx.quote(bag) for bag in self._bags], dtype=object)
         write_npz(self.path('bags', ensure_dirpath=True), bag_quotes=bag_quotes)
-        self.log.verbose(f"_persist_bags: done")
+        self.log.verbose(f"_persist_bags: writing {len(self._bags)} bag quotes: END")
 
     @property
     def bags(self):
@@ -585,8 +585,10 @@ class BipolarFeatureBagClip(Clip):
             if self.validtopic('bags'):
                 self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
                 data = read_npz(self.path('bags'), 'bag_quotes')
-                self._bags = [self._instantiate_bag(str(q)) for q in data['bag_quotes']]
                 self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
+                self.log.verbose(f"bags: INSTANTIATING {len(data['bag_quotes'])} bags from quotes: BEGIN")
+                self._bags = [self._instantiate_bag(str(q)) for q in data['bag_quotes']]
+                self.log.verbose(f"bags: INSTANTIATING {len(data['bag_quotes'])} bags from quotes: END")
             else:
                 self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
                 n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
