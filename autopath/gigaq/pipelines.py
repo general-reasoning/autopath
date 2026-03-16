@@ -37,11 +37,7 @@ from autopath.pancan.probes import (
     Feature2NNDim,
 )
 
-from autopath.gigaq.dinov2.backbone import (
-    BackboneEvaluator, 
-    SidebandBackboneEvaluator, 
-    GIGAPATH_BACKBONE_DEPTH,
-)
+
 
 
 
@@ -62,6 +58,14 @@ def quote_extractor(name, sideband: bool = False, capture_blocks: Optional[List[
         
 
 def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
+    # Lazy import: backbone pulls in dinov2/xformers which initialise CUDA
+    # extensions at import time.  Keeping it here means workers that only
+    # do bag-formation never pay that startup cost.
+    from autopath.gigaq.dinov2.backbone import (
+        BackboneEvaluator,
+        SidebandBackboneEvaluator,
+        GIGAPATH_BACKBONE_DEPTH,
+    )
     def select_capture_blocks(n_blocks: int = 1):
         if n_blocks <= 0 or n_blocks > GIGAPATH_BACKBONE_DEPTH:
             return None
