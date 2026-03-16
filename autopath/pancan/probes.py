@@ -931,7 +931,7 @@ class BipolarFeatureBagProbe(Datablock):
                     for i in range(len(self.devices))
                 ]
                 self.log.verbose(f"COMPUTING bag similarities using {len(self.devices)} devices with gpu_batch_size {self.gpu_batch_size}: BEGIN")
-                bag_executor = MultithreadingCallableExecutor(n_threads=len(self.devices), log=self.log)
+                bag_executor = MultithreadingCallableExecutor(n_workers=len(self.devices), log=self.log)
                 bag_executor.execute(bag_similarities_computers, self, tile_bipolar_features, torch.tensor(self.tile_bag_indices), bag_similarities)
                 write_npz(self.path('bag_similarities', ensure_dirpath=True), bag_similarities=bag_similarities)
                 self.log.verbose(f"COMPUTING bag similarities using {len(self.devices)} devices with gpu_batch_size {self.gpu_batch_size}: END")
