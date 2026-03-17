@@ -625,7 +625,6 @@ class BipolarFeatureBagClip(Clip):
         return self.UNSAFE_clear_shards(OVERRIDE=OVERRIDE)
         
 
-
 class BipolarSingleFeatureBagClip(Clip):
     """Like BipolarFeatureBagClip, but contains exactly one bag at index `idx`
     from the given BipolarFeatureBagProbe."""
