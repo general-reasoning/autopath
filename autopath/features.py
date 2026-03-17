@@ -4,7 +4,6 @@ import functools
 import gc
 import itertools
 import math
-import pickle
 import traceback as tb
 from typing import Callable, Literal
 
@@ -486,7 +485,7 @@ class BipolarFeatureBag(Bag):
 class BipolarFeatureBagClip(Clip):
     VERSION = 3
 
-    TOPICFILES = {'bag_lens': 'bag_lens.npy', 'bags': 'bags.npz'}
+    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -559,52 +558,15 @@ class BipolarFeatureBagClip(Clip):
     def __read__(self, topic):
         return read_npz(self.path(topic), topic)[topic]
 
-    def _bag_extra_kwargs(self) -> dict:
-        """Extra kwargs to set on each bag after formation or after loading from
-        the pickle cache.  Override to inject GPU-related or other runtime
-        attributes that should not be persisted but must be present at use time."""
-        return {}
-
-    def _apply_bag_extra_kwargs(self, bag: 'BipolarFeatureBag') -> 'BipolarFeatureBag':
-        for k, v in self._bag_extra_kwargs().items():
-            setattr(bag, k, v)
-        return bag
-
-    def _persist_bags(self):
-        """Pickle self._bags into the bags TOPICFILE for fast reuse."""
-        self.log.verbose(f"_persist_bags: pickling {len(self._bags)} bags: BEGIN")
-        pickled = np.array([pickle.dumps(bag) for bag in self._bags], dtype=object)
-        write_npz(self.path('bags', ensure_dirpath=True), bags=pickled)
-        self.log.verbose(f"_persist_bags: pickling {len(self._bags)} bags: END")
-
     @property
     def bags(self):
         if not hasattr(self, '_bags'):
-            if self.validtopic('bags'):
-                try:
-                    self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
-                    self.log.verbose(f"bags: READING npz: BEGIN")
-                    data = read_npz(self.path('bags'), 'bags')
-                    self.log.verbose(f"bags: READING npz: END")
-                    if self.verbose:
-                        bagitor = tqdm.tqdm(data['bags'], desc=f"{self.anchor}: bags: UNPICKLING cached BipolarFeatureBags")
-                    else:
-                        bagitor = data['bags']
-                    self.log.verbose(f"bags: UNPICKLING cached BipolarFeatureBags: BEGIN")
-                    self._bags = [self._apply_bag_extra_kwargs(pickle.loads(bytes(b))) for b in bagitor]
-                    self.log.verbose(f"bags: UNPICKLING cached BipolarFeatureBags: END")
-                    self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
-                except Exception as e:
-                    self.log.warning(f"bags: LOADING cached BipolarFeatureBags FAILED ({e}); re-forming")
-                    self._bags = None
-            if not hasattr(self, '_bags') or self._bags is None:
-                self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
-                n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
-                executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-                results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
-                self._bags = [self._apply_bag_extra_kwargs(bag) for bag in results]
-                self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
-                self._persist_bags()
+            self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
+            n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
+            executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
+            self._bags = list(results)
+            self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return self._bags
 
     def bag(self, idx: int):
