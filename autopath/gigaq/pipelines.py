@@ -306,7 +306,7 @@ def gigapath_bipolar_feature_bags_probe(name,
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020', n_workers=4).build()"
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020').build()"
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', cpu_parallelization='multithreading', n_workers=4).build_tree()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020', cpu_parallelization='multiprocessing', n_workers=2).build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020').build()"
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179', cpu_parallelization='multiprocessing', n_workers=4).build_tree()"
 #
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
@@ -318,7 +318,7 @@ def gigapath_bipolar_feature_bag_clip(name,
                                      root: str = None, 
                                      build_missing_only: bool = False, 
                                      single: int|None = None, 
-                                     cpu_parallelization: str = 'ray',
+                                     cpu_parallelization: str|None = None,
                                      cpu_batch_size: int = None,
                                      n_workers: int = 2,
                                      bag_cpu_batch_size: int = 0,
@@ -351,7 +351,8 @@ def gigapath_bipolar_feature_bag_clip(name,
             n_workers=n_workers, 
             cpu_batch_size=cpu_batch_size, 
             gpu_parallelization=gpu_parallelization,
-        )
+            tag=tag,
+            )
     else:
         clip = BipolarFeatureBagClip(
             root=root, 
@@ -365,9 +366,9 @@ def gigapath_bipolar_feature_bag_clip(name,
             bag_cpu_batch_size=bag_cpu_batch_size,
             gpu_parallelization=gpu_parallelization,
             gpu_batch_size=gpu_batch_size,
-            devices=devices
+            devices=devices,
+            tag=tag,
         )
-    clip.tag = tag
     return clip
 
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
