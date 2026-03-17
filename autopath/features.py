@@ -479,7 +479,15 @@ class BipolarFeatureBag(Bag):
 
     def __len__(self):
         if not hasattr(self, '_len'):
-            self._len = len(self.cfg.featurebag)
+            if self.validtopic('bipolar_features'):
+                # Read length from our own stored feature array — avoids loading
+                # tile images via featurebag.labels -> tilebag.tiles, which is
+                # the root cause of OOM when computing bag_lens for 2000+ bags.
+                data = read_npz(self.path('bipolar_features'), 'bipolar_features')
+                self._len = data['bipolar_features'].shape[0]
+                del data
+            else:
+                self._len = len(self.cfg.featurebag)
         return self._len
 
 
@@ -548,11 +556,8 @@ class BipolarFeatureBagClip(Clip):
         self.log.verbose(f"__build__: BUILDING {len(missing_bags)} {'missing' if self.build_missing_only else 'all'} BipolarFeatureBags using {self.n_workers} processes with {self.cpu_parallelization} parallelization: END")
         self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
         if not self.build_missing_only:
-            if self.verbose:
-                    bagitor = tqdm.tqdm(bags, desc=f"{self.anchor}: __build__: COMPUTING bag_lens")
-            else:
-                bagitor = bags
-            bag_lens = [len(bag) for bag in bagitor]
+            executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
+            bag_lens = list(self.executor_cls(n_workers=self.n_workers, batch_size=self.cpu_batch_size, log=self.log, tag='BipolarFeatureBagClip bag_lens').execute(executables))
         self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: END")
         write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         return self
