@@ -7,8 +7,8 @@ import torch
 import torch.multiprocessing as mp
 
 import dbx
+from dbx import tagged
 
-from autopath.utils import tagged
 from autopath.databits import ClipDatasetBuilder, ClipDataLoaderBuilder, ShuffledClip
 
 from autopath.pancan.pipelines import (
