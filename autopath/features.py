@@ -223,7 +223,7 @@ class FeatureBagClip(Clip):
         def __repr__(self):
             return f"FeatureBagLengthComputer({self.featurebag})"
 
-    def __init__(self, *, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, cpu_batch_size: int|None = None, skip_unreadable: bool = True, 
+    def __init__(self, *, tag: str | None = None, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, cpu_batch_size: int|None = None, skip_unreadable: bool = True, 
                  gpu_parallelization: str = 'multithreading', 
                  cpu_parallelization: str|None = None, 
                  bag_n_workers: int = 1,
@@ -231,7 +231,7 @@ class FeatureBagClip(Clip):
                  bag_cpu_parallelization: str|None = None,
                  **kwargs
     ):
-        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, **kwargs)
+        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, tag=tag, **kwargs)
         self.bag_n_workers = bag_n_workers
         self.bag_cpu_batch_size = bag_cpu_batch_size
         self.bag_cpu_parallelization = bag_cpu_parallelization
@@ -327,7 +327,8 @@ class FeatureBagClip(Clip):
             self.log.verbose(f"FORMING FeatureBags: BEGIN")
             n_bags = self.cfg.tilebagclip.n_bags
             executables = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='FeatureBagClip bag formation').execute(executables)
+            executor_tag = self.tag or 'FeatureBagClip bag formation'
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag=executor_tag).execute(executables)
             self._bags = list(results)
             self.log.verbose(f"FORMING FeatureBags: END")
         return self._bags
@@ -341,6 +342,7 @@ class FeatureBagClip(Clip):
             spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor'],),
             gpu_batch_size=self.gpu_batch_size,
             revision=self.revision,
+            tag=self.tag,
         )
         return bag
 
@@ -504,8 +506,7 @@ class BipolarFeatureBagClip(Clip):
                  bag_n_workers: int = 1,
                  bag_cpu_batch_size: int|None = None,
                  **kwargs):
-        super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, cpu_batch_size=cpu_batch_size, gpu_parallelization=gpu_parallelization, **kwargs)
-        self.tag = tag
+        super().__init__(*args, n_workers=n_workers, build_missing_only=build_missing_only, cpu_parallelization=cpu_parallelization, cpu_batch_size=cpu_batch_size, gpu_parallelization=gpu_parallelization, tag=tag, **kwargs)
         self.bag_n_workers = bag_n_workers
         self.bag_cpu_batch_size = bag_cpu_batch_size
         self.bag_cpu_parallelization = bag_cpu_parallelization
@@ -569,8 +570,6 @@ class BipolarFeatureBagClip(Clip):
             executor_tag = self.tag or 'BipolarFeatureBagClip bag formation'
             results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag=executor_tag).execute(executables)
             self._bags = list(results)
-            for bag in self._bags:
-                bag.tag = self.tag
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return self._bags
 
@@ -584,8 +583,8 @@ class BipolarFeatureBagClip(Clip):
                 bag_index=idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx), 
             ),
+            tag=self.tag,
         )
-        bag.tag = self.tag
         return bag
 
     def shard(self, idx: int):
@@ -663,8 +662,8 @@ class BipolarSingleFeatureBagClip(Clip):
                 bag_index=real_idx,
                 featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
             ),
+            tag=self.tag,
         )
-        bag.tag = self.tag
         return bag
 
     def shard(self, idx: int):
