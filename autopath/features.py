@@ -327,8 +327,7 @@ class FeatureBagClip(Clip):
             self.log.verbose(f"FORMING FeatureBags: BEGIN")
             n_bags = self.cfg.tilebagclip.n_bags
             executables = [FeatureBagMaker(self, idx) for idx in range(n_bags)]
-            executor_tag = self.tag or 'FeatureBagClip bag formation'
-            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag=executor_tag).execute(executables)
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='FeatureBagClip bag formation').execute(executables)
             self._bags = list(results)
             self.log.verbose(f"FORMING FeatureBags: END")
         return self._bags
@@ -567,8 +566,7 @@ class BipolarFeatureBagClip(Clip):
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
             n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
             executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-            executor_tag = self.tag or 'BipolarFeatureBagClip bag formation'
-            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag=executor_tag).execute(executables)
+            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
             self._bags = list(results)
             self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
         return self._bags
