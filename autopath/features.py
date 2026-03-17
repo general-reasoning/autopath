@@ -613,6 +613,18 @@ class BipolarFeatureBagClip(Clip):
     def n_shards(self):
         return self.n_bags
 
+    def UNSAFE_clear_shards(self, OVERRIDE=False):
+        if UNSAFE_allowed('UNSAFE_clear_shards', OVERRIDE=OVERRIDE):
+            super().UNSAFE_clear_shards()
+            if hasattr(self, '_bags'):
+                del self._bags
+            self.UNSAFE_clear(OVERRIDE=True)
+        return self
+
+    def UNSAFE_clear_bags(self, OVERRIDE=False):
+        return self.UNSAFE_clear_shards(OVERRIDE=OVERRIDE)
+        
+
 
 class BipolarSingleFeatureBagClip(Clip):
     """Like BipolarFeatureBagClip, but contains exactly one bag at index `idx`
