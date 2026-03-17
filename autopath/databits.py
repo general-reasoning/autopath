@@ -23,6 +23,7 @@ from dbx import (
     MultiprocessingDatablocksBuilder,
     RayCallableExecutor,
     RayDatablocksBuilder,
+    UNSAFE_allowed,
 )
 
 
@@ -110,13 +111,20 @@ class Clip(Datablock):
     def n_shards(self):
         return len(self.shard_lens)
     
-    def UNSAFE_clear_shards(self):
-        for shard in self.shards:
-            try:
-                if shard.valid():
-                    shard.UNSAFE_clear()
-            except:
-                pass
+    def UNSAFE_clear_shards(self, *, OVERRIDE: bool = False):
+        self.log.debug(f"Clearing shards for {self.path()}: BEGIN")
+        if UNSAFE_allowed("UNSAFE_clear_shards", OVERRIDE=OVERRIDE):
+            for shard in self.shards:
+                try:
+                    if shard.valid():
+                        shard.UNSAFE_clear()
+                except KeyboardInterrupt:
+                    break
+                except Exception as e:
+                    pass
+        else:
+            self.log.warning(f"UNSAFE_clear_shards not allowed for {self.path()}")
+        self.log.debug(f"Clearing shards for {self.path()}: END")
         return self
 
     def UNSAFE_copy_from(self, anchorpath: str, shard_anchorpath: str, *, overwrite: bool = False):

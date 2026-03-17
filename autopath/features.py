@@ -4,6 +4,7 @@ import functools
 import gc
 import itertools
 import math
+import pickle
 import traceback as tb
 from typing import Callable, Literal
 
@@ -485,7 +486,7 @@ class BipolarFeatureBag(Bag):
 class BipolarFeatureBagClip(Clip):
     VERSION = 3
 
-    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+    TOPICFILES = {'bag_lens': 'bag_lens.npy', 'bags': 'bags.npz'}
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -558,15 +559,29 @@ class BipolarFeatureBagClip(Clip):
     def __read__(self, topic):
         return read_npz(self.path(topic), topic)[topic]
 
+    def _persist_bags(self):
+        """Pickle self._bags into the bags TOPICFILE for fast reuse."""
+        self.log.verbose(f"_persist_bags: pickling {len(self._bags)} bags: BEGIN")
+        pickled = np.array([pickle.dumps(bag) for bag in self._bags], dtype=object)
+        write_npz(self.path('bags', ensure_dirpath=True), bags=pickled)
+        self.log.verbose(f"_persist_bags: pickling {len(self._bags)} bags: END")
+
     @property
     def bags(self):
         if not hasattr(self, '_bags'):
-            self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
-            n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
-            executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
-            results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
-            self._bags = list(results)
-            self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
+            if self.validtopic('bags'):
+                self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
+                data = read_npz(self.path('bags'), 'bags')
+                self._bags = [pickle.loads(bytes(b)) for b in data['bags']]
+                self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
+            else:
+                self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
+                n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
+                executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
+                results = self.bag_executor_cls(n_workers=self.bag_n_workers, log=self.log, batch_size=self.bag_cpu_batch_size, tag='BipolarFeatureBagClip bag formation').execute(executables)
+                self._bags = list(results)
+                self.log.verbose(f"bags: FORMING BipolarFeatureBags: END")
+                self._persist_bags()
         return self._bags
 
     def bag(self, idx: int):
