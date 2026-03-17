@@ -581,10 +581,18 @@ class BipolarFeatureBagClip(Clip):
     def bags(self):
         if not hasattr(self, '_bags'):
             if self.validtopic('bags'):
-                self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
                 try:
+                    self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
+                    self.log.verbose(f"bags: READING npz: BEGIN")
                     data = read_npz(self.path('bags'), 'bags')
-                    self._bags = [self._apply_bag_extra_kwargs(pickle.loads(bytes(b))) for b in data['bags']]
+                    self.log.verbose(f"bags: READING npz: END")
+                    if self.verbose:
+                        bagitor = tqdm.tqdm(data['bags'], desc=f"{self.anchor}: bags: UNPICKLING cached BipolarFeatureBags")
+                    else:
+                        bagitor = data['bags']
+                    self.log.verbose(f"bags: UNPICKLING cached BipolarFeatureBags: BEGIN")
+                    self._bags = [self._apply_bag_extra_kwargs(pickle.loads(bytes(b))) for b in bagitor]
+                    self.log.verbose(f"bags: UNPICKLING cached BipolarFeatureBags: END")
                     self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
                 except Exception as e:
                     self.log.warning(f"bags: LOADING cached BipolarFeatureBags FAILED ({e}); re-forming")
