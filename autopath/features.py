@@ -557,7 +557,7 @@ class BipolarFeatureBagClip(Clip):
         self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: BEGIN")
         if not self.build_missing_only:
             executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
-            bag_lens = list(self.executor_cls(n_workers=self.n_workers, batch_size=self.cpu_batch_size, log=self.log, tag='BipolarFeatureBagClip bag_lens').execute(executables))
+            bag_lens = list(self.bag_executor_cls(n_workers=self.bag_n_workers, batch_size=self.bag_cpu_batch_size, log=self.log, tag='BipolarFeatureBagClip bag_lens').execute(executables))
         self.log.verbose(f"__build__: COMPUTING bag_lens: for {len(bags)} bags: END")
         write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         return self
