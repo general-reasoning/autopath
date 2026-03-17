@@ -117,7 +117,7 @@ class Clip(Datablock):
             for shard in self.shards:
                 try:
                     if shard.valid():
-                        shard.UNSAFE_clear()
+                        shard.UNSAFE_clear(OVERRIDE=True)
                 except KeyboardInterrupt:
                     break
                 except Exception as e:
