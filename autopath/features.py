@@ -582,10 +582,14 @@ class BipolarFeatureBagClip(Clip):
         if not hasattr(self, '_bags'):
             if self.validtopic('bags'):
                 self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: BEGIN")
-                data = read_npz(self.path('bags'), 'bags')
-                self._bags = [self._apply_bag_extra_kwargs(pickle.loads(bytes(b))) for b in data['bags']]
-                self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
-            else:
+                try:
+                    data = read_npz(self.path('bags'), 'bags')
+                    self._bags = [self._apply_bag_extra_kwargs(pickle.loads(bytes(b))) for b in data['bags']]
+                    self.log.verbose(f"bags: LOADING cached BipolarFeatureBags: END")
+                except Exception as e:
+                    self.log.warning(f"bags: LOADING cached BipolarFeatureBags FAILED ({e}); re-forming")
+                    self._bags = None
+            if not hasattr(self, '_bags') or self._bags is None:
                 self.log.verbose(f"bags: FORMING BipolarFeatureBags: BEGIN")
                 n_bags = self.cfg.probe.cfg.featurebagclip.n_bags
                 executables = [BipolarFeatureBagMaker(self, idx) for idx in range(n_bags)]
