@@ -8,6 +8,7 @@ import torch.multiprocessing as mp
 
 import dbx
 
+from autopath.utils import tagged
 from autopath.databits import ClipDatasetBuilder, ClipDataLoaderBuilder, ShuffledClip
 
 from autopath.pancan.pipelines import (
@@ -310,8 +311,10 @@ def gigapath_bipolar_feature_bags_probe(name,
 #
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
 # git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=1).build()"
+@tagged
 def gigapath_bipolar_feature_bag_clip(name, 
                                      *, 
+                                     tag: str | None = None,
                                      root: str = None, 
                                      build_missing_only: bool = False, 
                                      single: int|None = None, 
@@ -364,6 +367,7 @@ def gigapath_bipolar_feature_bag_clip(name,
             gpu_batch_size=gpu_batch_size,
             devices=devices
         )
+    clip.tag = tag
     return clip
 
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
