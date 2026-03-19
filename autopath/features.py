@@ -585,7 +585,7 @@ class BipolarFeatureBagClip(Clip):
             spec=dict(
                 probe=self.spec['probe'],
                 bag_index=idx,
-                featurebag=dbx.quote(featurebag), 
+                featurebag=dbx.quote(featurebag),
             ),
             tag=self.tag,
         )
