@@ -94,7 +94,7 @@ class Clip(Datablock):
         return self
     
     def __read__(self):
-        shard_lens = dbx.read_npz(self.path(), 'shard_lens')[0]
+        shard_lens = dbx.read_npz(self.path(), 'shard_lens')['shard_lens']
         return shard_lens
 
     def shard(self, idx: int):
