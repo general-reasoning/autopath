@@ -593,9 +593,9 @@ class ShuffledClip(Clip):
         shuffled_shard_cls: type[ShuffledShard] = ShuffledShard
 
     PARALLELIZERS = {
-        'Multithreading':  {'callable': MultithreadingCallableExecutor, 'datablock': MultithreadingDatablocksBuilder},
-        'Multiprocessing': {'callable': MultiprocessingCallableExecutor, 'datablock': MultiprocessingDatablocksBuilder},
-        'Ray':             {'callable': RayCallableExecutor, 'datablock': RayDatablocksBuilder},
+        'multithreading':  {'callable': MultithreadingCallableExecutor, 'datablock': MultithreadingDatablocksBuilder},
+        'multiprocessing': {'callable': MultiprocessingCallableExecutor, 'datablock': MultiprocessingDatablocksBuilder},
+        'ray':             {'callable': RayCallableExecutor, 'datablock': RayDatablocksBuilder},
     }
 
     def __init__(
@@ -787,7 +787,7 @@ class ShuffledClip(Clip):
                 makers_itor = makers
             shard_lens = [maker() for maker in makers_itor]
         else:
-            shard_lens = list(self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers, verbose=self.verbose))
+            shard_lens = list(self.PARALLELIZERS[self.parallelization.lower()]['callable'](n_workers=self.n_workers, log=self.log).execute(makers, verbose=self.verbose))
 
         dbx.write_npz(self.path(), shard_lens=shard_lens)
 
