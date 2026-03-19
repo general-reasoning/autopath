@@ -208,13 +208,14 @@ def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: in
 def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, 
                                           n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, cpu_batch_size: int = None,
                                           cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading',
+                                          shuffle_bags: bool = False,
                                           **dataloader_kwargs):
     featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), shuffle_seed=shuffle_bags_seed))
     return ClipDataLoaderBuilder(spec=dict(
                             clip_dataset_builder=clip_dataset_builder,
                             batch_size=dataloader_kwargs.get('batch_size', None),
-                            shuffle=dataloader_kwargs.get('shuffle', False),
+                            shuffle=shuffle_bags or dataloader_kwargs.get('shuffle', False),
                           ),  
                           dataloader_kwargs=dataloader_kwargs,
     )
@@ -250,7 +251,7 @@ def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_
 #
 def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', None)
-    dataloader_builder = gigapath_featurebag_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
+    dataloader_builder = gigapath_featurebag_dataloader_builder(name, root=root, shuffle_bags=shuffle_bags, **dataloader_kwargs)
     progress = tqdm(total=n)
     for i, _ in enumerate(dataloader_builder.dataloader()):
         progress.update(batch_size if batch_size is not None else 1)
@@ -404,6 +405,7 @@ def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_
 def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, 
                                                   n_workers: int = 0, n_devices: int = 1, gpu_batch_size: int = 16,
                                                   cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading',
+                                                  shuffle_bags: bool = False,
                                                   **dataloader_kwargs):
     if 'SINGLE' in name:
         single = int(name.split('_')[-1])
@@ -417,7 +419,7 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
     return ClipDataLoaderBuilder(spec=dict(
                             clip_dataset_builder=clip_dataset_builder,
                             batch_size=dataloader_kwargs.get('batch_size', None),
-                            shuffle=dataloader_kwargs.get('shuffle', False),
+                            shuffle=shuffle_bags or dataloader_kwargs.get('shuffle', False),
                           ),  
                           dataloader_kwargs=dataloader_kwargs,
     )
@@ -428,9 +430,11 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
 #
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
+#
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000, shuffle=True)"
 def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', 1)
-    dataloader_builder = gigapath_bipolar_featurebag_dataloader_builder(name, root=root, shuffle=shuffle_bags, **dataloader_kwargs)
+    dataloader_builder = gigapath_bipolar_featurebag_dataloader_builder(name, root=root, shuffle_bags=shuffle_bags, **dataloader_kwargs)
     progress = tqdm(total=n, desc=f"READING SAMPLES")
     for i, _ in enumerate(dataloader_builder.dataloader()):
         progress.update(batch_size if batch_size is not None else 1)
