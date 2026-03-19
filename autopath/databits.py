@@ -566,14 +566,13 @@ class SourceShardValidator:
     """
 
     def __init__(self, clip, src_idx: int, reported_len: int, log=dbx.Logger()):
-        self.clip = clip
+        self.clip = dbx.eval_term(clip)
         self.src_idx = src_idx
         self.reported_len = reported_len
         self.log = log
 
     def __call__(self):
-        shard = dbx.eval_term(self.clip).shard(self.src_idx) \
-            if isinstance(self.clip, str) else self.clip.shard(self.src_idx)
+        shard = self.clip.shard(self.src_idx)
         if shard.valid():
             actual_len = len(shard)
             if actual_len == self.reported_len:
