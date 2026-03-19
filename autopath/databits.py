@@ -884,6 +884,9 @@ class ShuffledClip(Clip):
             n_samples = int(math.floor(N * self.cfg.fraction))
             n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
         
+        idx_itor = range(n_shards)
+        if self.verbose:
+            idx_itor = tqdm.tqdm(idx_itor, desc="Setting up ShuffledShards")
         return [
             self.cfg.shuffled_shard_cls(
                 root=self._root_,
@@ -895,7 +898,7 @@ class ShuffledClip(Clip):
                     shard_idx=idx
                 )
             )
-            for idx in range(n_shards)
+            for idx in idx_itor
         ]
 
 
