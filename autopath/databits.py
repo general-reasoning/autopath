@@ -353,7 +353,7 @@ class ClipShardQueue:
             tensor = shard.tensor
             labels = shard.labels
         except Exception as e:
-            self.log.info(f"[Queue {self.queue_idx}] Skipping unreadable source shard {src_idx}: {e}")
+            self.log.warning(f"[Queue {self.queue_idx}] Skipping unreadable source shard {src_idx}: {e}")
             self.current_src_ptr += 1
             return
         
