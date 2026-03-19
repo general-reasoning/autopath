@@ -645,7 +645,10 @@ class ShuffledClip(Clip):
             n_missing = 0
             n_missing_samples = 0
             n_mismatched = 0
-            for src_idx in range(n_src_shards):
+            src_itor = range(n_src_shards)
+            if self.verbose:
+                src_itor = tqdm.tqdm(src_itor, desc="Validating source shards")
+            for src_idx in src_itor:
                 shard = self.cfg.clip.shard(src_idx)
                 reported_len = shard_lens[src_idx]
                 if shard.valid():
