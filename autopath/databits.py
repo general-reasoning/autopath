@@ -886,7 +886,7 @@ class ShuffledClip(Clip):
         
         idx_itor = range(n_shards)
         if self.verbose:
-            idx_itor = tqdm.tqdm(idx_itor, desc="Setting up ShuffledShards")
+            idx_itor = tqdm.tqdm(idx_itor, desc="FORMING ShuffledShards")
         return [
             self.cfg.shuffled_shard_cls(
                 root=self._root_,
