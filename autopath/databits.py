@@ -117,7 +117,10 @@ class Clip(Datablock):
     def UNSAFE_clear_shards(self, *, OVERRIDE: bool = False):
         self.log.debug(f"Clearing shards for {self.path()}: BEGIN")
         if UNSAFE_allowed("UNSAFE_clear_shards", OVERRIDE=OVERRIDE):
-            for shard in self.shards:
+            shard_itor = self.shards
+            if self.verbose:
+                shard_itor = tqdm.tqdm(shard_itor, desc=f"Clearing shards for {self.anchor}")
+            for shard in shard_itor:
                 try:
                     if shard.valid():
                         shard.UNSAFE_clear(OVERRIDE=True)
