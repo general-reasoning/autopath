@@ -18,6 +18,8 @@ import torchvision
 import dbx
 from dbx import (
     Datablock,
+    InlineCallableExecutor,
+    InlineDatablocksBuilder,
     MultithreadingCallableExecutor,
     MultithreadingDatablocksBuilder,
     MultiprocessingCallableExecutor,
@@ -556,6 +558,29 @@ class ShuffledShardMaker:
             return shard
 
 
+class SourceShardValidator:
+    """Validates a single source shard for readability and length consistency.
+
+    Returns ``(src_idx, is_valid, actual_len)`` where *actual_len* is the
+    true length when the shard is valid, or ``-1`` when it is not.
+    """
+
+    def __init__(self, clip, src_idx: int, reported_len: int):
+        self.clip = clip
+        self.src_idx = src_idx
+        self.reported_len = reported_len
+
+    def __call__(self):
+        shard = dbx.eval_term(self.clip).shard(self.src_idx) \
+            if isinstance(self.clip, str) else self.clip.shard(self.src_idx)
+        if shard.valid():
+            return (self.src_idx, True, len(shard))
+        return (self.src_idx, False, -1)
+
+    def __repr__(self):
+        return f"SourceShardValidator(src_idx={self.src_idx}, reported_len={self.reported_len})"
+
+
 class ShuffledClip(Clip):
     """A ``Clip`` that draws a random subset of samples from an existing
     ``Clip`` and re-shards them into fixed-size ``ShuffledShard`` blocks.
@@ -593,6 +618,7 @@ class ShuffledClip(Clip):
         shuffled_shard_cls: type[ShuffledShard] = ShuffledShard
 
     PARALLELIZERS = {
+        'inline':          {'callable': InlineCallableExecutor, 'datablock': InlineDatablocksBuilder},
         'multithreading':  {'callable': MultithreadingCallableExecutor, 'datablock': MultithreadingDatablocksBuilder},
         'multiprocessing': {'callable': MultiprocessingCallableExecutor, 'datablock': MultiprocessingDatablocksBuilder},
         'ray':             {'callable': RayCallableExecutor, 'datablock': RayDatablocksBuilder},
@@ -641,18 +667,23 @@ class ShuffledClip(Clip):
         # Probe source shards for readability — zero out missing ones
         # ------------------------------------------------------------------
         if self.validate_sources:
-            self.log.info(f"Validating {n_src_shards} source shards: BEGIN")
+            self.log.info(f"Validating {n_src_shards} source shards using {self.n_workers} workers: BEGIN")
+
+            validators = [
+                SourceShardValidator(clip=dbx.quote(self.cfg.clip), src_idx=i, reported_len=shard_lens[i])
+                for i in range(n_src_shards)
+            ]
+
+            par_key = (self.parallelization or 'inline').lower()
+            executor = self.PARALLELIZERS[par_key]['callable'](n_workers=self.n_workers, log=self.log)
+            results = list(executor.execute(validators, verbose=self.verbose))
+
             n_missing = 0
             n_missing_samples = 0
             n_mismatched = 0
-            src_itor = range(n_src_shards)
-            if self.verbose:
-                src_itor = tqdm.tqdm(src_itor, desc="Validating source shards")
-            for src_idx in src_itor:
-                shard = self.cfg.clip.shard(src_idx)
+            for src_idx, is_valid, actual_len in results:
                 reported_len = shard_lens[src_idx]
-                if shard.valid():
-                    actual_len = len(shard)
+                if is_valid:
                     if actual_len == reported_len:
                         self.log.verbose(f"Source shard {src_idx}: OK (len={actual_len})")
                     else:
