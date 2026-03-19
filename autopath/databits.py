@@ -682,7 +682,7 @@ class ShuffledClip(Clip):
 
             par_key = (self.parallelization or 'inline').lower()
             executor = self.PARALLELIZERS[par_key]['callable'](n_workers=self.n_workers, log=self.log)
-            results = list(executor.execute(validators, verbose=self.verbose))
+            results = list(executor.execute(validators))
 
             n_missing = 0
             n_missing_samples = 0
