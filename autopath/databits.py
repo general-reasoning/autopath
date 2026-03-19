@@ -672,7 +672,7 @@ class ShuffledClip(Clip):
         # Probe source shards for readability — zero out missing ones
         # ------------------------------------------------------------------
         if self.validate_sources:
-            self.log.info(f"Validating {n_src_shards} source shards using {self.n_workers} workers: BEGIN")
+            self.log.info(f"Validating {n_src_shards} source shards using {self.n_workers} {self.parallelization} workers: BEGIN")
 
             validators = [
                 SourceShardValidator(clip=dbx.quote(self.cfg.clip), src_idx=i, reported_len=shard_lens[i], log=self.log)
@@ -702,7 +702,7 @@ class ShuffledClip(Clip):
                 self.log.warning(f"{n_missing}/{n_src_shards} source shards are unreadable ({n_missing_samples} total datapoints excluded)")
             if n_mismatched > 0:
                 self.log.warning(f"{n_mismatched}/{n_src_shards} source shards had length mismatches (corrected)")
-            self.log.info(f"Validating {n_src_shards} source shards: END")
+            self.log.info(f"Validating {n_src_shards} source shards using {self.n_workers} {self.parallelization} workers: END")
 
         N = sum(shard_lens)
         n_samples = int(math.floor(N * self.cfg.fraction))
