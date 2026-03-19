@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import functools
 import gc
 import math
+import threading
 import traceback as tb
 from typing import Union
 
@@ -298,10 +299,11 @@ class ClipShardQueue:
     """
     A queue of shards from a Clip.
     """
-    def __init__(self, queue_idx: int, clip_quote, clip_lens, fraction: float, n_shards: int, n_queues: int, shard_size: int, shuffle_seed: int, p_inv_ref, target_to_srcs, log=dbx.Logger()):
+    def __init__(self, queue_idx: int, clip_quote, clip_lens, fraction: float, n_shards: int, n_queues: int, shard_size: int, shuffle_seed: int, p_inv_ref, target_to_srcs, log=dbx.Logger(), lock=None):
         self.log = log
         self.log.debug(f"[Queue {queue_idx}] Initializing actor...")
         self.queue_idx = queue_idx
+        self._lock = lock
         
         if isinstance(clip_quote, str):
             self.clip = dbx.eval_term(clip_quote)
@@ -398,6 +400,12 @@ class ClipShardQueue:
         self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: END ({count} samples collected)")
 
     def pull(self, target_shard_idx: int):
+        if self._lock is not None:
+            with self._lock:
+                return self._pull(target_shard_idx)
+        return self._pull(target_shard_idx)
+
+    def _pull(self, target_shard_idx: int):
         self.log.debug(f"[Queue {self.queue_idx}] Pull request for target shard {target_shard_idx}: BEGIN")
         needed = self.target_to_srcs.get(target_shard_idx, None)
         
@@ -501,10 +509,17 @@ class ShuffledShardMaker:
         else:
             q_itor = q_indices
 
-        # Trigger all pulls in parallel
-        futures = [self.queues[q_idx].pull.remote(self.shard_idx) for q_idx in q_itor]
-        for res in ray.get(futures):
-            all_results.extend(res)
+        # Pull from queues — works with both Ray actors and local objects
+        if self.queues and hasattr(self.queues[0], 'pull') and hasattr(self.queues[0].pull, 'remote'):
+            # Ray actors
+            futures = [self.queues[q_idx].pull.remote(self.shard_idx) for q_idx in q_itor]
+            for res in ray.get(futures):
+                all_results.extend(res)
+        else:
+            # Local objects (multithreading / inline)
+            for q_idx in q_itor:
+                res = self.queues[q_idx].pull(self.shard_idx)
+                all_results.extend(res)
 
         # Reassemble in deterministic order (by k)
         all_results.sort(key=lambda x: x[2])
@@ -596,7 +611,6 @@ class ShuffledClip(Clip):
         assert 0 < self.cfg.fraction <= 1.0, (
             f"fraction must be in (0, 1], got {self.cfg.fraction}"
         )
-        assert self.parallelization == 'Ray', f"ShuffledClip currently only supports 'Ray' parallelization, got {repr(self.parallelization)}"
         return self
        
     # ------------------------------------------------------------------
@@ -661,22 +675,27 @@ class ShuffledClip(Clip):
         self.log.info("Driver-side precomputation: END")
 
         # ------------------------------------------------------------------
-        # Ray Setup
+        # Queue & Actor Setup
         # ------------------------------------------------------------------
+        use_ray = self.parallelization is not None and self.parallelization.lower() == 'ray'
+
         self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: BEGIN")
-        if not ray.is_initialized():
-            self.log.debug("Initializing Ray session...")
-            ray.init(ignore_reinit_error=True)
-            self.log.debug("Ray initialization returned.")
+        if use_ray:
+            if not ray.is_initialized():
+                self.log.debug("Initializing Ray session...")
+                ray.init(ignore_reinit_error=True)
+                self.log.debug("Ray initialization returned.")
 
-        import time
-        time.sleep(1) # Give the system a second to stabilize
+            import time
+            time.sleep(1) # Give the system a second to stabilize
 
-        self.log.debug("Broadcasting p_inv to Ray Object Store...")
-        p_inv_ref = ray.put(p_inv)
-        del p_inv
-        gc.collect()
-        self.log.debug("Broadcasting complete.")
+            self.log.debug("Broadcasting p_inv to Ray Object Store...")
+            p_inv_ref = ray.put(p_inv)
+            del p_inv
+            gc.collect()
+            self.log.debug("Broadcasting complete.")
+        else:
+            p_inv_ref = p_inv
 
         # Convert schedules to standard dicts with numpy arrays for faster serialization
         self.log.debug("Serializing schedules for actors...")
@@ -689,34 +708,50 @@ class ShuffledClip(Clip):
 
         clip_quote = dbx.quote(self.cfg.clip)
 
-        # ------------------------------------------------------------------
-        # Actor Setup
-        # ------------------------------------------------------------------
-        
         q_itor = range(self.cfg.n_queues)
         if self.verbose:
             q_itor = tqdm.tqdm(q_itor, desc="Launching ClipShardQueues")
         
-        RemoteQueue = ray.remote(ClipShardQueue)
         queues = []
-        for i in q_itor:
-            self.log.debug(f"Launching actor {i}...")
-            queues.append(
-                RemoteQueue.remote(
-                    queue_idx=i,
-                    clip_quote=clip_quote,
-                    clip_lens=shard_lens,
-                    fraction=self.cfg.fraction,
-                    n_shards=n_shards,
-                    n_queues=self.cfg.n_queues,
-                    shard_size=self.cfg.shard_size,
-                    shuffle_seed=self.cfg.shuffle_seed,
-                    p_inv_ref=p_inv_ref,
-                    target_to_srcs=serialized_schedules[i],
-                    log=self.log
+        if use_ray:
+            RemoteQueue = ray.remote(ClipShardQueue)
+            for i in q_itor:
+                self.log.debug(f"Launching actor {i}...")
+                queues.append(
+                    RemoteQueue.remote(
+                        queue_idx=i,
+                        clip_quote=clip_quote,
+                        clip_lens=shard_lens,
+                        fraction=self.cfg.fraction,
+                        n_shards=n_shards,
+                        n_queues=self.cfg.n_queues,
+                        shard_size=self.cfg.shard_size,
+                        shuffle_seed=self.cfg.shuffle_seed,
+                        p_inv_ref=p_inv_ref,
+                        target_to_srcs=serialized_schedules[i],
+                        log=self.log
+                    )
                 )
-            )
-        self.log.debug("All actors launched.")
+        else:
+            for i in q_itor:
+                self.log.debug(f"Creating queue {i}...")
+                queues.append(
+                    ClipShardQueue(
+                        queue_idx=i,
+                        clip_quote=clip_quote,
+                        clip_lens=shard_lens,
+                        fraction=self.cfg.fraction,
+                        n_shards=n_shards,
+                        n_queues=self.cfg.n_queues,
+                        shard_size=self.cfg.shard_size,
+                        shuffle_seed=self.cfg.shuffle_seed,
+                        p_inv_ref=p_inv_ref,
+                        target_to_srcs=serialized_schedules[i],
+                        log=self.log,
+                        lock=threading.Lock(),
+                    )
+                )
+        self.log.debug("All queues launched.")
         self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: END")
 
         self.log.info(f"Setting up {n_shards} ShuffledShardMakers: BEGIN")
