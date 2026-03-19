@@ -565,16 +565,22 @@ class SourceShardValidator:
     true length when the shard is valid, or ``-1`` when it is not.
     """
 
-    def __init__(self, clip, src_idx: int, reported_len: int):
+    def __init__(self, clip, src_idx: int, reported_len: int, log=dbx.Logger()):
         self.clip = clip
         self.src_idx = src_idx
         self.reported_len = reported_len
+        self.log = log
 
     def __call__(self):
         shard = dbx.eval_term(self.clip).shard(self.src_idx) \
             if isinstance(self.clip, str) else self.clip.shard(self.src_idx)
         if shard.valid():
-            return (self.src_idx, True, len(shard))
+            actual_len = len(shard)
+            if actual_len == self.reported_len:
+                self.log.verbose(f"Source shard {self.src_idx}: OK (len={actual_len})")
+            else:
+                self.log.warning(f"Source shard {self.src_idx}: length mismatch (reported={self.reported_len}, actual={actual_len})")
+            return (self.src_idx, True, actual_len)
         return (self.src_idx, False, -1)
 
     def __repr__(self):
@@ -670,7 +676,7 @@ class ShuffledClip(Clip):
             self.log.info(f"Validating {n_src_shards} source shards using {self.n_workers} workers: BEGIN")
 
             validators = [
-                SourceShardValidator(clip=dbx.quote(self.cfg.clip), src_idx=i, reported_len=shard_lens[i])
+                SourceShardValidator(clip=dbx.quote(self.cfg.clip), src_idx=i, reported_len=shard_lens[i], log=self.log)
                 for i in range(n_src_shards)
             ]
 
@@ -684,10 +690,7 @@ class ShuffledClip(Clip):
             for src_idx, is_valid, actual_len in results:
                 reported_len = shard_lens[src_idx]
                 if is_valid:
-                    if actual_len == reported_len:
-                        self.log.verbose(f"Source shard {src_idx}: OK (len={actual_len})")
-                    else:
-                        self.log.warning(f"Source shard {src_idx}: length mismatch (reported={reported_len}, actual={actual_len}); using actual")
+                    if actual_len != reported_len:
                         shard_lens[src_idx] = actual_len
                         n_mismatched += 1
                 else:
