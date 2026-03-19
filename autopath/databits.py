@@ -577,7 +577,7 @@ class SourceShardValidator:
         if shard.valid():
             actual_len = len(shard)
             if actual_len == self.reported_len:
-                self.log.verbose(f"Source shard {self.src_idx}: OK (len={actual_len})")
+                self.log.detailed(f"Source shard {self.src_idx}: OK (len={actual_len})")
             else:
                 self.log.warning(f"Source shard {self.src_idx}: length mismatch (reported={self.reported_len}, actual={actual_len})")
             return (self.src_idx, True, actual_len)
