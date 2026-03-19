@@ -574,13 +574,16 @@ class SourceShardValidator:
     def __call__(self):
         # Evaluate lazily so the list-comp that creates validators is cheap
         shard = self.clip.shard(self.src_idx)
-        if shard.valid():
+        shard_path = shard.path('bipolar_features') if 'bipolar_features' in getattr(shard, 'TOPICFILES', {}) else shard.hashpath()
+        is_valid = shard.valid()
+        if is_valid:
             actual_len = len(shard)
             if actual_len == self.reported_len:
-                self.log.detailed(f"Source shard {self.src_idx}: OK (len={actual_len})")
+                self.log.detailed(f"Source shard {self.src_idx}: OK (len={actual_len}) path={shard_path}")
             else:
-                self.log.warning(f"Source shard {self.src_idx}: length mismatch (reported={self.reported_len}, actual={actual_len})")
+                self.log.warning(f"Source shard {self.src_idx}: length mismatch (reported={self.reported_len}, actual={actual_len}) path={shard_path}")
             return (self.src_idx, True, actual_len)
+        self.log.warning(f"Source shard {self.src_idx}: MISSING path={shard_path}")
         return (self.src_idx, False, -1)
 
     def __repr__(self):
