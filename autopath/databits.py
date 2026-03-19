@@ -641,8 +641,7 @@ class ShuffledClip(Clip):
         validate_sources: bool = False,
         **kwargs,
     ):
-        super().__init__(*args, n_workers=n_workers, parallelization=parallelization, **kwargs)
-        self.validate_sources = validate_sources
+        super().__init__(*args, n_workers=n_workers, parallelization=parallelization, validate_sources=validate_sources, **kwargs)
 
     def __post_init__(self):
         assert 0 < self.cfg.fraction <= 1.0, (
