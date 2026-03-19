@@ -425,7 +425,7 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
 
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159', 1000)"
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020', 1000)"
+#
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
 # git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBXUSEWRKREPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
 def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
@@ -456,6 +456,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
     n_workers: int = 1,
     n_shuffle_queues: int = 1,
     parallelization: str = 'ray',
+    validate_sources: bool = False,
     cpu_parallelization: str = 'inline',
     gpu_parallelization: str = 'multithreading',
     n_devices: int = 1,
@@ -487,6 +488,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
         ),
         n_workers=n_workers,
         parallelization=parallelization,
+        validate_sources=validate_sources,
     )
 
 

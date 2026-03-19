@@ -603,9 +603,11 @@ class ShuffledClip(Clip):
         *args,
         n_workers: int = 1,
         parallelization: str | None = 'Ray',
+        validate_sources: bool = False,
         **kwargs,
     ):
         super().__init__(*args, n_workers=n_workers, parallelization=parallelization, **kwargs)
+        self.validate_sources = validate_sources
 
     def __post_init__(self):
         assert 0 < self.cfg.fraction <= 1.0, (
@@ -632,8 +634,41 @@ class ShuffledClip(Clip):
         self.log.verbose(f"Building ShuffledClip with {self.cfg.n_queues} queues: BEGIN")
         
         # Access shard_lens early to trigger any I/O
-        shard_lens = self.cfg.clip.shard_lens
-        N = len(self.cfg.clip)
+        shard_lens = list(self.cfg.clip.shard_lens)
+        n_src_shards = len(shard_lens)
+
+        # ------------------------------------------------------------------
+        # Probe source shards for readability — zero out missing ones
+        # ------------------------------------------------------------------
+        if self.validate_sources:
+            self.log.info(f"Validating {n_src_shards} source shards: BEGIN")
+            n_missing = 0
+            n_missing_samples = 0
+            n_mismatched = 0
+            for src_idx in range(n_src_shards):
+                shard = self.cfg.clip.shard(src_idx)
+                reported_len = shard_lens[src_idx]
+                if shard.valid():
+                    actual_len = len(shard)
+                    if actual_len == reported_len:
+                        self.log.verbose(f"Source shard {src_idx}: OK (len={actual_len})")
+                    else:
+                        self.log.warning(f"Source shard {src_idx}: length mismatch (reported={reported_len}, actual={actual_len}); using actual")
+                        shard_lens[src_idx] = actual_len
+                        n_mismatched += 1
+                else:
+                    if reported_len > 0:
+                        self.log.warning(f"Source shard {src_idx} is unreadable (reported len={reported_len}); zeroing out ({reported_len} datapoints lost)")
+                        n_missing_samples += reported_len
+                        shard_lens[src_idx] = 0
+                        n_missing += 1
+            if n_missing > 0:
+                self.log.warning(f"{n_missing}/{n_src_shards} source shards are unreadable ({n_missing_samples} total datapoints excluded)")
+            if n_mismatched > 0:
+                self.log.warning(f"{n_mismatched}/{n_src_shards} source shards had length mismatches (corrected)")
+            self.log.info(f"Validating {n_src_shards} source shards: END")
+
+        N = sum(shard_lens)
         n_samples = int(math.floor(N * self.cfg.fraction))
         n_shards = int(math.ceil(n_samples / self.cfg.shard_size))
 
@@ -798,9 +833,14 @@ class ShuffledClip(Clip):
         if build:
             return self.build().shards
 
-        N = len(self.cfg.clip)
-        n_samples = int(math.floor(N * self.cfg.fraction))
-        n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
+        # If already built, use the stored shard count (which reflects any
+        # source-shard filtering that happened during build).
+        if self.valid():
+            n_shards = len(self.shard_lens)
+        else:
+            N = len(self.cfg.clip)
+            n_samples = int(math.floor(N * self.cfg.fraction))
+            n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
         
         return [
             self.cfg.shuffled_shard_cls(
