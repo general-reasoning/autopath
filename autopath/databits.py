@@ -348,9 +348,14 @@ class ClipShardQueue:
         self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: BEGIN")
         shard = self.clip.shard(src_idx)
         
-        # Load and hold local references
-        tensor = shard.tensor
-        labels = shard.labels
+        # Load and hold local references — skip unreadable shards
+        try:
+            tensor = shard.tensor
+            labels = shard.labels
+        except Exception as e:
+            self.log.info(f"[Queue {self.queue_idx}] Skipping unreadable source shard {src_idx}: {e}")
+            self.current_src_ptr += 1
+            return
         
         offset = self.offsets[src_idx]
         _p_inv = self.p_inv # Fetch once from Object Store
@@ -526,10 +531,12 @@ class ShuffledShardMaker:
             shard_idx=self.shard_idx
         )
         shard = self.shuffled_shard_cls(root=self.root, spec=spec)
+        n_samples = len(tensor) if torch.is_tensor(tensor) else (tensor.shape[0] if hasattr(tensor, 'shape') else 0)
         if self.build:
             shard.build(tensor=tensor, labels=labels, indices=indices)
             del shard
             gc.collect()
+            return n_samples
         else:
             return shard
 
@@ -743,12 +750,10 @@ class ShuffledClip(Clip):
                 makers_itor = tqdm.tqdm(makers, desc="Building ShuffledClip shards")
             else:
                 makers_itor = makers
-            [maker() for maker in makers_itor]
+            shard_lens = [maker() for maker in makers_itor]
         else:
-            self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers, verbose=self.verbose)
+            shard_lens = list(self.PARALLELIZERS[self.parallelization]['callable'](n_workers=self.n_workers, log=self.log).execute(makers, verbose=self.verbose))
 
-        # Calculate and save shard lens without reading all shards back
-        shard_lens = [self.cfg.shard_size] * (n_shards - 1) + [n_samples - (n_shards - 1) * self.cfg.shard_size]
         dbx.write_npz(self.path(), shard_lens=shard_lens)
 
         self.log.verbose(f"Building ShuffledClip: END")
