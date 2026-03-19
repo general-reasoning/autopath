@@ -270,7 +270,7 @@ def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_ba
 def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_devices: int = 1, gpu_batch_size: int = 16, n_workers: int = 1, cpu_batch_size: int = None,
                                     cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
     ) -> FeatureBagMedianProbe:
-    return FeatureBagMedianProbe(spec=dict(featurebagclip=dbx.quote(gigapath_feature_bag_clip(name, tag=tag, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)),))
+    return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, tag=tag, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),))
 
 
 # git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
@@ -292,7 +292,7 @@ def gigapath_bipolar_feature_bags_probe(name,
                                         gpu_batch_size: int = 16,
     ) -> BipolarFeatureBagProbe:
     return BipolarFeatureBagProbe(
-        spec=dict(featurebagclip=dbx.quote(gigapath_feature_bag_clip(f"{name}_TRAIN", 
+        spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TRAIN", 
                                                             tag=tag,
                                                             gpu_parallelization=gpu_parallelization,
                                                             n_devices=n_devices, 
@@ -303,10 +303,10 @@ def gigapath_bipolar_feature_bags_probe(name,
                                                             bag_cpu_parallelization=bag_cpu_parallelization,
                                                             bag_cpu_batch_size=bag_cpu_batch_size,
                                                             bag_n_workers=bag_n_workers,
-                                                        )), 
-                  medianprobe=dbx.quote(gigapath_feature_bags_median_probe(f"{name}_CALIBRATE", 
+                                                        ), 
+                  medianprobe=gigapath_feature_bags_median_probe(f"{name}_CALIBRATE", 
                                                                  tag=tag,
-                                                                 n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)),
+                                                                 n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),
         ),
         devices=[f'cuda:{i}' for i in range(n_devices)],
     )
