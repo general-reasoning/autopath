@@ -473,8 +473,7 @@ def gigapath_bipolar_shuffled_featurebag_clip(
     if name is None:
         return ShuffledClip
     featureclip = gigapath_bipolar_feature_bag_clip(
-        name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size,
-        cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization
+        name, root=root,
     )
     return ShuffledClip(
         root=root,
