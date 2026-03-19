@@ -681,7 +681,7 @@ class ShuffledClip(Clip):
             ]
 
             par_key = (self.parallelization or 'inline').lower()
-            executor = self.PARALLELIZERS[par_key]['callable'](n_workers=self.n_workers, log=self.log)
+            executor = self.PARALLELIZERS[par_key]['callable'](n_workers=self.n_workers, log=self.log, tag="Validating source shards")
             results = list(executor.execute(validators))
 
             n_missing = 0
