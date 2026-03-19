@@ -579,13 +579,12 @@ class BipolarFeatureBagClip(Clip):
     def bag(self, idx: int):
         if hasattr(self, '_bags'):
             return self._bags[idx]
-        featurebag = self.cfg.probe.cfg.featurebagclip.bag(idx)
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
-                probe=self.spec['probe'],
+                probe=self.cfg.probe,
                 bag_index=idx,
-                featurebag=dbx.quote(featurebag), 
+                featurebag=self.cfg.probe.cfg.featurebagclip.bag(idx), 
             ),
             tag=self.tag,
         )
@@ -670,13 +669,12 @@ class BipolarSingleFeatureBagClip(Clip):
         if hasattr(self, '_bags'):
             return self._bags[0]
         real_idx = self.cfg.idx
-        featurebag = self.cfg.probe.cfg.featurebagclip.bag(real_idx)
         bag = BipolarFeatureBag(
             root=self._root_,
             spec=dict(
-                probe=self.spec['probe'],
+                probe=self.cfg.probe,
                 bag_index=real_idx,
-                featurebag=dbx.quote(featurebag),
+                featurebag=self.cfg.probe.cfg.featurebagclip.bag(real_idx),
             ),
             tag=self.tag,
         )
