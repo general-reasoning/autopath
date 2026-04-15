@@ -34,6 +34,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 import scipy as sp
+from scipy.sparse.linalg import svds as scipy_svds
+from scipy.sparse.linalg import LinearOperator as ScipyLinearOperator
 
 
 import ray
@@ -432,6 +434,292 @@ class SidebandBackboneEvaluator(BackboneEvaluator):
         return self
 
 
+class SpectralProbe:
+    """Estimates singular values of layer-to-layer Jacobians dh_{l+1}/dh_l.
+
+    Treats each transformer block as a map F_l : h_l -> h_{l+1} and estimates
+    the singular value spectrum of its Jacobian.  Two modes are available:
+
+        * **cls** — materialises the d×d Jacobian restricted to the CLS token
+          and computes a full dense SVD.  Fast and gives the complete spectrum.
+
+        * **full** — uses JVP/VJP to define a LinearOperator for the full
+          (Nd)×(Nd) Jacobian and calls scipy.sparse.linalg.svds for the top-k
+          and bottom-k singular values.  Memory-efficient but slower.
+
+    Args:
+        backbone:       The GigapathVisionTransformer model (already on device).
+        probe_blocks:   Which block indices to probe (e.g. [0, 10, 20, 30, 39]).
+        k:              Number of extreme singular values to estimate in full mode.
+        device:         Torch device string.
+    """
+
+    def __init__(
+        self,
+        backbone,
+        probe_blocks: List[int],
+        k: int = 10,
+        device: str = 'cuda',
+        log: dbx.Logger = dbx.Logger(name='SpectralProbe', stack_depth=3),
+    ):
+        self.backbone = backbone
+        self.probe_blocks = probe_blocks
+        self.k = k
+        self.device = device
+        self.log = log
+        self._blocks = backbone_blocks(backbone)
+
+    # ------------------------------------------------------------------
+    #  Internal helpers
+    # ------------------------------------------------------------------
+
+    def _block_fn(self, block_idx: int):
+        """Return a pure function h -> block(h) for a single block."""
+        block = self._blocks[block_idx]
+        def fn(h):
+            return block(h)
+        return fn
+
+    # ------------------------------------------------------------------
+    #  Mode 1: CLS-token-only  (d × d, fully materialisable)
+    # ------------------------------------------------------------------
+
+    def _probe_cls(self, block_idx: int, h: torch.Tensor) -> np.ndarray:
+        """Materialise the d×d CLS-token Jacobian and return all singular values.
+
+        Args:
+            block_idx:  Index of the block.
+            h:          Activation tensor, shape (B, N, d): 
+                - B is batch size
+                - N is number of tokens
+                - d is embedding dimension
+                Only the CLS token (index 0) of sample 0 from the batch is used.
+
+        Returns:
+            Singular values as a 1-D numpy array in decreasing order, length d.
+        """
+        block = self._blocks[block_idx]
+        d = h.shape[-1]
+        h0 = h[0:1].detach().clone().requires_grad_(True)          # (1, N, d)
+
+        def cls_fn(cls_vec):
+            """Replace the CLS token, run the block, return the output CLS token."""
+            h_in = h0.clone()
+            h_in[0, 0, :] = cls_vec
+            h_out = block(h_in)
+            return h_out[0, 0, :]                                  # (d,)
+
+        J = torch.autograd.functional.jacobian(cls_fn, h0[0, 0, :].detach())   # (d, d)
+        sv = torch.linalg.svdvals(J.float()).cpu().numpy()
+        return sv
+
+    # ------------------------------------------------------------------
+    #  Mode 2: Full-sequence matrix-free  (Nd × Nd, via JVP / VJP)
+    # ------------------------------------------------------------------
+
+    def _probe_full(self, block_idx: int, h: torch.Tensor) -> Tuple[np.ndarray, np.ndarray]:
+        """Estimate top-k and bottom-k singular values of the full Jacobian.
+
+        Uses torch.func.jvp / vjp wrapped in a scipy LinearOperator fed to
+        scipy.sparse.linalg.svds.
+
+        Args:
+            block_idx:  Index of the block.
+            h:          Activation tensor, shape (B, N, d).  Only sample 0 is used.
+
+        Returns:
+            (s_top, s_bot) — each a 1-D numpy array of length k.
+        """
+        block = self._blocks[block_idx]
+        B, N, d = h.shape
+        flat_dim = N * d
+        h0 = h[0:1].detach()                                      # (1, N, d)
+        dtype = h.dtype
+        k = min(self.k, flat_dim - 1)                              # svds requires k < min(m,n)
+
+        def flat_fn(flat_h):
+            return block(flat_h.view(1, N, d)).view(flat_dim)
+
+        def matvec(v):
+            """J @ v  via JVP."""
+            v_t = torch.tensor(v, device=self.device, dtype=dtype).view(flat_dim)
+            _, jvp_out = torch.func.jvp(flat_fn, (h0.view(flat_dim),), (v_t,))
+            return jvp_out.detach().cpu().numpy().astype(np.float64)
+
+        def rmatvec(u):
+            """J^T @ u  via VJP."""
+            u_t = torch.tensor(u, device=self.device, dtype=dtype).view(flat_dim)
+            _, vjp_fn = torch.func.vjp(flat_fn, h0.view(flat_dim))
+            v = vjp_fn(u_t)[0]
+            return v.detach().cpu().numpy().astype(np.float64)
+
+        J_op = ScipyLinearOperator(
+            shape=(flat_dim, flat_dim),
+            matvec=matvec,
+            rmatvec=rmatvec,
+            dtype=np.float64,
+        )
+
+        # Top-k singular values
+        try:
+            _, s_top, _ = scipy_svds(J_op, k=k, which='LM')
+            s_top = np.sort(s_top)[::-1]
+        except Exception as e:
+            self.log.warning(f"scipy_svds (LM) failed for block {block_idx}: {e}")
+            s_top = np.full(k, np.nan)
+
+        # Bottom-k singular values
+        try:
+            _, s_bot, _ = scipy_svds(J_op, k=k, which='SM')
+            s_bot = np.sort(s_bot)
+        except Exception as e:
+            self.log.warning(f"svds (SM) failed for block {block_idx}: {e}")
+            s_bot = np.full(k, np.nan)
+
+        return s_top, s_bot
+
+    # ------------------------------------------------------------------
+    #  Public API
+    # ------------------------------------------------------------------
+
+    def probe(
+        self,
+        activations: Dict[int, torch.Tensor],
+        mode: str = 'cls',
+    ) -> Dict[int, dict]:
+        """Run the spectral probe on pre-captured activations.
+
+        Args:
+            activations:  Mapping from block index to activation tensor (B, N, d),
+                          as captured by SidebandBackboneEvaluator hooks.
+            mode:         ``'cls'`` for CLS-token-only, ``'full'`` for matrix-free,
+                          or ``'both'`` to run both.
+
+        Returns:
+            Dict mapping block_idx -> result dict with keys depending on mode:
+                cls:  {'singular_values': ndarray of shape (d,)}
+                full: {'top_singular_values': ndarray, 'bottom_singular_values': ndarray,
+                       'condition_number': float}
+        """
+        results = {}
+        for block_idx in self.probe_blocks:
+            if block_idx not in activations:
+                self.log.warning(f"No activation captured for block {block_idx}, skipping")
+                continue
+
+            h = activations[block_idx]
+            self.log.debug(f"Probing block {block_idx}, h.shape={tuple(h.shape)}, mode={mode}")
+            entry = {}
+
+            if mode in ('cls', 'both'):
+                sv = self._probe_cls(block_idx, h)
+                entry['singular_values'] = sv
+                entry['log_singular_values'] = np.log(np.clip(sv, 1e-12, None))
+                entry['condition_number_cls'] = float(sv[0] / (sv[-1] + 1e-12))
+
+            if mode in ('full', 'both'):
+                s_top, s_bot = self._probe_full(block_idx, h)
+                entry['top_singular_values'] = s_top
+                entry['bottom_singular_values'] = s_bot
+                entry['condition_number_full'] = float(s_top[0] / (s_bot[0] + 1e-12))
+
+            results[block_idx] = entry
+        return results
+
+
+class SpectralBackboneEvaluator(SidebandBackboneEvaluator):
+    """Backbone evaluator that also probes the Jacobian singular-value spectrum.
+
+    Subclasses SidebandBackboneEvaluator, reusing its forward-hook
+    infrastructure to capture intermediate activations at the probed blocks.
+    After each forward pass, a SpectralProbe is run on the captured
+    activations to estimate the Jacobian spectrum.
+
+    The spectral results are available via the ``spectral_results`` property
+    after calling the evaluator.
+
+    Args:
+        backbone:             Backbone model (or string to lazy-eval).
+        transform:            Image preprocessing transform.
+        capture_blocks:       Block indices for SidebandBackboneEvaluator hooks.
+        spectral_probe_blocks: Block indices to probe for Jacobian spectrum.
+                              Defaults to ``capture_blocks`` if not provided.
+        spectral_mode:        ``'cls'``, ``'full'``, or ``'both'``.
+        spectral_k:           Number of extreme singular values for full mode.
+        device:               Torch device string.
+    """
+
+    def __init__(
+        self,
+        backbone=None,
+        *,
+        transform=None,
+        capture_blocks: Optional[List[int]] = None,
+        capture_layers: Optional[List[str]] = None,
+        spectral_probe_blocks: Optional[List[int]] = None,
+        spectral_mode: str = 'cls',
+        spectral_k: int = 10,
+        device: str = 'cuda',
+    ):
+        # Ensure the spectral probe blocks are also captured by the sideband hooks
+        spectral_probe_blocks = spectral_probe_blocks or capture_blocks or []
+        if capture_blocks is None:
+            capture_blocks = spectral_probe_blocks
+        else:
+            # Merge: sideband must capture at least the spectral blocks
+            capture_blocks = sorted(set(capture_blocks) | set(spectral_probe_blocks))
+
+        super().__init__(
+            backbone,
+            transform=transform,
+            capture_blocks=capture_blocks,
+            capture_layers=capture_layers,
+            device=device,
+        )
+        self.spectral_probe_blocks = spectral_probe_blocks
+        self.spectral_mode = spectral_mode
+        self.spectral_k = spectral_k
+        self._spectral_probe = None
+        self._spectral_results = None
+
+    @property
+    def spectral_probe(self) -> SpectralProbe:
+        if self._spectral_probe is None and self.spectral_probe_blocks:
+            self._spectral_probe = SpectralProbe(
+                backbone=self.backbone,
+                probe_blocks=self.spectral_probe_blocks,
+                k=self.spectral_k,
+                device=self.device,
+            )
+        return self._spectral_probe
+
+    def __call__(self, x):
+        # Normal forward pass (populates self.sideband via hooks)
+        z = super().__call__(x)
+
+        # Run spectral probe on the captured activations
+        if self.spectral_probe is not None and self._sideband:
+            # Build activations dict from sideband: hook keys are "block.{idx}"
+            activations = {}
+            for b in self.spectral_probe_blocks:
+                key = f"block.{b}"
+                if key in self._sideband and self._sideband[key] is not None:
+                    activations[b] = self._sideband[key].to(self.device)
+            if activations:
+                self._spectral_results = self.spectral_probe.probe(
+                    activations, mode=self.spectral_mode,
+                )
+
+        return z
+
+    @property
+    def spectral_results(self) -> Optional[Dict[int, dict]]:
+        """Spectral probe results from the last forward pass, keyed by block index."""
+        return self._spectral_results
+
+    def clear_spectral_results(self):
+        self._spectral_results = None
+        return self
 
 
 # DEPRECATED: internalize attention capture in a BackboneEvaluator and remove

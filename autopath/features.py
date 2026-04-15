@@ -704,10 +704,255 @@ class BipolarSingleFeatureBagClip(Clip):
         return self.n_bags
 
 
+class SpectralFeatureBagMaker:
+    def __init__(self, clip, idx):
+        self.clip = clip
+        self.idx = idx
+    def __call__(self):
+        return dbx.eval_term(self.clip).bag(self.idx)
+    def __repr__(self):
+        return f"SpectralFeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
 
-        
+
+class SpectralFeatureBag(Bag):
+    """A Bag that stores the Jacobian singular-value spectrum at probed layers.
+
+    For each probed block, stores:
+      - **cls mode**: ``singular_values`` (full d-dimensional spectrum)
+      - **full mode**: ``top_singular_values`` and ``bottom_singular_values`` (k each)
+
+    The extractor must be a ``SpectralBackboneEvaluator`` (or compatible).
+    Topic files are named ``spectrum_block_{b}.npz`` for each probed block.
+    """
+
+    VERSION = 1
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        tilebag: TileBag
+        extractor: Callable   # must be a SpectralBackboneEvaluator
+
+    def __init__(self, *args, gpu_batch_size: int = 16, **kwargs):
+        Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, **kwargs)
+
+    def __post_init__(self):
+        self.TOPICFILES = {}
+        for b in self.cfg.extractor.spectral_probe_blocks:
+            self.TOPICFILES[f'spectrum_block_{b}'] = f'spectrum_block_{b}.npz'
+        return self
+
+    @property
+    def spectral_mode(self):
+        return self.cfg.extractor.spectral_mode
+
+    @property
+    def probe_blocks(self):
+        return self.cfg.extractor.spectral_probe_blocks
+
+    @property
+    def name(self):
+        return self.cfg.tilebag.name
+
+    @property
+    def label(self):
+        return self.cfg.tilebag.label
+
+    def __len__(self):
+        return len(self.cfg.tilebag.tiles)
+
+    def __build__(self, extractor=None):
+        if extractor is None:
+            extractor = self.cfg.extractor
+
+        tilebag = self.cfg.tilebag
+        n_tiles = len(tilebag.tiles)
+
+        # Accumulate spectral results across GPU batches.
+        # For each block we collect a list of per-batch result dicts.
+        accumulated = {b: [] for b in extractor.spectral_probe_blocks}
+
+        for k in range(math.ceil(n_tiles / self.gpu_batch_size)):
+            m = k * self.gpu_batch_size
+            n = min((k + 1) * self.gpu_batch_size, n_tiles)
+            batch = tilebag.tiles[m:n].to(self.device)
+            self.log.verbose(f"Evaluating batch {k}: {m}:{n} out of {n_tiles} on device: {self.device}")
+
+            # Forward pass — populates extractor.spectral_results
+            _ = extractor(batch)
+
+            spectral = extractor.spectral_results
+            if spectral is not None:
+                for b in extractor.spectral_probe_blocks:
+                    if b in spectral:
+                        accumulated[b].append(spectral[b])
+            extractor.clear_spectral_results()
+            extractor.clear_sideband()
+            del batch
+            gc.collect()
+            torch.cuda.empty_cache()
+
+        # Average the spectra across batches and write to disk
+        for b in extractor.spectral_probe_blocks:
+            entries = accumulated[b]
+            if not entries:
+                self.log.warning(f"No spectral results for block {b}")
+                continue
+
+            result = {}
+            mode = extractor.spectral_mode
+
+            if mode in ('cls', 'both'):
+                sv_stack = np.stack([e['singular_values'] for e in entries])
+                result['singular_values_mean'] = np.mean(sv_stack, axis=0)
+                result['singular_values_std'] = np.std(sv_stack, axis=0)
+                result['log_singular_values_mean'] = np.mean(
+                    np.log(np.clip(sv_stack, 1e-12, None)), axis=0
+                )
+                result['n_batches'] = np.array(len(entries))
+
+            if mode in ('full', 'both'):
+                top_stack = np.stack([e['top_singular_values'] for e in entries])
+                bot_stack = np.stack([e['bottom_singular_values'] for e in entries])
+                result['top_singular_values_mean'] = np.mean(top_stack, axis=0)
+                result['top_singular_values_std'] = np.std(top_stack, axis=0)
+                result['bottom_singular_values_mean'] = np.mean(bot_stack, axis=0)
+                result['bottom_singular_values_std'] = np.std(bot_stack, axis=0)
+                result['n_batches'] = np.array(len(entries))
+
+            write_npz(self.path(f'spectrum_block_{b}', ensure_dirpath=True), **result)
+
+        self._len = n_tiles
+        return self
+
+    def __read__(self, topic: str):
+        keys = list(self.TOPICFILES.keys())
+        if topic not in keys:
+            raise ValueError(f"Unknown {topic=}, expected one of {keys}")
+        return read_npz(self.path(topic))
+
+    def spectrum(self, block_idx: int):
+        """Read the stored spectrum for a given block index."""
+        return self.read(f'spectrum_block_{block_idx}')
+
+    @functools.cached_property
+    def labels(self):
+        return list(zip(self.cfg.tilebag.labels, self.cfg.tilebag.tiles))
 
 
+class SpectralFeatureBagClip(Clip):
+    """A Clip of SpectralFeatureBags — one per tile bag in a tile-bag clip.
 
+    Builds each SpectralFeatureBag using GPU parallelization (same pattern
+    as FeatureBagClip), storing the Jacobian singular-value spectra at
+    probed layers for every bag in the clip.
+    """
 
-        
+    VERSION = 1
+    TOPICFILES = {"bag_lens": "bag_lens.npy"}
+
+    @dataclass
+    class CONFIG:
+        tilebagclip: Clip
+        extractor: Callable   # must be a SpectralBackboneEvaluator
+
+    def __init__(self, *, tag: str | None = None, n_workers: int = 1,
+                 devices: list[str] = ["cuda"],
+                 gpu_batch_size: int = 16,
+                 cpu_batch_size: int | None = None,
+                 skip_unreadable: bool = True,
+                 gpu_parallelization: str = 'multithreading',
+                 cpu_parallelization: str | None = None,
+                 bag_n_workers: int = 1,
+                 bag_cpu_batch_size: int | None = None,
+                 bag_cpu_parallelization: str | None = None,
+                 **kwargs):
+        super().__init__(
+            n_workers=n_workers, devices=devices,
+            gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size,
+            skip_unreadable=skip_unreadable,
+            gpu_parallelization=gpu_parallelization,
+            cpu_parallelization=cpu_parallelization,
+            tag=tag, **kwargs,
+        )
+        self.bag_n_workers = bag_n_workers
+        self.bag_cpu_batch_size = bag_cpu_batch_size
+        self.bag_cpu_parallelization = bag_cpu_parallelization
+        self.executor_cls = get_executor_cls(cpu_parallelization)
+        self.bag_executor_cls = get_executor_cls(bag_cpu_parallelization)
+        self.builder_cls = {
+            'multiprocessing': TorchMultiprocessingDatablocksBuilder,
+            'multithreading': TorchMultithreadingDatablocksBuilder,
+        }[gpu_parallelization.lower()]
+
+    def __build__(self):
+        bags = self.bags
+        self.log.verbose(f"Formed {len(bags)} SpectralFeatureBags.  Looking for missing bags.")
+        missing_bags = [bag for bag in bags if not bag.valid()]
+        self.log.verbose(f"Found {len(missing_bags)} missing bags")
+        self.log.verbose(f"Building {len(missing_bags)} missing spectral bags using devices {self.devices} and gpu_batch_size {self.gpu_batch_size}")
+        built_bags = self.builder_cls(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)
+        self.log.verbose(f"Built {len(built_bags)} missing spectral bags")
+        self.log.verbose(f"Building {len(bags)} bag_lens: BEGIN")
+        executor = self.executor_cls(n_workers=self.n_workers, batch_size=self.cpu_batch_size, log=self.log)
+        executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
+        bag_lens_list = executor.execute(executables)
+        bag_lens = torch.tensor(bag_lens_list)
+        self.log.verbose(f"Building {len(bags)} bag_lens: END")
+        dbx.write_tensor(bag_lens, self.path("bag_lens", ensure_dirpath=True))
+        return self
+
+    def __read__(self, topic):
+        if topic == "bag_lens":
+            return dbx.read_tensor(self.path("bag_lens"))
+        raise ValueError(f"Unknown {topic=}")
+
+    @property
+    def bags(self):
+        if not hasattr(self, '_bags'):
+            self.log.verbose(f"FORMING SpectralFeatureBags: BEGIN")
+            n_bags = self.cfg.tilebagclip.n_bags
+            executables = [SpectralFeatureBagMaker(self, idx) for idx in range(n_bags)]
+            results = self.bag_executor_cls(
+                n_workers=self.bag_n_workers, log=self.log,
+                batch_size=self.bag_cpu_batch_size,
+                tag='SpectralFeatureBagClip bag formation',
+            ).execute(executables)
+            self._bags = list(results)
+            self.log.verbose(f"FORMING SpectralFeatureBags: END")
+        return self._bags
+
+    def bag(self, idx: int):
+        if hasattr(self, '_bags'):
+            return self._bags[idx]
+        tilebag = self.cfg.tilebagclip.bag(idx)
+        bag = SpectralFeatureBag(
+            root=self._root_,
+            spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor']),
+            gpu_batch_size=self.gpu_batch_size,
+            revision=self.revision,
+            tag=self.tag,
+        )
+        return bag
+
+    def shard(self, idx: int):
+        return self.bag(idx)
+
+    @property
+    def shards(self):
+        return self.bags
+
+    @property
+    def n_bags(self):
+        return self.cfg.tilebagclip.n_bags
+
+    @property
+    def n_shards(self):
+        return self.n_bags
+
+    @functools.cached_property
+    def bag_lens(self):
+        return self.read("bag_lens")
+
+    @property
+    def shard_lens(self):
+        return self.bag_lens

@@ -25,6 +25,8 @@ from autopath.features import (
     FeaturesLabelTileToFloat,
     BipolarFeatureBagClip,
     BipolarSingleFeatureBagClip,
+    SpectralFeatureBag,
+    SpectralFeatureBagClip,
 )
 
 from autopath.pancan.probes import (
@@ -48,6 +50,13 @@ from autopath.models.hydro import (
     HydroStill,
 )
 
+from autopath.gigaq.dinov2.backbone import (
+    BackboneEvaluator,
+    SidebandBackboneEvaluator,
+    SpectralBackboneEvaluator,
+    GIGAPATH_BACKBONE_DEPTH,
+)
+
 
 mp.set_start_method("spawn", force=True)
 
@@ -56,17 +65,12 @@ def quote_extractor(name, sideband: bool = False, capture_blocks: Optional[List[
             return dbx.quote(gigapath_backbone_evaluator, name, sideband=True, capture_blocks=capture_blocks)
         else:
             return dbx.quote(gigapath_backbone_evaluator, name)
+
+def quote_spectral_extractor(name='GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR'):
+        return dbx.quote(gigapath_backbone_evaluator, name)
         
 
 def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
-    # Lazy import: backbone pulls in dinov2/xformers which initialise CUDA
-    # extensions at import time.  Keeping it here means workers that only
-    # do bag-formation never pay that startup cost.
-    from autopath.gigaq.dinov2.backbone import (
-        BackboneEvaluator,
-        SidebandBackboneEvaluator,
-        GIGAPATH_BACKBONE_DEPTH,
-    )
     def select_capture_blocks(n_blocks: int = 1):
         if n_blocks <= 0 or n_blocks > GIGAPATH_BACKBONE_DEPTH:
             return None
@@ -78,6 +82,14 @@ def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
     elif name == "GIGAPATH_BASELINE_BACKBONE_5BLOCK_EVALUATOR":
         capture_blocks = select_capture_blocks(n_blocks=5)
         return SidebandBackboneEvaluator(device=device, capture_blocks=capture_blocks)
+    elif name == "GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR":
+        probe_blocks = select_capture_blocks(n_blocks=5)
+        return SpectralBackboneEvaluator(
+            device=device,
+            spectral_probe_blocks=probe_blocks,
+            spectral_mode='cls',
+            spectral_k=10,
+        )
     else:
         raise ValueError(f"Unknown backbone evaluator: {name}")
 
@@ -109,9 +121,9 @@ def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TEST', n_workers=16).build()"
 #
-# git commit -am "gigaq: FeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=16, cpu_parallelization='ray').build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', n_workers=16, cpu_parallelization='ray').build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TEST', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TEST', n_workers=16, cpu_parallelization='ray').build()"
 
 @tagged
 def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:str = None, n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, cpu_batch_size: int = None,
@@ -929,4 +941,66 @@ def gigapath_feature_2nn_dim(name) -> Feature2NNDim:
     return Feature2NNDim(
                     spec=dict(features_2nn_distances=dbx.quote(gigapath_feature_2nn_distances, name),),
         )
+
+
+# =============================================================================
+#  Spectral probing pipelines
+# =============================================================================
+
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_SPECTRAL_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=64).build()"
+def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> SpectralFeatureBag:
+    if name is None:
+        return SpectralFeatureBag
+    elif name == "GIGAPATH_SPECTRAL_CPTAC_SAMPLE":
+        return SpectralFeatureBag(
+            root=root,
+            spec=dict(
+                tilebag=dbx.quote(pancan_tile_bag, 'CPTAC_SAMPLE'),
+                extractor=quote_spectral_extractor('GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR'),
+        ))
+    else:
+        raise ValueError(f"Unknown spectral feature bag: {name}")
+
+
+# git commit -am "gigaq: SpectralFeatureBagClip: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag_clip('GIGAPATH_SPECTRAL_CPTAC_200179_TEST', n_workers=16).build()"
+@tagged
+def gigapath_spectral_feature_bag_clip(name: str = None, *, tag: str | None = None, root: str = None,
+                                       n_workers: int = 1, n_devices: int = 1,
+                                       gpu_batch_size: int = 1,
+                                       cpu_batch_size: int | None = None,
+                                       gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'multithreading',
+                                       cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'ray',
+                                       bag_n_workers: int = 1,
+                                       bag_cpu_batch_size: int | None = None,
+                                       bag_cpu_parallelization: str | None = None,
+    ) -> SpectralFeatureBagClip:
+    devices = [f'cuda:{i}' for i in range(n_devices)]
+    if name is None:
+        return SpectralFeatureBagClip
+    extractor = quote_spectral_extractor('GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR')
+    if name == "GIGAPATH_SPECTRAL_CPTAC_200179_TEST":
+        tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TEST')
+    elif name == "GIGAPATH_SPECTRAL_CPTAC_200179_TRAIN":
+        tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TRAIN')
+    elif name == "GIGAPATH_SPECTRAL_CPTAC_200179_CALIBRATE":
+        tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_CALIBRATE')
+    else:
+        raise ValueError(f"Unknown spectral feature clip: {repr(name)}")
+    return SpectralFeatureBagClip(
+        root=root,
+        spec=dict(
+            extractor=extractor,
+            tilebagclip=tilebagclip,
+        ),
+        n_workers=n_workers,
+        devices=devices,
+        gpu_batch_size=gpu_batch_size,
+        cpu_batch_size=cpu_batch_size,
+        gpu_parallelization=gpu_parallelization,
+        cpu_parallelization=cpu_parallelization,
+        bag_n_workers=bag_n_workers,
+        bag_cpu_batch_size=bag_cpu_batch_size,
+        bag_cpu_parallelization=bag_cpu_parallelization,
+        tag=tag,
+    )
 
