@@ -741,7 +741,7 @@ class SpectralFeatureBag(Bag):
             self.TOPICFILES[f'spectrum_block_{b}'] = f'spectrum_block_{b}.npz'
         # Composed Jacobian topic (first → last probed block).
         # Always CLS-based, independent of per-block spectral_mode.
-        if len(self.cfg.extractor.spectral_probe_blocks) >= 2:
+        if len(self.TOPICFILES) >= 2:
             self.TOPICFILES['spectrum_composed'] = 'spectrum_composed.npz'
         return self
 
