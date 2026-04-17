@@ -948,6 +948,7 @@ def gigapath_feature_2nn_dim(name) -> Feature2NNDim:
 # =============================================================================
 
 # git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_SPECTRAL_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=64).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_SPECTRAL_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=1024).build()"
 def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> SpectralFeatureBag:
     if name is None:
         return SpectralFeatureBag
