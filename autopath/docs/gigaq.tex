@@ -7,6 +7,8 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{bm}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta, decorations.pathreplacing}
 
 \definecolor{emphasis}{HTML}{4A90D9}
 \definecolor{warning}{HTML}{D95B5B}
@@ -48,6 +50,197 @@ low-dimensional attractor.  The geometry of this attractor is
 characterised by the \emph{Lyapunov spectrum}: the rates at which
 infinitesimally nearby trajectories (i.e.\ nearby inputs) diverge or
 converge as they propagate through the layers.
+
+%% ================================================================
+\section{GigaPath Backbone Architecture}
+
+The GigaPath tile encoder is a DINOv2-giant Vision Transformer (ViT-g)
+with $L=40$ layers, embedding dimension $d=1536$, $24$ attention heads
+(head dimension $d_h=64$), and a SwiGLU MLP with hidden dimension $4096$
+(gated via an $8192$-wide intermediate).  The full architecture is shown
+in Figure~\ref{fig:backbone}.
+
+\begin{figure}[htp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    >=latex,
+    node distance=0.9cm and 1.4cm,
+    % Styles
+    tensor/.style={draw, rounded corners=2pt, fill=blue!8,
+        minimum height=0.7cm, minimum width=2.4cm, font=\footnotesize,
+        align=center},
+    op/.style={draw, rounded corners=3pt, fill=orange!15,
+        minimum height=0.6cm, minimum width=2.0cm, font=\footnotesize,
+        align=center},
+    branch/.style={draw, rounded corners=3pt, fill=green!12,
+        minimum height=0.6cm, minimum width=2.0cm, font=\footnotesize,
+        align=center},
+    residual/.style={draw, circle, fill=yellow!25, inner sep=1pt,
+        font=\footnotesize},
+    dim/.style={font=\tiny\sffamily, text=blue!70!black},
+    arr/.style={->, thick},
+    darr/.style={->, thick, dashed, gray},
+    block/.style={draw, thick, rounded corners=4pt, fill=gray!5,
+        inner sep=6pt},
+    blockhead/.style={font=\small\bfseries, text=black!80},
+]
+
+% ===== Left column: full pipeline =====
+\node[tensor] (img) {Input Image};
+\node[dim, right=0.1cm of img] {$(B,3,224,224)$};
+
+\node[op, below=0.6cm of img] (patch) {Patch Embed\\{\tiny Conv2d $16\!\times\!16$, stride $16$}};
+\draw[arr] (img) -- (patch);
+\node[dim, right=0.1cm of patch] {$\to (B,196,1536)$};
+
+\node[op, below=0.6cm of patch] (cls) {Prepend CLS Token};
+\draw[arr] (patch) -- (cls);
+\node[dim, right=0.1cm of cls] {$\to (B,197,1536)$};
+
+\node[op, below=0.6cm of cls] (pos) {$+$ Positional\\Embedding};
+\draw[arr] (cls) -- (pos);
+\node[dim, right=0.1cm of pos] {$(B,197,1536)$};
+
+% Transformer stack
+\node[block, below=0.8cm of pos, minimum width=3.5cm, minimum height=1.8cm]
+    (stack) {};
+\node[blockhead, anchor=north] at (stack.north) {Transformer Blocks};
+\node[font=\footnotesize, text=gray!80] at (stack.center)
+    {$\times\, 40$ blocks\\$l = 0, 1, \ldots, 39$};
+\draw[arr] (pos) -- (stack.north);
+\node[dim, right=0.1cm of stack] {$(B,197,1536)$};
+\node[dim, right=0.1cm of stack, yshift=-0.4cm]
+    {$\xrightarrow[\text{each block}]{} \vect{h}_{l+1}$};
+
+\node[op, below=0.8cm of stack] (norm) {LayerNorm};
+\draw[arr] (stack.south) -- (norm);
+\node[dim, right=0.1cm of norm] {$(B,197,1536)$};
+
+\node[op, below=0.6cm of norm] (head) {Head (Identity)\\extract CLS};
+\draw[arr] (norm) -- (head);
+\node[dim, right=0.1cm of head] {$\to (B,1536)$};
+
+\node[tensor, below=0.6cm of head] (out) {Output Features};
+\draw[arr] (head) -- (out);
+\node[dim, right=0.1cm of out] {$(B,1536)$};
+
+% ===== Right column: single block detail =====
+% Position the detail block to the right
+\coordinate (detailorigin) at ($(stack.east) + (4.5cm, 3.2cm)$);
+
+\node[block, anchor=north west, minimum width=7.8cm, minimum height=13.8cm]
+    (detail) at (detailorigin) {};
+\node[blockhead, anchor=north] at (detail.north)
+    {Transformer Block $l$ (detail)};
+
+% --- Input ---
+\node[tensor, below=0.6cm of detail.north] (hin)
+    {$\vect{h}_l$};
+\node[dim, right=0.1cm of hin] {$(B,197,1536)$};
+
+% --- Attention Sublayer ---
+\node[op, below=0.5cm of hin] (ln1) {LayerNorm};
+\draw[arr] (hin) -- (ln1);
+
+\node[op, below=0.4cm of ln1] (qkv)
+    {QKV Linear\\{\tiny $1536 \to 3 \times 1536$}};
+\draw[arr] (ln1) -- (qkv);
+\node[dim, right=0.1cm of qkv] {$\to (B,197,4608)$};
+
+\node[op, below=0.4cm of qkv] (qknorm)
+    {q\_norm, k\_norm};
+\draw[arr] (qkv) -- (qknorm);
+
+\node[op, below=0.4cm of qknorm] (mha)
+    {Multi-Head Attention\\{\tiny 24 heads, $d_h\!=\!64$}};
+\draw[arr] (qknorm) -- (mha);
+\node[dim, right=0.1cm of mha] {$(B,24,197,64)$};
+
+\node[op, below=0.4cm of mha] (proj)
+    {Output Proj\\{\tiny $1536 \to 1536$}};
+\draw[arr] (mha) -- (proj);
+\node[dim, right=0.1cm of proj] {$(B,197,1536)$};
+
+\node[branch, below=0.4cm of proj] (ls1)
+    {LayerScale ($\gamma_1$)};
+\draw[arr] (proj) -- (ls1);
+
+% Residual Add 1
+\node[residual, below=0.4cm of ls1] (add1) {$+$};
+\draw[arr] (ls1) -- (add1);
+% Residual skip from input
+\draw[darr] (hin.west) -- ++(-0.6cm,0) |- (add1.west);
+
+% --- MLP Sublayer ---
+\node[op, below=0.5cm of add1] (ln2) {LayerNorm};
+\draw[arr] (add1) -- (ln2);
+
+\node[op, below=0.4cm of ln2] (fc1)
+    {fc1 (Linear)\\{\tiny $1536 \to 8192$}};
+\draw[arr] (ln2) -- (fc1);
+\node[dim, right=0.1cm of fc1] {$(B,197,8192)$};
+
+\node[op, below=0.4cm of fc1] (gate)
+    {SwiGLU Gate\\{\tiny split $\to 2 \times 4096$}\\
+     {\tiny SiLU$(x_1) \odot x_2$}};
+\draw[arr] (fc1) -- (gate);
+\node[dim, right=0.1cm of gate] {$\to (B,197,4096)$};
+
+\node[op, below=0.4cm of gate] (fc2)
+    {fc2 (Linear)\\{\tiny $4096 \to 1536$}};
+\draw[arr] (gate) -- (fc2);
+\node[dim, right=0.1cm of fc2] {$(B,197,1536)$};
+
+\node[branch, below=0.4cm of fc2] (ls2)
+    {LayerScale ($\gamma_2$)};
+\draw[arr] (fc2) -- (ls2);
+
+% Residual Add 2
+\node[residual, below=0.4cm of ls2] (add2) {$+$};
+\draw[arr] (ls2) -- (add2);
+% Residual skip from post-attention
+\draw[darr] (add1.west) -- ++(-0.6cm,0) |- (add2.west);
+
+% --- Output ---
+\node[tensor, below=0.5cm of add2] (hout)
+    {$\vect{h}_{l+1}$};
+\draw[arr] (add2) -- (hout);
+\node[dim, right=0.1cm of hout] {$(B,197,1536)$};
+
+% --- Dashed line connecting main diagram to detail ---
+\draw[thick, dashed, gray!60]
+    (stack.east) -- ++(1.0cm,0) |- (detail.west);
+
+% --- Braces for sublayer labels ---
+\draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick, gray]
+    ($(ln1.north west) + (-0.3cm, 0.15cm)$) --
+    ($(add1.south west) + (-0.3cm, -0.15cm)$)
+    node[midway, left=0.3cm, font=\tiny\itshape, text=gray, align=right]
+    {Attention\\Sublayer};
+
+\draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick, gray]
+    ($(ln2.north west) + (-0.3cm, 0.15cm)$) --
+    ($(add2.south west) + (-0.3cm, -0.15cm)$)
+    node[midway, left=0.3cm, font=\tiny\itshape, text=gray, align=right]
+    {GluMLP\\Sublayer};
+
+\end{tikzpicture}%
+}
+\caption{Architecture of the GigaPath tile backbone
+    (DINOv2-giant ViT-g/14, $L=40$, $d=1536$, $24$ heads).
+    \textbf{Left}: full forward pipeline from input image to output
+    feature vector.
+    \textbf{Right}: expanded view of a single transformer block~$l$,
+    showing the attention sublayer with $\text{QKV} \to \text{MHSA}
+    \to \text{Proj} \to \text{LayerScale} \to \text{Residual}$, and the
+    GluMLP sublayer with $\text{fc1} \to \text{SwiGLU} \to \text{fc2}
+    \to \text{LayerScale} \to \text{Residual}$.
+    Dashed arrows indicate residual skip connections.
+    All tensor shapes are annotated in
+    {\color{blue!70!black}\textsf{blue}}.}
+\label{fig:backbone}
+\end{figure}
 
 %% ================================================================
 \section{Which Jacobian?}

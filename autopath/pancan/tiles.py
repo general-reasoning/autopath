@@ -59,11 +59,12 @@ class PancanTileBag(TileBag):
 	def name(self):
 		return self._name
 
-	@property
-	def dirpath(self, topic, *, ensure: bool = False): 
+	def dirpath(self, topic=None, *, ensure: bool = False): 
 		return self._dirpath
 
-	def path(self, topic, *, ensure_dirpath: bool = False):
+	def path(self, topic=None, *, ensure_dirpath: bool = False):
+		if topic is None:
+			return self._dirpath
 		return os.path.join(self._dirpath, self.TOPICFILES[topic]) if self.TOPICFILES[topic] is not None else None
 
 	def UNSAFE_clear(self):
