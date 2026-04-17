@@ -239,8 +239,8 @@ def pancan_tilebag_dataset_builder(
 	verbose: bool = False,
 	log = None,
 ):
-		clip = dbx.eval_term(clip)
-		transform = dbx.eval_term(transform)
+		clip = dbx.eval(clip)
+		transform = dbx.eval(transform)
 		kwargs = dict(
 			debug=debug, 
 			verbose=verbose,

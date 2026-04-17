@@ -36,8 +36,8 @@ def tileset(tilebagclip: Clip,
             verbose: bool = False,
             log = None,
 ):
-    tilebagclip = dbx.eval_term(tilebagclip)
-    transform = dbx.eval_term(transform)
+    tilebagclip = dbx.eval(tilebagclip)
+    transform = dbx.eval(transform)
     
     kwargs = dict(
         debug=debug, 

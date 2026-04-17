@@ -63,7 +63,7 @@ class FeatureBagMaker:
         self.clip = clip
         self.idx = idx
     def __call__(self):
-        return dbx.eval_term(self.clip).bag(self.idx)
+        return dbx.eval(self.clip).bag(self.idx)
     def __repr__(self):
         return f"FeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
         
@@ -73,7 +73,7 @@ class BipolarFeatureBagMaker:
         self.clip = clip
         self.idx = idx
     def __call__(self):
-        return dbx.eval_term(self.clip).bag(self.idx)
+        return dbx.eval(self.clip).bag(self.idx)
     def __repr__(self):
         return f"BipolarFeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
 
@@ -709,7 +709,7 @@ class SpectralFeatureBagMaker:
         self.clip = clip
         self.idx = idx
     def __call__(self):
-        return dbx.eval_term(self.clip).bag(self.idx)
+        return dbx.eval(self.clip).bag(self.idx)
     def __repr__(self):
         return f"SpectralFeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
 

@@ -1000,7 +1000,7 @@ class HydroStill(Datablock):
                     self.log.info(f"Using initial checkpoint {self.cfg.initial_ckpt}")
                     ckpt = self.cfg.initial_ckpt
                     if ckpt.startswith('$'):
-                        ckptblock = dbx.eval_term(ckpt)
+                        ckptblock = dbx.eval(ckpt)
                         ckpath = ckptblock.ckpt()
                     else:
                         ckpath = ckpt

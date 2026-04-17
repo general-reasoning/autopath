@@ -340,7 +340,7 @@ class BackboneEvaluator:
     def backbone(self):
         if isinstance(self._backbone, str):
             self.log.verbose(f"Evaluating {self._backbone} on {self.device}")
-            self._backbone = dbx.eval_term(self._backbone).to(self.device)
+            self._backbone = dbx.eval(self._backbone).to(self.device)
         return self._backbone
 
     def to(self, device):

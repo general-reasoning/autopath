@@ -311,7 +311,7 @@ class ClipShardQueue:
         self._lock = lock
         
         if isinstance(clip_quote, str):
-            self.clip = dbx.eval_term(clip_quote)
+            self.clip = dbx.eval(clip_quote)
         else:
             self.clip = clip_quote
             
