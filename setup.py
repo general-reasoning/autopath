@@ -25,7 +25,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
     ],
     entry_points={'console_scripts': [
-        'autopath_builddocs=autopath.builddocs:main',
+        'autopath.builddocs=autopath.builddocs:main',
     ]},
     python_requires='>=3.12',
     install_requires=get_requirements(),

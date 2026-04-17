@@ -93,8 +93,12 @@ in Figure~\ref{fig:backbone}.
 \node[op, below=0.6cm of img] (patch) {Patch Embed\\{\tiny Conv2d $16\!\times\!16$, stride $16$}};
 \draw[arr] (img) -- (patch);
 \node[dim, right=0.1cm of patch] {$\to (B,196,1536)$};
+\node[font=\tiny, text=gray!70, align=left, anchor=north west]
+    at ($(patch.south west) + (0.0cm, -0.05cm)$)
+    {$\lfloor 224/16\rfloor^{2} = 14^{2} = 196$ patches,\\
+     each $16\!\times\!16\!\times\!3 = 768 \xrightarrow{\text{proj}} 1536$};
 
-\node[op, below=0.6cm of patch] (cls) {Prepend CLS Token};
+\node[op, below=1.2cm of patch] (cls) {Prepend CLS Token};
 \draw[arr] (patch) -- (cls);
 \node[dim, right=0.1cm of cls] {$\to (B,197,1536)$};
 
