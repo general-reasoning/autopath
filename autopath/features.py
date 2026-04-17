@@ -828,7 +828,13 @@ class SpectralFeatureBag(Bag):
         keys = list(self.TOPICFILES.keys())
         if topic not in keys:
             raise ValueError(f"Unknown {topic=}, expected one of {keys}")
-        return read_npz(self.path(topic))
+        path = self.path(topic)
+        # read_npz requires explicit keys; discover them from the npz first
+        import fsspec as _fsspec
+        _fs, _ = _fsspec.url_to_fs(path)
+        with _fs.open(path, 'rb') as f:
+            npz_keys = list(np.load(f, allow_pickle=True).keys())
+        return read_npz(path, *npz_keys)
 
     def spectrum(self, block_idx: int):
         """Read the stored spectrum for a given block index."""
