@@ -958,7 +958,6 @@ def quote_spectral_extractor(name='GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_BLOCKS:5
         return dbx.quote(gigapath_backbone_evaluator, name)
         
 
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=64).build()"
 # git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
 def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> SpectralFeatureBag:
     if name is None:
