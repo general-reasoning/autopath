@@ -4,8 +4,8 @@
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{xcolor}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
+% \usepackage{algorithm}    % not used in this document
+% \usepackage{algpseudocode} % not used in this document
 \usepackage{bm}
 \usepackage{tikz}
 \usetikzlibrary{positioning, calc, arrows.meta, decorations.pathreplacing}
@@ -106,7 +106,7 @@ in Figure~\ref{fig:backbone}.
 \node[block, below=0.8cm of pos, minimum width=3.5cm, minimum height=1.8cm]
     (stack) {};
 \node[blockhead, anchor=north] at (stack.north) {Transformer Blocks};
-\node[font=\footnotesize, text=gray!80] at (stack.center)
+\node[font=\footnotesize, text=gray!80, align=center] at (stack.center)
     {$\times\, 40$ blocks\\$l = 0, 1, \ldots, 39$};
 \draw[arr] (pos) -- (stack.north);
 \node[dim, right=0.1cm of stack] {$(B,197,1536)$};

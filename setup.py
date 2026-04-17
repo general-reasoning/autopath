@@ -24,7 +24,9 @@ setuptools.setup(
     classifiers=[
         "Programming Language :: Python :: 3",
     ],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': [
+        'autopath_builddocs=autopath.builddocs:main',
+    ]},
     python_requires='>=3.12',
     install_requires=get_requirements(),
 )

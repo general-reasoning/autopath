@@ -66,9 +66,6 @@ def quote_extractor(name, sideband: bool = False, capture_blocks: Optional[List[
         else:
             return dbx.quote(gigapath_backbone_evaluator, name)
 
-def quote_spectral_extractor(name='GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR'):
-        return dbx.quote(gigapath_backbone_evaluator, name)
-        
 
 def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
     def select_capture_blocks(n_blocks: int = 1):
@@ -82,13 +79,24 @@ def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
     elif name == "GIGAPATH_BASELINE_BACKBONE_5BLOCK_EVALUATOR":
         capture_blocks = select_capture_blocks(n_blocks=5)
         return SidebandBackboneEvaluator(device=device, capture_blocks=capture_blocks)
-    elif name == "GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR":
-        probe_blocks = select_capture_blocks(n_blocks=5)
+    elif name.startswith("GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_"):
+        import re
+        suffix = name[len("GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_"):]
+        m = re.fullmatch(r'BLOCKS:(\d+)_SPEC:(CLS|FULL|BOTH)(\d*)', suffix)
+        if m is None:
+            raise ValueError(
+                f"Cannot parse spectral evaluator descriptor {suffix!r} from {name!r}. "
+                f"Expected e.g. _BLOCKS:5_SPEC:CLS, _BLOCKS:5_SPEC:FULL10, _BLOCKS:3_SPEC:BOTH20"
+            )
+        n_blocks = int(m.group(1))
+        spectral_mode = m.group(2).lower()       # 'cls', 'full', or 'both'
+        spectral_k = int(m.group(3)) if m.group(3) else 10   # default k=10
+        probe_blocks = select_capture_blocks(n_blocks=n_blocks)
         return SpectralBackboneEvaluator(
             device=device,
             spectral_probe_blocks=probe_blocks,
-            spectral_mode='cls',
-            spectral_k=10,
+            spectral_mode=spectral_mode,
+            spectral_k=spectral_k,
         )
     else:
         raise ValueError(f"Unknown backbone evaluator: {name}")
@@ -946,18 +954,22 @@ def gigapath_feature_2nn_dim(name) -> Feature2NNDim:
 # =============================================================================
 #  Spectral probing pipelines
 # =============================================================================
+def quote_spectral_extractor(name='GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_BLOCKS:5_SPEC:CLS'):
+        return dbx.quote(gigapath_backbone_evaluator, name)
+        
 
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_SPECTRAL_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=64).build()"
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_SPECTRAL_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=64).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
 def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> SpectralFeatureBag:
     if name is None:
         return SpectralFeatureBag
-    elif name == "GIGAPATH_SPECTRAL_CPTAC_SAMPLE":
+    elif name.startswith("GIGAPATH_CPTAC_SAMPLE_SPECTRAL_"):
+        evaluator = name.removeprefix("GIGAPATH_CPTAC_SAMPLE_SPECTRAL_")
         return SpectralFeatureBag(
             root=root,
             spec=dict(
                 tilebag=dbx.quote(pancan_tile_bag, 'CPTAC_SAMPLE'),
-                extractor=quote_spectral_extractor('GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR'),
+                extractor=quote_spectral_extractor(f'GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_{evaluator}'),
         ))
     else:
         raise ValueError(f"Unknown spectral feature bag: {name}")
@@ -978,7 +990,7 @@ def gigapath_spectral_feature_bag_clip(name: str = None, *, tag: str | None = No
     devices = [f'cuda:{i}' for i in range(n_devices)]
     if name is None:
         return SpectralFeatureBagClip
-    extractor = quote_spectral_extractor('GIGAPATH_SPECTRAL_BACKBONE_5BLOCK_EVALUATOR')
+    extractor = quote_spectral_extractor('GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_BLOCKS:5_SPEC:CLS')
     if name == "GIGAPATH_SPECTRAL_CPTAC_200179_TEST":
         tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TEST')
     elif name == "GIGAPATH_SPECTRAL_CPTAC_200179_TRAIN":
