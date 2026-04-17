@@ -739,6 +739,10 @@ class SpectralFeatureBag(Bag):
         self.TOPICFILES = {}
         for b in self.cfg.extractor.spectral_probe_blocks:
             self.TOPICFILES[f'spectrum_block_{b}'] = f'spectrum_block_{b}.npz'
+        # Composed Jacobian topic (first → last probed block).
+        # Always CLS-based, independent of per-block spectral_mode.
+        if len(self.cfg.extractor.spectral_probe_blocks) >= 2:
+            self.TOPICFILES['spectrum_composed'] = 'spectrum_composed.npz'
         return self
 
     @property
@@ -770,6 +774,7 @@ class SpectralFeatureBag(Bag):
         # Accumulate spectral results across GPU batches.
         # For each block we collect a list of per-batch result dicts.
         accumulated = {b: [] for b in extractor.spectral_probe_blocks}
+        accumulated_composed = []
 
         for k in range(math.ceil(n_tiles / self.gpu_batch_size)):
             m = k * self.gpu_batch_size
@@ -785,6 +790,8 @@ class SpectralFeatureBag(Bag):
                 for b in extractor.spectral_probe_blocks:
                     if b in spectral:
                         accumulated[b].append(spectral[b])
+                if 'composed' in spectral:
+                    accumulated_composed.append(spectral['composed'])
             extractor.clear_spectral_results()
             extractor.clear_sideband()
             del batch
@@ -820,6 +827,19 @@ class SpectralFeatureBag(Bag):
                 result['n_batches'] = np.array(len(entries))
 
             write_npz(self.path(f'spectrum_block_{b}', ensure_dirpath=True), **result)
+
+        # Write composed spectrum
+        if accumulated_composed:
+            sv_stack = np.stack([e['singular_values'] for e in accumulated_composed])
+            composed_result = {
+                'singular_values_mean': np.mean(sv_stack, axis=0),
+                'singular_values_std': np.std(sv_stack, axis=0),
+                'log_singular_values_mean': np.mean(
+                    np.log(np.clip(sv_stack, 1e-12, None)), axis=0
+                ),
+                'n_batches': np.array(len(accumulated_composed)),
+            }
+            write_npz(self.path('spectrum_composed', ensure_dirpath=True), **composed_result)
 
         self._len = n_tiles
         return self

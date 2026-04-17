@@ -514,6 +514,49 @@ class SpectralProbe:
         return sv
 
     # ------------------------------------------------------------------
+    #  Mode 1b: CLS-token composed Jacobian (first → last probed block)
+    # ------------------------------------------------------------------
+
+    def _probe_composed_cls(self, first_block: int, last_block: int,
+                            h_input: torch.Tensor) -> np.ndarray:
+        """Materialise the d×d CLS-token Jacobian of the composed map
+        blocks[first] ∘ … ∘ blocks[last] and return all singular values.
+
+        This chains every block from *first_block* to *last_block*
+        (inclusive), so it captures the end-to-end transformation over
+        the probed depth range.
+
+        Args:
+            first_block:  Index of the first block in the chain.
+            last_block:   Index of the last block in the chain.
+            h_input:      Activation tensor at the **input** of
+                          ``first_block``, shape ``(B, N, d)``.
+                          Only sample 0 is used.
+
+        Returns:
+            Singular values as a 1-D numpy array in decreasing order,
+            length *d*.
+        """
+        d = h_input.shape[-1]
+        h0 = h_input[0:1].detach().clone().requires_grad_(True)   # (1, N, d)
+
+        def composed_cls_fn(cls_vec):
+            h = h0.clone()
+            h[0, 0, :] = cls_vec
+            for b_idx in range(first_block, last_block + 1):
+                h = self._blocks[b_idx](h)
+            return h[0, 0, :]                                     # (d,)
+
+        self.log.verbose(
+            f"Computing composed CLS Jacobian for blocks {first_block}→{last_block}"
+        )
+        J = torch.autograd.functional.jacobian(
+            composed_cls_fn, h0[0, 0, :].detach(),
+        )                                                         # (d, d)
+        sv = torch.linalg.svdvals(J.float()).cpu().numpy()
+        return sv
+
+    # ------------------------------------------------------------------
     #  Mode 2: Full-sequence matrix-free  (Nd × Nd, via JVP / VJP)
     # ------------------------------------------------------------------
 
@@ -683,6 +726,21 @@ class SpectralBackboneEvaluator(SidebandBackboneEvaluator):
         self._spectral_results = None
 
     @property
+    def sideband(self):
+        if self._sideband is None:
+            # Let parent set up output-capture hooks
+            _ = super().sideband
+            # Also capture the *input* to the first probed block so we
+            # can compute the composed Jacobian later.
+            if self.spectral_probe_blocks:
+                first_b = min(self.spectral_probe_blocks)
+                blocks = backbone_blocks(self.backbone)
+                def _capture_input(model, input, output):
+                    self._sideband[f"block.{first_b}_input"] = input[0].cpu().detach()
+                blocks[first_b].register_forward_hook(_capture_input)
+        return self._sideband
+
+    @property
     def spectral_probe(self) -> SpectralProbe:
         if self._spectral_probe is None and self.spectral_probe_blocks:
             self._spectral_probe = SpectralProbe(
@@ -709,6 +767,24 @@ class SpectralBackboneEvaluator(SidebandBackboneEvaluator):
                 self._spectral_results = self.spectral_probe.probe(
                     activations, mode=self.spectral_mode,
                 )
+
+            # Composed Jacobian (first → last probed block, CLS-only).
+            # Computed directly via autograd through the chain of blocks;
+            # does not depend on per-block spectral results.
+            if len(self.spectral_probe_blocks) >= 2:
+                first_b = min(self.spectral_probe_blocks)
+                last_b = max(self.spectral_probe_blocks)
+                input_key = f"block.{first_b}_input"
+                if input_key in self._sideband and self._sideband[input_key] is not None:
+                    h_input = self._sideband[input_key].to(self.device)
+                    sv = self.spectral_probe._probe_composed_cls(
+                        first_b, last_b, h_input,
+                    )
+                    self._spectral_results['composed'] = {
+                        'singular_values': sv,
+                        'log_singular_values': np.log(np.clip(sv, 1e-12, None)),
+                        'condition_number_cls': float(sv[0] / (sv[-1] + 1e-12)),
+                    }
 
         return z
 
