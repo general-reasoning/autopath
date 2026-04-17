@@ -82,16 +82,19 @@ def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
     elif name.startswith("GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_"):
         import re
         suffix = name[len("GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_"):]
-        m = re.fullmatch(r'BLOCKS:(\d+)_SPEC:(CLS|FULL|BOTH)(\d*)', suffix)
+        m = re.fullmatch(r'BLOCKS:(\d+)(CAPPED)?_SPEC:(CLS|FULL|BOTH)(\d*)', suffix)
         if m is None:
             raise ValueError(
                 f"Cannot parse spectral evaluator descriptor {suffix!r} from {name!r}. "
-                f"Expected e.g. _BLOCKS:5_SPEC:CLS, _BLOCKS:5_SPEC:FULL10, _BLOCKS:3_SPEC:BOTH20"
+                f"Expected e.g. _BLOCKS:5_SPEC:CLS, _BLOCKS:5CAPPED_SPEC:FULL10, _BLOCKS:3_SPEC:BOTH20"
             )
         n_blocks = int(m.group(1))
-        spectral_mode = m.group(2).lower()       # 'cls', 'full', or 'both'
-        spectral_k = int(m.group(3)) if m.group(3) else 10   # default k=10
+        capped = m.group(2) is not None
+        spectral_mode = m.group(3).lower()       # 'cls', 'full', or 'both'
+        spectral_k = int(m.group(4)) if m.group(4) else 10   # default k=10
         probe_blocks = select_capture_blocks(n_blocks=n_blocks)
+        if capped and probe_blocks and probe_blocks[-1] != GIGAPATH_BACKBONE_DEPTH - 1:
+            probe_blocks.append(GIGAPATH_BACKBONE_DEPTH - 1)
         return SpectralBackboneEvaluator(
             device=device,
             spectral_probe_blocks=probe_blocks,
@@ -959,6 +962,7 @@ def quote_spectral_extractor(name='GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_BLOCKS:5
         
 
 # git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5CAPPED_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
 def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> SpectralFeatureBag:
     if name is None:
         return SpectralFeatureBag
