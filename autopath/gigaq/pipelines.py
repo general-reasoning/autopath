@@ -293,6 +293,31 @@ def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_ba
 def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_devices: int = 1, gpu_batch_size: int = 16, n_workers: int = 1, cpu_batch_size: int = None,
                                     cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
     ) -> FeatureBagMedianProbe:
+    """Compute the element-wise median (and min/max) of GigaPath tile features across all bags in a clip.
+
+    Constructs a ``FeatureBagMedianProbe`` that, when built, iterates over every
+    ``FeatureBag`` in the clip identified by ``name``, concatenates their
+    tile-level feature vectors, and computes the per-dimension median, min,
+    and max.  The resulting median vector is used downstream by
+    ``gigapath_bipolar_feature_bags_probe`` to binarise continuous features
+    into bipolar (+1 / -1) representations.
+
+    Args:
+        name: Named configuration selecting the ``FeatureBagClip`` to probe
+              (e.g. ``'GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE'``).
+        tag: Optional human-readable pipeline tag propagated to the clip.
+        n_devices: Number of GPU devices used for feature extraction.
+        gpu_batch_size: Batch size per GPU device.
+        n_workers: Number of CPU workers for parallel bag loading.
+        cpu_batch_size: Optional batch size for CPU-side parallel execution.
+        cpu_parallelization: CPU parallelization strategy (``'Inline'``,
+            ``'ray'``, ``'multiprocessing'``, ``'multithreading'``).
+        gpu_parallelization: GPU parallelization strategy.
+
+    Returns:
+        A ``FeatureBagMedianProbe`` datablock whose ``median``, ``min``, and
+        ``max`` properties expose the computed statistics after building.
+    """
     return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, tag=tag, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),))
 
 
@@ -314,6 +339,44 @@ def gigapath_bipolar_feature_bags_probe(name,
                                         n_devices: int = 1, 
                                         gpu_batch_size: int = 16,
     ) -> BipolarFeatureBagProbe:
+    """Bipolarise GigaPath tile features and compute comprehensive bag-level statistics.
+
+    Constructs a ``BipolarFeatureBagProbe`` that, when built:
+
+    1. Loads all tile-level features from the ``_TRAIN`` split of ``name``.
+    2. Obtains the per-dimension median from the ``_CALIBRATE`` split via
+       ``gigapath_feature_bags_median_probe``.
+    3. Thresholds every tile feature at the median to produce bipolar
+       (+1 / -1) tile representations.
+    4. Aggregates bipolar tile features into bag-level bipolar features
+       (majority vote per dimension) and continuous bag-level means.
+    5. Computes a rich set of statistics: distinctness ratios at tile, bag,
+       and label granularity; pairwise Hamming distances between bags;
+       logistic-regression evaluation reports for both continuous and
+       bipolar representations; and bag-level cosine similarities.
+
+    ``name`` should be the *base* split identifier without ``_TRAIN`` /
+    ``_CALIBRATE`` suffixes (e.g. ``'GIGAPATH_BASELINE_CPTAC_400159'``);
+    the function appends them automatically.
+
+    Args:
+        name: Base split name — ``_TRAIN`` is used for feature extraction,
+              ``_CALIBRATE`` for median computation.
+        tag: Optional human-readable pipeline tag.
+        cpu_parallelization: Strategy for CPU-bound parallel work.
+        cpu_batch_size: Batch size for CPU-side executors.
+        n_workers: CPU worker count for the feature-bag clip.
+        bag_cpu_parallelization: Parallelization for bag formation.
+        bag_cpu_batch_size: Batch size for bag formation.
+        bag_n_workers: Worker count for bag formation.
+        gpu_parallelization: GPU parallelization strategy.
+        n_devices: Number of GPU devices.
+        gpu_batch_size: Batch size per GPU.
+
+    Returns:
+        A ``BipolarFeatureBagProbe`` datablock exposing tile- and bag-level
+        bipolar features, labels, statistics, and evaluation reports.
+    """
     return BipolarFeatureBagProbe(
         spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TRAIN", 
                                                             tag=tag,
@@ -359,6 +422,46 @@ def gigapath_bipolar_feature_bag_clip(name,
                                      n_devices: int = 1,
                                      gpu_batch_size: int = 16,
     ) -> BipolarFeatureBagClip:
+    """Materialise a clip of bipolar feature bags for a GigaPath split.
+
+    Wraps ``gigapath_bipolar_feature_bags_probe`` inside a
+    ``BipolarFeatureBagClip`` (or ``BipolarSingleFeatureBagClip`` when
+    ``single`` is provided).  Each bag in the resulting clip stores
+    pre-computed bipolar (+1 / -1) tile features derived from the median
+    threshold computed on the calibration split.
+
+    When built, the clip iterates over the probe's tile-level bipolar
+    feature array, slices out the per-bag segments, and persists each as an
+    independent ``BipolarFeatureBag``.  This enables efficient random
+    access and downstream dataset construction via
+    ``gigapath_bipolar_featurebag_dataset``.
+
+    Args:
+        name: Base split name (e.g. ``'GIGAPATH_BASELINE_CPTAC_400159'``).
+            ``_TRAIN`` and ``_CALIBRATE`` suffixes are appended internally
+            by the probe.
+        tag: Optional human-readable pipeline tag.
+        root: Alternative storage root for the clip artefacts.
+        build_missing_only: If ``True``, only build bags that are not
+            already materialised on disk.
+        single: If set, return a ``BipolarSingleFeatureBagClip`` containing
+            only the bag at this index — useful for fast debugging or
+            single-slide experiments.
+        cpu_parallelization: Strategy for CPU-bound parallel work.
+        cpu_batch_size: Batch size for CPU-side executors.
+        n_workers: CPU worker count for building bags.
+        bag_cpu_batch_size: Batch size for bag formation.
+        bag_cpu_parallelization: Parallelization for bag formation.
+        bag_n_workers: Worker count for bag formation.
+        gpu_parallelization: GPU parallelization strategy.
+        n_devices: Number of GPU devices.
+        gpu_batch_size: Batch size per GPU.
+
+    Returns:
+        A ``BipolarFeatureBagClip`` (or ``BipolarSingleFeatureBagClip``)
+        whose ``.bags`` property yields ``BipolarFeatureBag`` instances
+        ready for dataset or dataloader construction.
+    """
     devices = [f'cuda:{i}' for i in range(n_devices)]
     probe = dbx.quote(
         gigapath_bipolar_feature_bags_probe, 
@@ -374,7 +477,7 @@ def gigapath_bipolar_feature_bag_clip(name,
         bag_cpu_batch_size=bag_cpu_batch_size,
     )
     if single is not None:
-        dbx.Logger(name='gigapath_bipolar_feature_bag_clip').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
+        dbx.Logger(name='gigapath_bipolar_feature_bag_clip').debug(f"====================> single: {repr(single)}\nname: {repr(name)}")
         clip = BipolarSingleFeatureBagClip(
             root=root, 
             spec=dict(probe=probe, idx=single), 
