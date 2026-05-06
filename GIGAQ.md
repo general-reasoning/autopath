@@ -88,6 +88,13 @@ pip install -e .
 cd ~/autopath
 pip install -e .
 
+# jupyter
+cd $HOME/autopath
+nohup jupyter lab --ip=0.0.0.0 --ServerApp.token='' --ServerApp.password='' --ServerApp.root_dir=$PWD > $PWD/jupyter.out &
+# locally
+ssh -L 8888:127.0.0.1:8888 wheelbarrow
+
+
 
 # tensorboard
 conda activate autopath
