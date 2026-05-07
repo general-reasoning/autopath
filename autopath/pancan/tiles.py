@@ -16,7 +16,7 @@ import torchvision
 import dbx
 from dbx import Logger, Datablock
 
-from autopath.databits import Clip, Split, Partition, Fold, ClipDatasetBuilder
+from autopath.databits import Clip, Partition, Fold, ClipDatasetBuilder
 from autopath.tiles import TileShard, TileBag
 from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
 
@@ -146,32 +146,24 @@ class PancanTileBagClip(Clip):
 		))
 		return self
 
-	@functools.cached_property
-	def bags(self):
-		return [
-			PancanTileBag(
-				root=self._root_,
-				spec=dict(source=bagpath,),
-				revision=self.revision,
-				verbose=self.verbose,
-				debug=self.debug,
-			)
-			for bagpath in self.bagpaths
-		]
+	@property
+	def n_shards(self):
+		return len(self.bagpaths)
 
-	def bag(self, idx: int):
+	def __shard__(self, idx: int):
 		bagpath = self.bagpaths[idx]
-		bag = PancanTileBag(
+		return PancanTileBag(
 				root=self._root_,
 				spec=dict(source=bagpath,),
 				revision=self.revision,
 				verbose=self.verbose,
 				debug=self.debug,
 			)
-		return bag
 
-	def shard(self, idx: int):
-		return self.bag(idx)
+	def __build__(self):
+		"""Bags are pre-existing TFRecords — skip parallel shard building."""
+		self.__stack__()
+		return self
 
 	@property
 	def bag_lens(self):
@@ -179,56 +171,19 @@ class PancanTileBagClip(Clip):
 
 	def __len__(self):
 		return len(self.bags)
-	
-	def __build__(self):
-		self.log.verbose(f"Computing bag lens")
-		if self.verbose:
-			bagsitor = tqdm.tqdm(self.bags)
-		else:
-			bagsitor = self.bags
-		bag_lens = [len(shard) for shard in bagsitor]
-		dbx.write_npz(self.path(), bag_lens=bag_lens)
-		return self
 
 	def __read__(self):
 		bag_lens = dbx.read_npz(self.path(), 'bag_lens')[0]
 		return bag_lens
 
-	@functools.cached_property
-	def shards(self):
-		return self.bags
-
-	@functools.cached_property
-	def shard_lens(self):
-		return self.bag_lens
-
-	@property
-	def n_bags(self):
-		return len(self.bags)
-
-	@property
-	def n_shards(self):
-		return len(self.shards)
-
-
-#DEPRECATE in favor of PancanTileBagPartition
-class PancanTileBagSplit(Split):
-	def bag(self, idx: int):
-		return self.shard(idx)
 
 
 class PancanTileBagPartition(Partition):
-	def bag(self, idx: int):
-		return self.shard(idx)
+	pass
 
 
 class PancanTileBagFold(Fold):
-	def bag(self, idx: int):
-		return self.shard(idx)
-	
-	@functools.cached_property
-	def n_bags(self):
-		return self.n_shards
+	pass
 
 
 def pancan_tilebag_dataset_builder(

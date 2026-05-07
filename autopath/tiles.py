@@ -6,15 +6,15 @@ import torchvision
 
 
 import dbx
-from dbx import Logger
+from dbx import Datablock, Logger
 
-from autopath.databits import Shard, Bag, Clip, ClipDatasetBuilder
+from autopath.databits import Bag, Clip, ClipDatasetBuilder
 
 
 logger = Logger()
 
 
-class TileShard(Shard):
+class TileShard(Datablock):
     @functools.cached_property
     def tiles(self):
         return self.tensor

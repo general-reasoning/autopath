@@ -10,7 +10,6 @@ from typing import Union
 import tqdm
 
 import numpy as np
-import ray
 import torch
 import torchvision
 
@@ -18,6 +17,7 @@ import torchvision
 import dbx
 from dbx import (
     Datablock,
+    Datastack,
     InlineCallableExecutor,
     InlineDatablocksBuilder,
     MultithreadingCallableExecutor,
@@ -31,42 +31,7 @@ from dbx import (
 
 
 
-
-class Shard(Datablock):
-    TOPICFILES = {'index': '', 'tensor': '', 'labels': None}
-    @dataclass
-    class CONFIG(Datablock.CONFIG):
-        ...	
-
-    def __read__(self, topic):
-        if topic == 'index':
-            result = np.load(self.path(topic))['arr_0']
-        elif topic == 'tensor':
-            result = self.tiles
-        elif topic == 'labels':
-            result = self.labels
-        else:
-            raise ValueError(f"Unknown topic: {topic}")
-        return result
-    
-    def __len__(self):
-        return len(self.tensor)
-    
-    def size(self):
-        return len(self)
-
-    @functools.cached_property
-    def tensor(self):
-        raise NotImplementedError
-
-    @functools.cached_property
-    def labels(self):
-        raise NotImplementedError
-    
-
-class Bag(Shard):
-    def __init__(self, *args, **kwargs):
-        Shard.__init__(self, *args, **kwargs)
+class Bag(Datablock):
     
     @property
     def name(self):
@@ -76,134 +41,74 @@ class Bag(Shard):
     def label(self):
         raise NotImplementedError
 
-    @property
-    @functools.cached_property
-    def labels(self):
-        return [self.label]*len(self)
-
     
-class Clip(Datablock):
-    TOPICFILE = "shard_lens.npz"
+class Clip(Datastack):
+    """Abstract clip of bags, built in parallel via :class:`Datastack`.
+
+    Subclasses must implement:
+
+    * ``n_shards``  — number of bags (property)
+    * ``__shard__(idx)`` — return the :class:`Bag` at *idx*
+
+    After all bags are built in parallel, :meth:`__stack__` persists
+    ``bag_lens.npz`` so that lengths can be read back without
+    materializing bags.
+    """
+
+    TOPICFILE = "bag_lens.npz"
+
     def __len__(self):
-        return sum(self.shard_lens)
-    
-    def __build__(self):
-        self.log.verbose(f"Obtaining shard lens")
-        if self.verbose:
-            shardsitor = tqdm.tqdm(self.shards)
-        else:
-            shardsitor = self.shards
-        shard_lens = [len(shard) for shard in shardsitor]
-        dbx.write_npz(self.path(), shard_lens=shard_lens)
+        return sum(self.bag_lens)
+
+    def __stack__(self):
+        """Persist bag lengths after all bags have been built."""
+        self.log.verbose(f"Stacking bag lens")
+        bag_lens = [len(self.shard(i)) for i in range(self.n_shards)]
+        dbx.write_npz(self.path(), bag_lens=bag_lens)
         return self
-    
+
     def __read__(self):
-        shard_lens = dbx.read_npz(self.path(), 'shard_lens')['shard_lens']
-        return shard_lens
-
-    def shard(self, idx: int):
-        raise NotImplementedError
+        bag_lens = dbx.read_npz(self.path(), 'bag_lens')['bag_lens']
+        return bag_lens
 
     @functools.cached_property
-    def shards(self):
-        raise NotImplementedError
-
-    @functools.cached_property
-    def shard_lens(self):
+    def bag_lens(self):
         return self.read()
-    
+
+    # ── Bag-centric aliases ─────────────────────────────────────────
     @property
-    def n_shards(self):
-        return len(self.shard_lens)
-    
-    def UNSAFE_clear_shards(self, *, OVERRIDE: bool = False):
-        self.log.debug(f"Clearing shards for {self.path()}: BEGIN")
-        if UNSAFE_allowed("UNSAFE_clear_shards", OVERRIDE=OVERRIDE):
-            shard_itor = self.shards
-            if self.verbose:
-                shard_itor = tqdm.tqdm(shard_itor, desc=f"Clearing shards for {self.anchor}")
-            for shard in shard_itor:
-                try:
-                    if shard.valid():
-                        shard.UNSAFE_clear(OVERRIDE=True)
-                except KeyboardInterrupt:
-                    break
-                except Exception as e:
-                    pass
-        else:
-            self.log.warning(f"UNSAFE_clear_shards not allowed for {self.path()}")
-        self.log.debug(f"Clearing shards for {self.path()}: END")
-        return self
+    def n_bags(self):
+        return self.n_shards
 
-    def UNSAFE_copy_from(self, anchorpath: str, shard_anchorpath: str, *, overwrite: bool = False):
+    def bag(self, idx: int):
+        return self.shard(idx)
+
+    @property
+    def bags(self):
+        return self.shards()
+
+    @property
+    def shard_lens(self):
+        return self.bag_lens
+    # ───────────────────────────────────────────────────────────────
+
+    def UNSAFE_clear_bags(self, *, OVERRIDE: bool = False):
+        return self.UNSAFE_clear_shards(OVERRIDE=OVERRIDE)
+
+    def UNSAFE_copy_from(self, anchorpath: str, bag_anchorpath: str, *, overwrite: bool = False):
         super().UNSAFE_copy_from(anchorpath, overwrite=overwrite)
-        self.UNSAFE_copy_shards_from(shard_anchorpath, overwrite=overwrite)
+        self.UNSAFE_copy_bags_from(bag_anchorpath, overwrite=overwrite)
         return self
 
-    def UNSAFE_copy_shards_from(self, shard_anchorpath: str, *, overwrite: bool = False):
-        for shard in self.shards:
-            shard.UNSAFE_copy_from(shard_anchorpath, overwrite=overwrite)
+    def UNSAFE_copy_bags_from(self, bag_anchorpath: str, *, overwrite: bool = False):
+        for bag in self.bags:
+            bag.UNSAFE_copy_from(bag_anchorpath, overwrite=overwrite)
         return self
     
-
-class Split(Datablock):
-    TOPICFILES = {"train_shard_indices": "train_shard_indices.pt", 
-                  "train_shard_lens":    "train_shard_lens.pt",
-                  "test_shard_indices":  "test_shard_indices.pt",
-                  "test_shard_lens":     "test_shard_lens.pt",
-    }
-    @dataclass
-    class CONFIG:
-        clip: Clip
-        train_fraction: float = 0.8
-        seed: int = 42
-
-    def __build__(self):
-        self.log.info(f"Building splits out of {len(self.cfg.clip.shards)} shards using train fraction {self.cfg.train_fraction}")
-        N = len(self.cfg.clip.shards)
-        K = int(math.ceil(N*self.cfg.train_fraction))
-        np.random.seed(self.cfg.seed) #TODO: localize in a generator
-        perm = np.random.permutation(N)
-        train_shard_indices = torch.tensor(perm[:K])
-        test_shard_indices = torch.tensor(perm[K:])
-        self.log.verbose(f"Computing train shard lens")
-        if self.verbose:
-            train_shard_itor = tqdm.tqdm(train_shard_indices)
-        else:
-            train_shard_itor = train_shard_indices
-        train_shard_lens = torch.tensor([len(self.cfg.clip.shards[i].dataset) for i in train_shard_itor])
-        self.log.verbose(f"Computing test shard lens")
-        if self.verbose:
-            test_shard_itor = tqdm.tqdm(test_shard_indices)
-        else:
-            test_shard_itor = test_shard_indices
-        test_shard_lens = torch.tensor([len(self.cfg.clip.shards[i].dataset) for i in test_shard_itor])
-        dbx.write_tensor(train_shard_indices, self.path('train_shard_indices', ensure_dirpath=True),)
-        dbx.write_tensor(train_shard_lens, self.path('train_shard_lens', ensure_dirpath=True),)
-        dbx.write_tensor(test_shard_indices, self.path('test_shard_indices', ensure_dirpath=True),)
-        dbx.write_tensor(test_shard_lens, self.path('test_shard_lens', ensure_dirpath=True),)
-        return self
-    
-    def __read__(self, topic):
-        tensor = dbx.read_tensor(self.path(topic))
-        return tensor
-
-    def shards(self, split):
-        return [self.cfg.clip.shards[i] for i in self.shard_indices(split)]
-    
-    def shard_lens(self, split):
-        return self.read(f"{split}_shard_lens")
-
-    def shard_indices(self, split):
-        return self.read(f"{split}_shard_indices")
-
-    def shard(self, split, idx: int):
-        return self.cfg.clip.shards[self.shard_indices(split)[idx]]
-
 
 class Partition(Datablock):
-    TOPICFILES = {"shard_indices": "shard_indices.npz", 
-                  "shard_lens":    "shard_lens.npz",
+    TOPICFILES = {"bag_indices": "bag_indices.npz", 
+                  "bag_lens":    "bag_lens.npz",
     }
     @dataclass
     class CONFIG:
@@ -216,15 +121,15 @@ class Partition(Datablock):
         return self
 
     def __build__(self):
-        self.log.info(f"Building partition out of {len(self.cfg.clip.shards)} shards using fold fractions {self.cfg.fold_fractions}")
-        N = len(self.cfg.clip.shards)
+        self.log.info(f"Building partition out of {len(self.cfg.clip.bags)} bags using fold fractions {self.cfg.fold_fractions}")
+        N = len(self.cfg.clip.bags)
         np.random.seed(self.cfg.seed) #TODO: localize in a generator
         perm = np.random.permutation(N)
 
-        shard_indices = {}
-        shard_lens = {}
+        bag_indices = {}
+        bag_lens = {}
         Klo = 0
-        self.log.verbose(f"Computing shard indices and lens for {len(self.cfg.fold_fractions)} folds: BEGIN")
+        self.log.verbose(f"Computing bag indices and lens for {len(self.cfg.fold_fractions)} folds: BEGIN")
         if self.verbose:
             fold_fraction_itor = tqdm.tqdm(self.cfg.fold_fractions)
         else:
@@ -233,20 +138,20 @@ class Partition(Datablock):
             k = int(math.ceil(N*fraction))
             Khi = min(Klo + k, N)
             fold_key = str(fold)
-            shard_indices[fold_key] = perm[Klo:Khi]
-            self.log.verbose(f"Computing shard lens for fold {fold}: BEGIN")
+            bag_indices[fold_key] = perm[Klo:Khi]
+            self.log.verbose(f"Computing bag lens for fold {fold}: BEGIN")
             if self.verbose:
-                shard_itor = tqdm.tqdm(shard_indices[fold_key])
+                bag_itor = tqdm.tqdm(bag_indices[fold_key])
             else:
-                shard_itor = shard_indices[fold_key]
-            shard_lens[fold_key] = np.array([len(self.cfg.clip.shards[i].dataset) for i in shard_itor])
-            self.log.verbose(f"Computing shard lens for fold {fold}: END")
+                bag_itor = bag_indices[fold_key]
+            bag_lens[fold_key] = np.array([len(self.cfg.clip.bags[i]) for i in bag_itor])
+            self.log.verbose(f"Computing bag lens for fold {fold}: END")
             Klo = Khi
-        self.log.verbose(f"Computing shard indices and lens for {len(self.cfg.fold_fractions)} folds: END")
-        self.log.verbose(f"Writing shard indices and lens: BEGIN")
-        dbx.write_npz(self.path('shard_indices', ensure_dirpath=True), **shard_indices)
-        dbx.write_npz(self.path('shard_lens', ensure_dirpath=True), **shard_lens)
-        self.log.verbose(f"Writing shard indices and lens: END")
+        self.log.verbose(f"Computing bag indices and lens for {len(self.cfg.fold_fractions)} folds: END")
+        self.log.verbose(f"Writing bag indices and lens: BEGIN")
+        dbx.write_npz(self.path('bag_indices', ensure_dirpath=True), **bag_indices)
+        dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), **bag_lens)
+        self.log.verbose(f"Writing bag indices and lens: END")
         return self
     
     def __read__(self, topic):
@@ -254,20 +159,20 @@ class Partition(Datablock):
         dict = dbx.read_npz(self.path(topic), *keys)
         return dict
 
-    def shards(self, fold):
-        return [self.cfg.clip.shards[i] for i in self.shard_indices(fold)]
+    def bags(self, fold):
+        return [self.cfg.clip.bags[i] for i in self.bag_indices(fold)]
     
-    def shard_lens(self, fold):
-        return self.read("shard_lens")[fold]
+    def bag_lens(self, fold):
+        return self.read("bag_lens")[fold]
 
-    def shard_indices(self, fold):
-        return self.read("shard_indices")[fold]
+    def bag_indices(self, fold):
+        return self.read("bag_indices")[fold]
 
-    def shard(self, fold, idx: int):
-        return self.cfg.clip.shards[self.shard_indices(fold)[idx]]
+    def bag(self, fold, idx: int):
+        return self.cfg.clip.bags[self.bag_indices(fold)[idx]]
 
-    def n_shards(self, fold):
-        return len(self.shard_indices(fold))
+    def n_bags(self, fold):
+        return len(self.bag_indices(fold))
 
 
 class Fold(Clip):
@@ -282,626 +187,21 @@ class Fold(Clip):
     def valid(self):
         return self.cfg.partition.valid()
 
-    @functools.cached_property
-    def shards(self):
-        return self.cfg.partition.shards(self.cfg.fold)
-
-    def shard(self, idx: int):
-        return self.cfg.split.shard(self.cfg.fold, idx)
-
-    @functools.cached_property
-    def shard_lens(self):
-        return self.cfg.partition.shard_lens(self.cfg.fold)
-    
-    def shard(self, idx: int):
-        return self.cfg.partition.shard(self.cfg.fold, idx)
-
-    @functools.cached_property
-    def n_shards(self):
-        return self.cfg.partition.n_shards(self.cfg.fold)
-
-
-
-class ClipShardQueue:
-    """
-    A queue of shards from a Clip.
-    """
-    def __init__(self, queue_idx: int, clip_quote, clip_lens, fraction: float, n_shards: int, n_queues: int, shard_size: int, shuffle_seed: int, p_inv_ref, target_to_srcs, log=dbx.Logger(), lock=None):
-        self.log = log
-        self.log.debug(f"[Queue {queue_idx}] Initializing actor...")
-        self.queue_idx = queue_idx
-        self._lock = lock
-        
-        if isinstance(clip_quote, str):
-            self.clip = dbx.eval(clip_quote)
-        else:
-            self.clip = clip_quote
-            
-        self.clip_lens = clip_lens
-        self.fraction = fraction
-        self.n_shards = n_shards
-        self.n_queues = n_queues
-        self.shard_size = shard_size
-        self.shuffle_seed = shuffle_seed
-        self.p_inv_ref = p_inv_ref
-        self.target_to_srcs = target_to_srcs
-        self._p_inv = None # Lazy fetch from Ray Object Store
-
-        # Partition only the source shards that actually contain our samples
-        all_needed_srcs = set()
-        for srcs in self.target_to_srcs.values():
-            all_needed_srcs.update(srcs)
-        self.my_src_shards = sorted(list(all_needed_srcs))
-        
-        self.offsets = np.cumsum([0] + list(self.clip_lens))
-        self.current_src_ptr = 0  # Index into self.my_src_shards
-        self.buffers = collections.defaultdict(list)
-
     @property
-    def p_inv(self):
-        if self._p_inv is None:
-            if isinstance(self.p_inv_ref, ray.ObjectRef):
-                self.log.debug(f"[Queue {self.queue_idx}] Fetching p_inv from Ray Object Store...")
-                self._p_inv = ray.get(self.p_inv_ref)
-                self.log.debug(f"[Queue {self.queue_idx}] p_inv fetch complete.")
-            else:
-                # Ray likely already dereferenced it automatically during actor construction
-                self._p_inv = self.p_inv_ref
-        return self._p_inv
+    def n_shards(self):
+        return self.cfg.partition.n_bags(self.cfg.fold)
 
-    def _read_next(self):
-        if self.current_src_ptr >= len(self.my_src_shards):
-            return
-        
-        src_idx = self.my_src_shards[self.current_src_ptr]
-        self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: BEGIN")
-        shard = self.clip.shard(src_idx)
-        
-        # Load and hold local references — skip unreadable shards
-        try:
-            tensor = shard.tensor
-            labels = shard.labels
-        except Exception as e:
-            self.log.warning(f"[Queue {self.queue_idx}] Skipping unreadable source shard {src_idx}: {e}")
-            self.current_src_ptr += 1
-            return
-        
-        offset = self.offsets[src_idx]
-        _p_inv = self.p_inv # Fetch once from Object Store
-        count = 0
-        for i in range(len(tensor)):
-            p = offset + i
-            k = _p_inv[p]
-            if k != -1:
-                target_idx = k // self.shard_size
-                
-                # IMPORTANT: Clone/Copy to break view-based memory pinning.
-                # If we don't, the entire source shard stays in memory as long as any slice is buffered.
-                data = tensor[i]
-                if torch.is_tensor(data):
-                    data = data.clone()
-                elif isinstance(data, np.ndarray):
-                    data = data.copy()
-                
-                def deep_clone(obj):
-                    if torch.is_tensor(obj):
-                        return obj.clone()
-                    if isinstance(obj, np.ndarray):
-                        return obj.copy()
-                    if isinstance(obj, tuple):
-                        return tuple(deep_clone(x) for x in obj)
-                    if isinstance(obj, list):
-                        return [deep_clone(x) for x in obj]
-                    return obj
-
-                label = deep_clone(labels[i])
-                # Store (data, label, k, global_p)
-                self.buffers[target_idx].append((data, label, k, p))
-                count += 1
-        
-        # Ensure we don't hold references to the source shard beyond this method
-        del shard
-        gc.collect()
-        
-        self.current_src_ptr += 1
-        self.log.detailed(f"[Queue {self.queue_idx}] Reading source shard {src_idx}: END ({count} samples collected)")
-
-    def pull(self, target_shard_idx: int):
-        if self._lock is not None:
-            with self._lock:
-                return self._pull(target_shard_idx)
-        return self._pull(target_shard_idx)
-
-    def _pull(self, target_shard_idx: int):
-        self.log.debug(f"[Queue {self.queue_idx}] Pull request for target shard {target_shard_idx}: BEGIN")
-        needed = self.target_to_srcs.get(target_shard_idx, None)
-        
-        # Advance current_src_ptr if any needed shards are not yet read.
-        # Since we read in order, we just need to check the maximum needed src_idx.
-        if needed is not None and len(needed) > 0:
-            max_needed = np.max(needed)
-            while self.current_src_ptr < len(self.my_src_shards) and self.my_src_shards[self.current_src_ptr] <= max_needed:
-                self._read_next()
-        
-        samples = self.buffers.pop(target_shard_idx, [])
-        self.log.debug(f"[Queue {self.queue_idx}] Pull request for target shard {target_shard_idx}: END ({len(samples)} samples returned)")
-        return samples
-
-
-
-class ShuffledShard(Shard):
-    """A ``Shard`` that holds a fixed subset of samples drawn from a ``Clip``.
-
-    ``__build__`` accepts pre-assembled tensors, labels, and indices,
-    saving them as ``tensor.npz``, ``labels.npz``, and ``index.npz``.
-    """
-
-    TOPICFILES = {'tensor': 'tensor.npz', 'labels': 'labels.npz', 'index': 'index.npz'}
-
-    @dataclass
-    class CONFIG(Shard.CONFIG):
-        clip: Clip
-        fraction: float
-        shard_size: int
-        shuffle_seed: int
-        shard_idx: int
-
-    # ------------------------------------------------------------------
-    # Build / read
-    # ------------------------------------------------------------------
-
-    def __build__(self, tensor=None, labels=None, indices=None):
-        if tensor is None or labels is None or indices is None:
-            raise ValueError("ShuffledShard.__build__ requires tensor, labels, and indices")
-
-        self.log.verbose(f"writing shard {self.cfg.shard_idx} ({len(tensor)} samples): BEGIN")
-        dbx.write_tensors(self.path('tensor', ensure_dirpath=True), tensor=tensor)
-        dbx.write_npz(self.path('labels', ensure_dirpath=True), labels=labels)
-        dbx.write_npz(self.path('index', ensure_dirpath=True), index=indices)
-        self.log.verbose(f"writing shard {self.cfg.shard_idx}: END")
-        return self
-
-    def __read__(self, topic):
-        if topic == 'tensor':
-            return dbx.read_tensors(self.path('tensor'), 'tensor')['tensor']
-        if topic == 'labels':
-            return dbx.read_npz(self.path('labels'), 'labels')['labels']
-        if topic == 'index':
-            return dbx.read_npz(self.path('index'), 'index')['index']
-        raise ValueError(f"Unknown topic: {topic!r}")
-
-    # ------------------------------------------------------------------
-    # Shard interface
-    # ------------------------------------------------------------------
-
-    def __len__(self) -> int:
-        return len(self.index)
-
-    @functools.cached_property
-    def tensor(self):
-        return self.read('tensor')
-
-    @functools.cached_property
-    def labels(self):
-        return self.read('labels').tolist()
-
-    @functools.cached_property
-    def index(self):
-        return self.read('index')
-
-
-class ShuffledShardMaker:
-    def __init__(self, root, *, clip, fraction, shard_size, shuffle_seed, shard_idx, queues, shuffled_shard_cls=ShuffledShard, verbose=False, build=True):
-        self.root = root
-        self.clip = clip
-        self.fraction = fraction
-        self.shard_size = shard_size
-        self.shuffle_seed = shuffle_seed
-        self.shard_idx = shard_idx
-        self.queues = queues
-        self.shuffled_shard_cls = shuffled_shard_cls
-        self.verbose = verbose
-        self.build = build
-
-    def __call__(self, **kwargs):
-        # Poll queues in random order
-        n_queues = len(self.queues)
-        q_indices = list(range(n_queues))
-        rng = np.random.default_rng(self.shuffle_seed + self.shard_idx)
-        rng.shuffle(q_indices)
-
-        all_results = []
-        if self.verbose:
-            q_itor = tqdm.tqdm(q_indices, desc=f"Shard {self.shard_idx} assembly", leave=False)
-        else:
-            q_itor = q_indices
-
-        # Pull from queues — works with both Ray actors and local objects
-        if self.queues and hasattr(self.queues[0], 'pull') and hasattr(self.queues[0].pull, 'remote'):
-            # Ray actors
-            futures = [self.queues[q_idx].pull.remote(self.shard_idx) for q_idx in q_itor]
-            for res in ray.get(futures):
-                all_results.extend(res)
-        else:
-            # Local objects (multithreading / inline)
-            for q_idx in q_itor:
-                res = self.queues[q_idx].pull(self.shard_idx)
-                all_results.extend(res)
-
-        # Reassemble in deterministic order (by k)
-        all_results.sort(key=lambda x: x[2])
-
-        if not all_results:
-            tensor = torch.empty(0)
-            labels = np.empty(0)
-            indices = np.empty(0, dtype=int)
-        else:
-            first_data = all_results[0][0]
-            if isinstance(first_data, torch.Tensor):
-                tensor = torch.stack([x[0] for x in all_results])
-            else:
-                tensor = np.array([x[0] for x in all_results])
-            
-            labels = np.array([x[1] for x in all_results], dtype=object)
-            indices = np.array([x[3] for x in all_results], dtype=int)
-
-        spec = dict(
-            clip=self.clip,
-            fraction=self.fraction,
-            shard_size=self.shard_size,
-            shuffle_seed=self.shuffle_seed,
-            shard_idx=self.shard_idx
-        )
-        shard = self.shuffled_shard_cls(root=self.root, spec=spec)
-        n_samples = len(tensor) if torch.is_tensor(tensor) else (tensor.shape[0] if hasattr(tensor, 'shape') else 0)
-        if self.build:
-            shard.build(tensor=tensor, labels=labels, indices=indices)
-            del shard
-            gc.collect()
-            return n_samples
-        else:
-            return shard
-
-
-class SourceShardValidator:
-    """Validates a single source shard for readability and length consistency.
-
-    Returns ``(src_idx, is_valid, actual_len)`` where *actual_len* is the
-    true length when the shard is valid, or ``-1`` when it is not.
-    """
-
-    def __init__(self, clip, src_idx: int, reported_len: int, log=dbx.Logger()):
-        self.clip = clip
-        self.src_idx = src_idx
-        self.reported_len = reported_len
-        self.log = log
-
-    def __call__(self):
-        # Evaluate lazily so the list-comp that creates validators is cheap
-        shard = self.clip.shard(self.src_idx)
-        shard_path = shard.path('bipolar_features') if 'bipolar_features' in getattr(shard, 'TOPICFILES', {}) else shard.hashpath()
-        is_valid = shard.valid()
-        if is_valid:
-            actual_len = len(shard)
-            if actual_len == self.reported_len:
-                self.log.detailed(f"Source shard {self.src_idx}: OK (len={actual_len}) path={shard_path}")
-            else:
-                self.log.warning(f"Source shard {self.src_idx}: length mismatch (reported={self.reported_len}, actual={actual_len}) path={shard_path}")
-            return (self.src_idx, True, actual_len)
-        self.log.warning(f"Source shard {self.src_idx}: MISSING path={shard_path}")
-        return (self.src_idx, False, -1)
-
-    def __repr__(self):
-        return f"SourceShardValidator(src_idx={self.src_idx}, reported_len={self.reported_len})"
-
-
-class ShuffledClip(Clip):
-    """A ``Clip`` that draws a random subset of samples from an existing
-    ``Clip`` and re-shards them into fixed-size ``ShuffledShard`` blocks.
-
-    CONFIG parameters:
-
-    - ``clip``         — source ``Clip`` to sample from.
-    - ``fraction``     — fraction of the source dataset to keep (0 < fraction ≤ 1).
-    - ``shuffle_seed`` — seed for the sample-index permutation.
-    - ``shard_size``   — number of samples per output ``ShuffledShard``.
-
-    Typical use::
-
-        sc = ShuffledClip(
-            spec=dict(
-                clip=dbx.quote(my_clip),
-                fraction=0.8,
-                shuffle_seed=42,
-                shard_size=512,
-            ),
-            n_workers=8,
-        )
-        sc.build()
-    """
-
-    VERBOSE_CONFIG = True
-
-    @dataclass
-    class CONFIG:
-        clip: Clip
-        fraction: float
-        shard_size: int
-        shuffle_seed: int = 42
-        n_queues: int = 1
-        shuffled_shard_cls: type[ShuffledShard] = ShuffledShard
-
-    PARALLELIZERS = {
-        'inline':          {'callable': InlineCallableExecutor, 'datablock': InlineDatablocksBuilder},
-        'multithreading':  {'callable': MultithreadingCallableExecutor, 'datablock': MultithreadingDatablocksBuilder},
-        'multiprocessing': {'callable': MultiprocessingCallableExecutor, 'datablock': MultiprocessingDatablocksBuilder},
-        'ray':             {'callable': RayCallableExecutor, 'datablock': RayDatablocksBuilder},
-    }
-
-    def __init__(
-        self,
-        *args,
-        n_workers: int = 1,
-        parallelization: str | None = 'Ray',
-        validate_sources: bool = False,
-        **kwargs,
-    ):
-        super().__init__(*args, n_workers=n_workers, parallelization=parallelization, validate_sources=validate_sources, **kwargs)
-
-    def __post_init__(self):
-        assert 0 < self.cfg.fraction <= 1.0, (
-            f"fraction must be in (0, 1], got {self.cfg.fraction}"
-        )
-        return self
-       
-    # ------------------------------------------------------------------
-    # Clip interface
-    # ------------------------------------------------------------------
-
-    @functools.cached_property
-    def shards(self) -> list[ShuffledShard]:
-        return self.__make_shards__()
-
-    def shard(self, idx: int) -> ShuffledShard:
-        return self.shards[idx]
-
-    # ------------------------------------------------------------------
-    # Build
-    # ------------------------------------------------------------------
+    def __shard__(self, idx: int):
+        return self.cfg.partition.bag(self.cfg.fold, idx)
 
     def __build__(self):
-        self.log.verbose(f"Building ShuffledClip with {self.cfg.n_queues} queues: BEGIN")
-        
-        # Access shard_lens early to trigger any I/O
-        shard_lens = list(self.cfg.clip.shard_lens)
-        n_src_shards = len(shard_lens)
-
-        # ------------------------------------------------------------------
-        # Probe source shards for readability — zero out missing ones
-        # ------------------------------------------------------------------
-        if self.validate_sources:
-            self.log.info(f"Validating {n_src_shards} source shards using {self.n_workers} {self.parallelization} workers: BEGIN")
-
-            validators = [
-                SourceShardValidator(clip=self.cfg.clip, src_idx=i, reported_len=shard_lens[i], log=self.log)
-                for i in range(n_src_shards)
-            ]
-
-            par_key = (self.parallelization or 'inline').lower()
-            executor = self.PARALLELIZERS[par_key]['callable'](n_workers=self.n_workers, log=self.log, tag="Validating source shards")
-            results = list(executor.execute(validators))
-
-            n_missing = 0
-            n_missing_samples = 0
-            n_mismatched = 0
-            for src_idx, is_valid, actual_len in results:
-                reported_len = shard_lens[src_idx]
-                if is_valid:
-                    if actual_len != reported_len:
-                        shard_lens[src_idx] = actual_len
-                        n_mismatched += 1
-                else:
-                    if reported_len > 0:
-                        self.log.warning(f"Source shard {src_idx} is unreadable (reported len={reported_len}); zeroing out ({reported_len} datapoints lost)")
-                        n_missing_samples += reported_len
-                        shard_lens[src_idx] = 0
-                        n_missing += 1
-            if n_missing > 0:
-                self.log.warning(f"{n_missing}/{n_src_shards} source shards are unreadable ({n_missing_samples} total datapoints excluded)")
-            if n_mismatched > 0:
-                self.log.warning(f"{n_mismatched}/{n_src_shards} source shards had length mismatches (corrected)")
-            self.log.info(f"Validating {n_src_shards} source shards using {self.n_workers} {self.parallelization} workers: END")
-
-        N = sum(shard_lens)
-        n_samples = int(math.floor(N * self.cfg.fraction))
-        n_shards = int(math.ceil(n_samples / self.cfg.shard_size))
-
-        # ------------------------------------------------------------------
-        # Driver-side precomputation (Done BEFORE Ray setup to avoid contention)
-        # ------------------------------------------------------------------
-        self.log.info("Driver-side precomputation: BEGIN")
-        offsets = np.cumsum([0] + list(shard_lens))
-        
-        self.log.info(f"Generating permutation for {N} samples: BEGIN")
-        rng = np.random.default_rng(self.cfg.shuffle_seed)
-        perm = rng.permutation(N)[:n_samples]
-        self.log.info(f"Generating permutation for {N} samples: END")
-        
-        self.log.info("Generating inverse permutation map: BEGIN")
-        p_inv = np.full(N, -1, dtype=np.int32)
-        p_inv[perm] = np.arange(n_samples, dtype=np.int32)
-        self.log.info("Generating inverse permutation map: END")
-        
-        self.log.info("Precomputing pull schedules for queues: BEGIN")
-        queue_schedules = [collections.defaultdict(set) for _ in range(self.cfg.n_queues)]
-        
-        # Vectorized schedule calculation
-        valid_indices = np.where(p_inv != -1)[0]
-        if valid_indices.size > 0:
-            v_dest_ks = p_inv[valid_indices]
-            v_target_idxs = v_dest_ks // self.cfg.shard_size
-            v_src_idxs = np.searchsorted(offsets, valid_indices, side='right') - 1
-            
-            combined = (v_src_idxs.astype(np.int64) << 32) | v_target_idxs.astype(np.int64)
-            unique_combined = np.unique(combined)
-            
-            for val in unique_combined:
-                s_idx = int(val >> 32)
-                t_idx = int(val & 0xFFFFFFFF)
-                q_idx = s_idx % self.cfg.n_queues
-                queue_schedules[q_idx][t_idx].add(s_idx)
-        self.log.info("Precomputing pull schedules for queues: END")
-        self.log.info("Driver-side precomputation: END")
-
-        # ------------------------------------------------------------------
-        # Queue & Actor Setup
-        # ------------------------------------------------------------------
-        use_ray = self.parallelization is not None and self.parallelization.lower() == 'ray'
-
-        self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: BEGIN")
-        if use_ray:
-            if not ray.is_initialized():
-                self.log.debug("Initializing Ray session...")
-                ray.init(ignore_reinit_error=True)
-                self.log.debug("Ray initialization returned.")
-
-            import time
-            time.sleep(1) # Give the system a second to stabilize
-
-            self.log.debug("Broadcasting p_inv to Ray Object Store...")
-            p_inv_ref = ray.put(p_inv)
-            del p_inv
-            gc.collect()
-            self.log.debug("Broadcasting complete.")
-        else:
-            p_inv_ref = p_inv
-
-        # Convert schedules to standard dicts with numpy arrays for faster serialization
-        self.log.debug("Serializing schedules for actors...")
-        serialized_schedules = []
-        for sched in queue_schedules:
-            s = {int(k): np.array(list(v), dtype=np.int32) for k, v in sched.items()}
-            serialized_schedules.append(s)
-        del queue_schedules
-        self.log.debug("Serialization complete.")
-
-        clip_quote = dbx.quote(self.cfg.clip)
-
-        q_itor = range(self.cfg.n_queues)
-        if self.verbose:
-            q_itor = tqdm.tqdm(q_itor, desc="Launching ClipShardQueues")
-        
-        queues = []
-        if use_ray:
-            RemoteQueue = ray.remote(ClipShardQueue)
-            for i in q_itor:
-                self.log.debug(f"Launching actor {i}...")
-                queues.append(
-                    RemoteQueue.remote(
-                        queue_idx=i,
-                        clip_quote=clip_quote,
-                        clip_lens=shard_lens,
-                        fraction=self.cfg.fraction,
-                        n_shards=n_shards,
-                        n_queues=self.cfg.n_queues,
-                        shard_size=self.cfg.shard_size,
-                        shuffle_seed=self.cfg.shuffle_seed,
-                        p_inv_ref=p_inv_ref,
-                        target_to_srcs=serialized_schedules[i],
-                        log=self.log
-                    )
-                )
-        else:
-            for i in q_itor:
-                self.log.debug(f"Creating queue {i}...")
-                queues.append(
-                    ClipShardQueue(
-                        queue_idx=i,
-                        clip_quote=clip_quote,
-                        clip_lens=shard_lens,
-                        fraction=self.cfg.fraction,
-                        n_shards=n_shards,
-                        n_queues=self.cfg.n_queues,
-                        shard_size=self.cfg.shard_size,
-                        shuffle_seed=self.cfg.shuffle_seed,
-                        p_inv_ref=p_inv_ref,
-                        target_to_srcs=serialized_schedules[i],
-                        log=self.log,
-                        lock=threading.Lock(),
-                    )
-                )
-        self.log.debug("All queues launched.")
-        self.log.info(f"Setting up {self.cfg.n_queues} ClipShardQueues: END")
-
-        self.log.info(f"Setting up {n_shards} ShuffledShardMakers: BEGIN")
-        shards_itor = range(n_shards)
-        if self.verbose:
-            shards_itor = tqdm.tqdm(shards_itor, desc="Setting up ShuffledShardMakers")
-        
-        # Consistent clip reference for makers
-        clip_quoted = dbx.quote(self.cfg.clip)
-        
-        makers = [
-            ShuffledShardMaker(
-                root=self._root_,
-                clip=clip_quoted,
-                fraction=self.cfg.fraction,
-                shard_size=self.cfg.shard_size,
-                shuffle_seed=self.cfg.shuffle_seed,
-                shard_idx=idx,
-                queues=queues,
-                shuffled_shard_cls=self.cfg.shuffled_shard_cls,
-                verbose=self.verbose,
-                build=True,
-            )
-            for idx in shards_itor
-        ]
-        self.log.info(f"Setting up {n_shards} ShuffledShardMakers: END")
-
-        self.log.info(f"Building ShuffledClip shards: BEGIN")
-        if self.parallelization is None or self.n_workers < 2:
-            if self.verbose:
-                makers_itor = tqdm.tqdm(makers, desc="Building ShuffledClip shards")
-            else:
-                makers_itor = makers
-            shard_lens = [maker() for maker in makers_itor]
-        else:
-            shard_lens = list(self.PARALLELIZERS[self.parallelization.lower()]['callable'](n_workers=self.n_workers, log=self.log).execute(makers, verbose=self.verbose))
-
-        dbx.write_npz(self.path(), shard_lens=shard_lens)
-
-        self.log.verbose(f"Building ShuffledClip: END")
+        """Bags are managed by the Partition — skip parallel shard building."""
+        self.__stack__()
         return self
 
-    def __make_shards__(self, build: bool = False):
-        if build:
-            return self.build().shards
-
-        # If already built, use the stored shard count (which reflects any
-        # source-shard filtering that happened during build).
-        if self.valid():
-            n_shards = len(self.shard_lens)
-        else:
-            N = len(self.cfg.clip)
-            n_samples = int(math.floor(N * self.cfg.fraction))
-            n_shards = int(math.ceil(n_samples/self.cfg.shard_size))
-        
-        idx_itor = range(n_shards)
-        if self.verbose:
-            idx_itor = tqdm.tqdm(idx_itor, desc="FORMING ShuffledShards")
-        return [
-            self.cfg.shuffled_shard_cls(
-                root=self._root_,
-                spec=dict(
-                    clip=dbx.quote(self.cfg.clip),
-                    fraction=self.cfg.fraction,
-                    shard_size=self.cfg.shard_size,
-                    shuffle_seed=self.cfg.shuffle_seed,
-                    shard_idx=idx
-                )
-            )
-            for idx in idx_itor
-        ]
+    @functools.cached_property
+    def bag_lens(self):
+        return self.cfg.partition.bag_lens(self.cfg.fold)
 
 
 class ClipDatasetBuilder(Datablock):
@@ -913,39 +213,39 @@ class ClipDatasetBuilder(Datablock):
         shuffle_seed: int | None = None
 
     def __post_init__(self):
-        self.n_shards = self.cfg.clip.n_shards
-        self.log.debug(f"INITIALIZING dataset using {self.n_shards} shards from clip {self.cfg.clip}: BEGIN")
+        self.n_bags = self.cfg.clip.n_bags
+        self.log.debug(f"INITIALIZING dataset using {self.n_bags} bags from clip {self.cfg.clip}: BEGIN")
         self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
-        _shard_indices = np.arange(self.n_shards)
+        _bag_indices = np.arange(self.n_bags)
         if self.cfg.shuffle_seed is not None:
-            self.log.verbose(f"Shuffling shard indices with seed {self.cfg.shuffle_seed}")
+            self.log.verbose(f"Shuffling bag indices with seed {self.cfg.shuffle_seed}")
             rng = np.random.default_rng(self.cfg.shuffle_seed)
-            rng.shuffle(_shard_indices)
-        self._shard_indices = [int(i) for i in _shard_indices]
-        self.shard_lens = [self.cfg.clip.shard_lens[i] for i in self._shard_indices]
-        self.log.debug(f"Computing shard_bounds...")
-        self.shard_bounds = np.cumsum(self.shard_lens)
-        self.log.debug(f"Computing shard_bounds... DONE")
-        self.log.detailed(f"{self.n_shards=}, {self.shard_bounds=}")
-        self._shard_idx = None
-        self._shard = None
-        self._shard_label = None
-        self._shard_slide = None
-        self.log.debug(f"INITIALIZING dataset using {self.n_shards} shards from clip {self.cfg.clip}: END")
+            rng.shuffle(_bag_indices)
+        self._bag_indices = [int(i) for i in _bag_indices]
+        self.bag_lens = [self.cfg.clip.bag_lens[i] for i in self._bag_indices]
+        self.log.debug(f"Computing bag_bounds...")
+        self.bag_bounds = np.cumsum(self.bag_lens)
+        self.log.debug(f"Computing bag_bounds... DONE")
+        self.log.detailed(f"{self.n_bags=}, {self.bag_bounds=}")
+        self._bag_idx = None
+        self._bag = None
+        self._bag_label = None
+        self._bag_slide = None
+        self.log.debug(f"INITIALIZING dataset using {self.n_bags} bags from clip {self.cfg.clip}: END")
 
     @functools.lru_cache(maxsize=3)
-    def shard(self, shard_idx):
-        if shard_idx != self._shard_idx:
-            self._shard = None
-            self._shard_label = None
-            self._shard_slide = None
+    def bag(self, bag_idx):
+        if bag_idx != self._bag_idx:
+            self._bag = None
+            self._bag_label = None
+            self._bag_slide = None
             gc.collect()
-            self._shard_idx = shard_idx
-            self._shard = self.cfg.clip.shard(self._shard_indices[self._shard_idx])
-        return self._shard
+            self._bag_idx = bag_idx
+            self._bag = self.cfg.clip.bag(self._bag_indices[self._bag_idx])
+        return self._bag
 
     def __len__(self):
-        return self.shard_bounds[-1]
+        return self.bag_bounds[-1]
 
     class Dataset(torch.utils.data.Dataset):
         def __init__(self, builder):
@@ -956,17 +256,17 @@ class ClipDatasetBuilder(Datablock):
         
         def __getitem__(self, index):
             self.dataset_builder.log.silent(f"GETTING item {index} from dataset")
-            shard_idx = np.searchsorted(self.dataset_builder.shard_bounds, index, side='right')
-            shard_lo = self.dataset_builder.shard_bounds[shard_idx-1] if shard_idx > 0 else 0
-            shard_hi = self.dataset_builder.shard_bounds[shard_idx]
-            shard_len = self.dataset_builder.shard_lens[shard_idx]
-            idx = index - shard_lo
-            self.dataset_builder.log.silent(f"----------------------> {index=}, {shard_idx=}, {shard_lo=}, {shard_len=}, {shard_hi=}, {idx=}")
-            tensor = self.dataset_builder.shard(shard_idx).tensor
+            bag_idx = np.searchsorted(self.dataset_builder.bag_bounds, index, side='right')
+            bag_lo = self.dataset_builder.bag_bounds[bag_idx-1] if bag_idx > 0 else 0
+            bag_hi = self.dataset_builder.bag_bounds[bag_idx]
+            bag_len = self.dataset_builder.bag_lens[bag_idx]
+            idx = index - bag_lo
+            self.dataset_builder.log.silent(f"----------------------> {index=}, {bag_idx=}, {bag_lo=}, {bag_len=}, {bag_hi=}, {idx=}")
+            tensor = self.dataset_builder.bag(bag_idx).tensor
             sample = tensor[idx]
             if self.dataset_builder.cfg.transform is not None:
                 sample = self.dataset_builder.cfg.transform(sample)
-            labels = self.dataset_builder.shard(shard_idx).labels
+            labels = self.dataset_builder.bag(bag_idx).labels
             label = labels[idx]
             self.dataset_builder.log.silent(f"APPLYING target_transform")
             if self.dataset_builder.cfg.target_transform is not None:
@@ -988,6 +288,7 @@ class ClipDataLoaderBuilder(Datablock):
         Datablock.__init__(self, spec=spec, dataloader_kwargs=dataloader_kwargs)
         self.dataset = self.cfg.clip_dataset_builder.dataset()
 
+
     def __post_init__(self):
         self.dataloader_kwargs['shuffle'] = self.spec['shuffle']
         self.dataloader_kwargs['batch_size'] = self.spec['batch_size']
@@ -997,4 +298,98 @@ class ClipDataLoaderBuilder(Datablock):
         return torch.utils.data.DataLoader(dataset=self.dataset, **self.dataloader_kwargs)
 
 
+# ═══════════════════════════════════════════════════════════════════════
+#  Abstract Deep Backbone Evaluator & Factory
+# ═══════════════════════════════════════════════════════════════════════
 
+class DeepBackboneEvaluator:
+    """Model-agnostic base for hook-based multi-layer activation capture.
+
+    Subclasses must implement:
+
+    * :meth:`layer_names` — ordered list of capture keys produced by
+      ``__call__``.
+    * :meth:`__call__` — run a forward pass and return a
+      ``dict[str, Tensor]`` mapping capture keys to activation tensors,
+      plus an ``"output"`` key for the backbone output.
+    * :meth:`clear` — release captured tensors and free accelerator
+      memory.
+
+    Optionally override :meth:`__pre_call__` to lazily register hooks.
+
+    Properties
+    ----------
+    layer_names : list[str]
+        Ordered capture keys that ``__call__`` will produce.
+    layer_features : dict[str, Tensor]
+        Most recently captured activations (read-only snapshot).
+    """
+
+    def __init__(self, *, device: str = "cuda", log: dbx.Logger = dbx.Logger(stack_depth=3)):
+        self.device = device
+        self.log = log
+
+    @property
+    def layer_names(self):
+        """Return the ordered list of capture keys that ``__call__`` produces.
+
+        Must be overridden by subclasses.
+        """
+        raise NotImplementedError
+
+    def __pre_call__(self):
+        """Hook called before each forward pass (e.g. to lazily register hooks)."""
+        pass
+
+    def __call__(self, x):
+        """Run forward pass on batch *x* and return captured activations.
+
+        Returns
+        -------
+        dict[str, Tensor]
+            Mapping from capture-key to activation tensor, plus
+            ``"output"`` for the backbone's own output.
+
+        Must be overridden by subclasses.
+        """
+        raise NotImplementedError
+
+    def clear(self):
+        """Release captured tensors and free accelerator memory."""
+        gc.collect()
+        torch.cuda.empty_cache()
+        return self
+
+    @property
+    def layer_features(self):
+        """Most recently captured activations (read-only snapshot).
+
+        Must be overridden by subclasses.
+        """
+        raise NotImplementedError
+
+
+class DeepBackboneEvaluatorFactory(Datablock):
+    """Abstract Datablock used for spec-based dependency tracking.
+
+    This Datablock does **not** build or persist anything itself.
+    It exists so that :class:`DeepFeatureBag` and :class:`DeepFeatureClip`
+    can declare their evaluator configuration as a spec dependency,
+    enabling deterministic hashing and lineage tracking.
+
+    Concrete subclasses may extend ``CONFIG`` with model-specific fields
+    and override :meth:`evaluator` to return a ready-to-use
+    :class:`DeepBackboneEvaluator`.
+    """
+
+    @dataclass
+    class CONFIG:
+        capture_layers: list           # list[str | int]
+        cls_token_only: bool = False   # capture only CLS token activations
+
+    def evaluator(self, *, device: str = None, log: dbx.Logger = None):
+        """Create a live :class:`DeepBackboneEvaluator`.
+
+        Must be overridden by subclasses.
+        """
+        raise NotImplementedError
