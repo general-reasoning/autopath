@@ -25,12 +25,14 @@ from autopath.features import (
     FeaturesLabelTileToFloat,
     BipolarFeatureBagClip,
     BipolarSingleFeatureBagClip,
+    SphericalFeatureBagClip,
     SpectralFeatureBag,
     SpectralFeatureBagClip,
 )
 
 from autopath.pancan.probes import (
     LogisticFeatureBagProbe, 
+    AffineLogisticFeatureBagProbe,
     FeatureBagMedianProbe,
     BipolarFeatureBagProbe,
     #
@@ -295,7 +297,7 @@ def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_device
     ) -> FeatureBagMedianProbe:
     """Compute the element-wise median (and min/max) of GigaPath tile features across all bags in a clip.
 
-    Constructs a ``FeatureBagMedianProbe`` that, when built, iterates over every
+    Constructs a ``FeatureBagMedianProbe(Datablock)`` that, when built, iterates over every
     ``FeatureBag`` in the clip identified by ``name``, concatenates their
     tile-level feature vectors, and computes the per-dimension median, min,
     and max.  The resulting median vector is used downstream by
@@ -339,21 +341,37 @@ def gigapath_bipolar_feature_bags_probe(name,
                                         n_devices: int = 1, 
                                         gpu_batch_size: int = 16,
     ) -> BipolarFeatureBagProbe:
-    """Bipolarise GigaPath tile features and compute comprehensive bag-level statistics.
+    """Bipolarise GigaPath tile features and compute comprehensive clip-level statistics.
 
-    Constructs a ``BipolarFeatureBagProbe`` that, when built:
+    Constructs a ``BipolarFeatureBagProbe(Datablock)`` that operates at the
+    **clip level**: it processes *all* bags in the clip together and saves
+    the results as single clip-wide files — nothing is saved per bag at
+    this stage.  When built, the probe:
 
-    1. Loads all tile-level features from the ``_TRAIN`` split of ``name``.
+    1. Loads all tile-level features from the ``_TRAIN`` split of ``name``
+       by iterating over every ``FeatureBag`` in the ``FeatureBagClip``.
     2. Obtains the per-dimension median from the ``_CALIBRATE`` split via
        ``gigapath_feature_bags_median_probe``.
-    3. Thresholds every tile feature at the median to produce bipolar
-       (+1 / -1) tile representations.
+    3. Thresholds every tile feature at the median to produce a single
+       clip-wide bipolar (+1 / -1) tile-feature matrix
+       (``tile_bipolar_features.npz``).
     4. Aggregates bipolar tile features into bag-level bipolar features
-       (majority vote per dimension) and continuous bag-level means.
-    5. Computes a rich set of statistics: distinctness ratios at tile, bag,
-       and label granularity; pairwise Hamming distances between bags;
-       logistic-regression evaluation reports for both continuous and
-       bipolar representations; and bag-level cosine similarities.
+       (majority vote per dimension) and continuous bag-level means,
+       stored as clip-wide arrays (``bag_features.npz``,
+       ``bag_bipolar_features.npz``).
+    5. Runs logistic-regression evaluation (via ``LogisticFeatureBagProber``)
+       on both continuous and bipolar representations at the bag and tile
+       levels, saving the classification reports as
+       ``bag_logistic_evaluation_reports.pkl`` and
+       ``tile_logistic_evaluation_reports.pkl``.
+    6. Computes additional clip-level statistics: distinctness ratios at
+       tile, bag, and label granularity; pairwise Hamming distances
+       between bags; and bag-level cosine similarities.
+
+    The per-bag materialisation of bipolar features happens downstream in
+    ``gigapath_bipolar_feature_bag_clip``, which slices the probe's
+    clip-wide ``tile_bipolar_features`` into individual
+    ``BipolarFeatureBag`` datablocks.
 
     ``name`` should be the *base* split identifier without ``_TRAIN`` /
     ``_CALIBRATE`` suffixes (e.g. ``'GIGAPATH_BASELINE_CPTAC_400159'``);
@@ -374,8 +392,9 @@ def gigapath_bipolar_feature_bags_probe(name,
         gpu_batch_size: Batch size per GPU.
 
     Returns:
-        A ``BipolarFeatureBagProbe`` datablock exposing tile- and bag-level
-        bipolar features, labels, statistics, and evaluation reports.
+        A ``BipolarFeatureBagProbe`` datablock exposing clip-wide tile- and
+        bag-level bipolar features, labels, statistics, logistic-regression
+        evaluation reports, and similarity matrices.
     """
     return BipolarFeatureBagProbe(
         spec=dict(featurebagclip=gigapath_feature_bag_clip(f"{name}_TRAIN", 
@@ -422,19 +441,24 @@ def gigapath_bipolar_feature_bag_clip(name,
                                      n_devices: int = 1,
                                      gpu_batch_size: int = 16,
     ) -> BipolarFeatureBagClip:
-    """Materialise a clip of bipolar feature bags for a GigaPath split.
+    """Materialise a clip of per-bag bipolar features for a GigaPath split.
 
-    Wraps ``gigapath_bipolar_feature_bags_probe`` inside a
-    ``BipolarFeatureBagClip`` (or ``BipolarSingleFeatureBagClip`` when
-    ``single`` is provided).  Each bag in the resulting clip stores
-    pre-computed bipolar (+1 / -1) tile features derived from the median
-    threshold computed on the calibration split.
+    This is the **per-bag materialisation** step, complementing the
+    clip-level analysis performed by ``gigapath_bipolar_feature_bags_probe``.
+    Wraps the probe inside a ``BipolarFeatureBagClip(Clip)`` (or
+    ``BipolarSingleFeatureBagClip(Clip)`` when ``single`` is provided).
 
-    When built, the clip iterates over the probe's tile-level bipolar
-    feature array, slices out the per-bag segments, and persists each as an
-    independent ``BipolarFeatureBag``.  This enables efficient random
-    access and downstream dataset construction via
-    ``gigapath_bipolar_featurebag_dataset``.
+    During ``build()``, each ``BipolarFeatureBag(Bag)`` reads the probe's
+    clip-wide ``tile_bipolar_features`` array, slices out its segment using
+    ``probe.bag_bounds[i]:probe.bag_bounds[i+1]``, and writes a single
+    ``bipolar_features.npz`` to its own directory.  This converts the
+    probe's monolithic clip-level arrays into independent per-bag
+    datablocks, enabling efficient random access and downstream dataset
+    construction via ``gigapath_bipolar_featurebag_dataset``.
+
+    In contrast to the probe (which saves clip-wide statistics, logistic
+    evaluation reports, and similarity matrices as single files), this clip
+    saves only the per-bag feature slices and a ``bag_lens`` index.
 
     Args:
         name: Base split name (e.g. ``'GIGAPATH_BASELINE_CPTAC_400159'``).
@@ -459,8 +483,8 @@ def gigapath_bipolar_feature_bag_clip(name,
 
     Returns:
         A ``BipolarFeatureBagClip`` (or ``BipolarSingleFeatureBagClip``)
-        whose ``.bags`` property yields ``BipolarFeatureBag`` instances
-        ready for dataset or dataloader construction.
+        whose ``.bags`` property yields ``BipolarFeatureBag`` instances,
+        each storing its own ``bipolar_features.npz``.
     """
     devices = [f'cuda:{i}' for i in range(n_devices)]
     probe = dbx.quote(
@@ -904,6 +928,152 @@ def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool =
     ) -> LogisticFeatureBagProbe:
     return LogisticFeatureBagProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization), n_bins=n_bins, polarize=polarize, aggregation=aggregation))
     
+
+# ---- SphericalFeatureBagClip ------------------------------------------------
+# git commit -am "gigaq: SphericalFeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_spherical_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159').build()"
+# git commit -am "gigaq: SphericalFeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_spherical_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', cpu_parallelization='multithreading', n_workers=4).build_tree()"
+@tagged
+def gigapath_spherical_feature_bag_clip(name,
+                                       *,
+                                       tag: str | None = None,
+                                       build_missing_only: bool = False,
+                                       cpu_parallelization: str | None = None,
+                                       cpu_batch_size: int | None = None,
+                                       n_workers: int = 1,
+                                       bag_cpu_parallelization: str | None = None,
+                                       bag_cpu_batch_size: int | None = None,
+                                       bag_n_workers: int = 1,
+                                       gpu_parallelization: str = 'multithreading',
+                                       n_devices: int = 1,
+                                       gpu_batch_size: int = 16,
+    ) -> SphericalFeatureBagClip:
+    """Materialise a clip of L2-normalised (spherical) feature bags.
+
+    Wraps ``gigapath_feature_bag_clip`` inside a ``SphericalFeatureBagClip``.
+    During ``build()``, each ``SphericalFeatureBag`` reads the raw features
+    from its corresponding ``FeatureBag``, L2-normalises every tile feature
+    vector, and persists the result.
+
+    Args:
+        name: Named configuration selecting the ``FeatureBagClip`` to
+              normalise (e.g. ``'GIGAPATH_BASELINE_CPTAC_400159'``).
+        tag: Optional human-readable pipeline tag.
+        build_missing_only: If ``True``, only build bags not already on disk.
+        cpu_parallelization: Strategy for CPU-bound parallel work.
+        cpu_batch_size: Batch size for CPU-side executors.
+        n_workers: CPU worker count for building bags.
+        bag_cpu_parallelization: Parallelization for bag formation.
+        bag_cpu_batch_size: Batch size for bag formation.
+        bag_n_workers: Worker count for bag formation.
+        gpu_parallelization: GPU parallelization strategy (passed to
+            the underlying ``FeatureBagClip``).
+        n_devices: Number of GPU devices.
+        gpu_batch_size: Batch size per GPU.
+
+    Returns:
+        A ``SphericalFeatureBagClip`` whose ``.bags`` yields
+        ``SphericalFeatureBag`` instances with unit-norm features.
+    """
+    return SphericalFeatureBagClip(
+        spec=dict(
+            featurebagclip=gigapath_feature_bag_clip(
+                name,
+                tag=tag,
+                n_devices=n_devices,
+                gpu_batch_size=gpu_batch_size,
+                n_workers=n_workers,
+                cpu_batch_size=cpu_batch_size,
+                cpu_parallelization=cpu_parallelization,
+                gpu_parallelization=gpu_parallelization,
+            ),
+        ),
+        tag=tag,
+        build_missing_only=build_missing_only,
+        cpu_parallelization=cpu_parallelization,
+        cpu_batch_size=cpu_batch_size,
+        n_workers=n_workers,
+        bag_cpu_parallelization=bag_cpu_parallelization,
+        bag_cpu_batch_size=bag_cpu_batch_size,
+        bag_n_workers=bag_n_workers,
+    )
+
+
+# ---- AffineLogisticFeatureBagProbe ------------------------------------------
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', fit_intercept=False).build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe: READ";  dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').read('intercept')"
+#
+# Run on spherical features:
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True).build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True, fit_intercept=False).build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): READ";  dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True).read('intercept')"
+@tagged
+def gigapath_affine_logistic_feature_bags_probe(name,
+                                                *,
+                                                tag: str | None = None,
+                                                spherical: bool = False,
+                                                fit_intercept: bool = True,
+                                                evaluation_fraction: float = 0.8,
+                                                aggregation: str = 'mean',
+                                                n_workers: int = 1,
+                                                n_devices: int = 1,
+                                                gpu_batch_size: int = 16,
+                                                cpu_parallelization: str = 'Inline',
+                                                gpu_parallelization: str = 'Multithreading',
+    ) -> AffineLogisticFeatureBagProbe:
+    """Fit a linear (logistic) classifier on GigaPath bag features and persist the model.
+
+    Instantiates an ``AffineLogisticFeatureBagProbe`` that trains a
+    ``LogisticRegression`` on bag-level mean features and persists the
+    fitted ``coef_``, ``intercept_``, and ``classification_report``.
+
+    When ``spherical=True``, the probe operates on a
+    ``SphericalFeatureBagClip`` (L2-normalised features) instead of the
+    raw ``FeatureBagClip``.
+
+    Args:
+        name: Named configuration selecting the feature clip.
+        tag: Optional human-readable pipeline tag.
+        spherical: If ``True``, run on L2-normalised features via
+            ``gigapath_spherical_feature_bag_clip``.
+        fit_intercept: Whether the classifier learns a bias term.
+            Set to ``False`` to force separating planes through the origin.
+        evaluation_fraction: Train/test split fraction.
+        aggregation: Bag-level feature aggregation (``"mean"``).
+        n_workers: CPU worker count.
+        n_devices: Number of GPU devices.
+        gpu_batch_size: Batch size per GPU.
+        cpu_parallelization: CPU parallelization strategy.
+        gpu_parallelization: GPU parallelization strategy.
+
+    Returns:
+        An ``AffineLogisticFeatureBagProbe`` with persisted ``coef``,
+        ``intercept``, ``classes``, and ``evaluation_report`` topics.
+    """
+    if spherical:
+        clip = gigapath_spherical_feature_bag_clip(
+            name, tag=tag,
+            n_workers=n_workers, n_devices=n_devices,
+            gpu_batch_size=gpu_batch_size,
+            cpu_parallelization=cpu_parallelization,
+            gpu_parallelization=gpu_parallelization,
+        )
+    else:
+        clip = gigapath_feature_bag_clip(
+            name, tag=tag,
+            n_workers=n_workers, n_devices=n_devices,
+            gpu_batch_size=gpu_batch_size,
+            cpu_parallelization=cpu_parallelization,
+            gpu_parallelization=gpu_parallelization,
+        )
+    return AffineLogisticFeatureBagProbe(
+        spec=dict(
+            featurebagclip=clip,
+            fit_intercept=fit_intercept,
+            evaluation_fraction=evaluation_fraction,
+            aggregation=aggregation,
+        ),
+    )
 
 # git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000').set(n_devices=3).build()"
 # git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000').set(n_devices=3).build()"

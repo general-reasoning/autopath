@@ -41,21 +41,7 @@ def get_executor_cls(parallelization):
 from autopath.databits import Shard, Bag, Clip, ClipDatasetBuilder
 from .tiles import TileBag
 
-
-def tensors_to_device(tensors, device, *, detach: bool = False):
-    _tensors = {k: v.to(device) for k, v in tensors.items()}
-    if detach:
-        _tensors = {k: v.detach() for k, v in _tensors.items()} 
-    return _tensors
-
-
-def cat_tensor_dicts(tensor_dicts):
-    tensors = {k: [] for k in tensor_dicts[0].keys()}
-    for tensor_dict in tensor_dicts:
-        for k, v in tensor_dict.items():
-            tensors[k].append(v)
-    _tensors = {k: torch.cat(v) for k, v in tensors.items()}
-    return _tensors
+from autopath.tools import tensors_to_device, cat_tensor_dicts
 
 
 class FeatureBagMaker:
@@ -115,7 +101,7 @@ class FeatureBag(Bag):
     
     @property
     def label(self):
-        return self.cfg.tilebag.label, 
+        return self.cfg.tilebag.label
 
     def __build__(self, extractor=None):
         if extractor is None:
@@ -694,6 +680,236 @@ class BipolarSingleFeatureBagClip(Clip):
     @property
     def n_bags(self):
         return 1
+
+    @property
+    def shard_lens(self):
+        return self.bag_lens
+
+    @property
+    def n_shards(self):
+        return self.n_bags
+
+
+class SphericalFeatureBagMaker:
+    def __init__(self, clip, idx):
+        self.clip = clip
+        self.idx = idx
+    def __call__(self):
+        return dbx.eval(self.clip).bag(self.idx)
+    def __repr__(self):
+        return f"SphericalFeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
+
+
+class SphericalFeatureBag(Bag):
+    """A ``Bag`` that stores L2-normalised (unit-sphere) tile features.
+
+    Each tile feature vector is divided by its L2 norm so that it lies
+    on the unit hypersphere.  The raw (un-normalised) features remain
+    accessible via the underlying ``FeatureBag``.
+
+    Persisted topics:
+
+    - ``features`` — L2-normalised tile feature matrix ``(n_tiles, d)``
+    """
+
+    TOPICFILES = {
+        'features': 'features.npy',
+    }
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        featurebag: FeatureBag
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __build__(self):
+        self.log.detailed(f"SphericalFeatureBag: build: BEGIN")
+        raw = self.cfg.featurebag.features           # (n_tiles, d)
+        norms = raw.norm(dim=1, keepdim=True).clamp(min=1e-8)
+        features = raw / norms
+        dbx.write_tensor(features, self.path('features', ensure_dirpath=True))
+        self._len = len(features)
+        self.log.detailed(f"SphericalFeatureBag: build: END ({self._len} tiles)")
+        return self
+
+    def __read__(self, topic: str):
+        if topic == 'features':
+            result = dbx.read_tensor(self.path('features'))
+        else:
+            raise ValueError(f"Unknown {topic=}")
+        return result
+
+    @property
+    def tensor(self):
+        return self.features
+
+    @functools.cached_property
+    def features(self):
+        return self.read('features')
+
+    @property
+    def name(self):
+        return self.cfg.featurebag.name
+
+    @property
+    def label(self):
+        return self.cfg.featurebag.label
+
+    @functools.cached_property
+    def labels(self):
+        return self.cfg.featurebag.labels
+
+    def __len__(self):
+        if not hasattr(self, '_len'):
+            if self.validtopic('features'):
+                self._len = dbx.read_tensor(self.path('features')).shape[0]
+            else:
+                self._len = len(self.cfg.featurebag)
+        return self._len
+
+
+class SphericalFeatureBagClip(Clip):
+    """A ``Clip`` of L2-normalised feature bags.
+
+    Wraps a ``FeatureBagClip`` and materialises one ``SphericalFeatureBag``
+    per source ``FeatureBag``.  Each bag independently L2-normalises its
+    tile features during ``build()``.
+    """
+
+    VERSION = 1
+
+    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        featurebagclip: FeatureBagClip
+
+    def __init__(self,
+                 *args,
+                 tag: str | None = None,
+                 build_missing_only: bool = False,
+                 cpu_parallelization: str | None = None,
+                 n_workers: int = 1,
+                 cpu_batch_size: int | None = None,
+                 bag_cpu_parallelization: str | None = None,
+                 bag_n_workers: int = 1,
+                 bag_cpu_batch_size: int | None = None,
+                 **kwargs):
+        super().__init__(
+            *args,
+            n_workers=n_workers,
+            build_missing_only=build_missing_only,
+            cpu_parallelization=cpu_parallelization,
+            cpu_batch_size=cpu_batch_size,
+            tag=tag,
+            **kwargs,
+        )
+        self.bag_n_workers = bag_n_workers
+        self.bag_cpu_batch_size = bag_cpu_batch_size
+        self.bag_cpu_parallelization = bag_cpu_parallelization
+        self.executor_cls = get_executor_cls(cpu_parallelization)
+        self.bag_executor_cls = get_executor_cls(bag_cpu_parallelization)
+        self.builder_cls = {
+            'ray': RayDatablocksBuilder,
+            'multiprocessing': MultiprocessingDatablocksBuilder,
+            'multithreading': MultithreadingDatablocksBuilder,
+            'inline': InlineDatablocksBuilder,
+        }[cpu_parallelization.lower() if cpu_parallelization is not None else 'inline']
+
+    def __build__(self):
+        self.log.verbose(f"__build__: BUILDING SphericalFeatureBags using "
+                         f"{self.n_workers} {self.cpu_parallelization} workers: BEGIN")
+        bags = self.bags
+        missing_bags = []
+        bag_lens = []
+        if self.build_missing_only:
+            if self.verbose:
+                bagitor = tqdm.tqdm(bags, desc=f"{self.anchor}: LOOKING for missing SphericalFeatureBags")
+            else:
+                bagitor = bags
+            for bag in bagitor:
+                if not bag.valid():
+                    missing_bags.append(bag)
+                bag_lens.append(len(bag))
+        else:
+            missing_bags = bags
+
+        self.log.verbose(f"__build__: BUILDING {len(missing_bags)} "
+                         f"{'missing' if self.build_missing_only else 'all'} "
+                         f"SphericalFeatureBags: BEGIN")
+        if self.n_workers > 0:
+            self.builder_cls(
+                n_workers=self.n_workers,
+                log=self.log,
+                tag=f"{self.anchor}: __build__: BUILDING SphericalFeatureBags",
+            ).build_blocks(missing_bags)
+        else:
+            if self.verbose:
+                bagitor = tqdm.tqdm(missing_bags,
+                                   desc=f"{self.anchor}: __build__: BUILDING SphericalFeatureBags")
+            else:
+                bagitor = missing_bags
+            for bag in bagitor:
+                bag.__build__()
+        self.log.verbose(f"__build__: BUILDING SphericalFeatureBags: END")
+        self.log.verbose(f"__build__: COMPUTING bag_lens for {len(bags)} bags: BEGIN")
+        if not self.build_missing_only:
+            executables = [FeatureBagClip.FeatureBagLengthComputer(bag) for bag in bags]
+            bag_lens = list(self.bag_executor_cls(
+                n_workers=self.bag_n_workers,
+                batch_size=self.bag_cpu_batch_size,
+                log=self.log,
+                tag='SphericalFeatureBagClip bag_lens',
+            ).execute(executables))
+        self.log.verbose(f"__build__: COMPUTING bag_lens: END")
+        write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
+        return self
+
+    def __read__(self, topic):
+        return read_npz(self.path(topic), topic)[topic]
+
+    @property
+    def bags(self):
+        if not hasattr(self, '_bags'):
+            self.log.verbose("bags: FORMING SphericalFeatureBags: BEGIN")
+            n_bags = self.cfg.featurebagclip.n_bags
+            executables = [SphericalFeatureBagMaker(self, idx) for idx in range(n_bags)]
+            results = self.bag_executor_cls(
+                n_workers=self.bag_n_workers,
+                batch_size=self.bag_cpu_batch_size,
+                log=self.log,
+                tag='SphericalFeatureBagClip bag formation',
+            ).execute(executables)
+            self._bags = list(results)
+            self.log.verbose("bags: FORMING SphericalFeatureBags: END")
+        return self._bags
+
+    def bag(self, idx: int):
+        if hasattr(self, '_bags'):
+            return self._bags[idx]
+        featurebag = self.cfg.featurebagclip.bag(idx)
+        bag = SphericalFeatureBag(
+            root=self._root_,
+            spec=dict(featurebag=dbx.quote(featurebag)),
+            tag=self.tag,
+        )
+        return bag
+
+    def shard(self, idx: int):
+        return self.bag(idx)
+
+    @property
+    def shards(self):
+        return self.bags
+
+    @functools.cached_property
+    def bag_lens(self):
+        return self.read('bag_lens')
+
+    @property
+    def n_bags(self):
+        return self.cfg.featurebagclip.n_bags
 
     @property
     def shard_lens(self):

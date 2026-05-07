@@ -238,7 +238,7 @@ class LogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
     }
     @dataclass
     class CONFIG:
-        featurebagclip: FeatureBagClip
+        featurebagclip: Clip
         n_bins: int = 2
         polarize: bool = False
         evaluation_fraction: float = 0.8
@@ -257,9 +257,9 @@ class LogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
         else:
             bagitor = self.cfg.featurebagclip.bags
         for featurebag in bagitor:
-            bag_labels.append(featurebag.cfg.tilebag.label)
+            bag_labels.append(featurebag.label)
             if self.cfg.aggregation == "mean":
-                _bag_features = torch.mean(featurebag.features, dim=0)
+                _bag_features = torch.mean(featurebag.tensor, dim=0)
             bag_feature_list.append(_bag_features)
         bag_features = torch.stack(bag_feature_list)
         assert len(bag_labels) == len(bag_features), f"len(bag_labels) != len(bag_features): {len(bag_labels)} != {len(bag_features)}"
@@ -300,6 +300,121 @@ class LogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
             raise ValueError(f"Unknown topic: {topic}")
         return result
     
+
+class AffineLogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
+    """Fit a linear (logistic) classifier on bag-level features and persist the model parameters.
+
+    Unlike ``LogisticFeatureBagProbe``, this probe saves the fitted
+    classifier's ``coef_`` and ``intercept_`` arrays so that the
+    separating hyperplane can be inspected after building.  A
+    ``fit_intercept`` toggle controls whether the classifier is allowed
+    to learn a non-zero bias — useful for testing whether data that
+    lives on the unit sphere (L2-normalised features) is separable by
+    hyperplanes through the origin.
+
+    Persisted topics:
+
+    - ``bag_labels``          — per-bag label array
+    - ``bag_features``        — per-bag mean feature vectors
+    - ``evaluation_report``   — sklearn ``classification_report`` string
+    - ``coef``                — weight matrix  ``(n_classes, n_features)``
+    - ``intercept``           — intercept vector ``(n_classes,)``
+    - ``classes``             — ordered class labels from the fitted model
+    """
+
+    TOPICFILES = {
+        'bag_labels':         'bag_labels.npz',
+        'bag_features':       'bag_features.npy',
+        'evaluation_report':  'evaluation_report.pkl',
+        'coef':               'coef.npy',
+        'intercept':          'intercept.npy',
+        'classes':            'classes.npz',
+    }
+
+    @dataclass
+    class CONFIG:
+        featurebagclip: Clip
+        fit_intercept: bool = True
+        evaluation_fraction: float = 0.8
+        aggregation: str = "mean"
+
+    def __post_init__(self):
+        assert self.cfg.aggregation in ["mean"], \
+            f"Unknown aggregation: {self.cfg.aggregation}"
+        return self
+
+    def __build__(self):
+        # ---- collect bag features & labels --------------------------------
+        bag_labels = []
+        bag_feature_list = []
+        self.log.verbose("READING bags and labels")
+        if self.verbose:
+            bagitor = tqdm.tqdm(self.cfg.featurebagclip.bags)
+        else:
+            bagitor = self.cfg.featurebagclip.bags
+        for bag in bagitor:
+            bag_labels.append(bag.label)
+            if self.cfg.aggregation == "mean":
+                _bag_features = torch.mean(bag.tensor, dim=0)
+            bag_feature_list.append(_bag_features)
+        bag_features = torch.stack(bag_feature_list)
+        assert len(bag_labels) == len(bag_features), \
+            f"len(bag_labels) != len(bag_features): {len(bag_labels)} != {len(bag_features)}"
+        write_npz(self.path('bag_labels', ensure_dirpath=True),
+                  bag_labels=bag_labels)
+        write_tensor(bag_features,
+                     self.path('bag_features', ensure_dirpath=True))
+
+        # ---- train / test split -------------------------------------------
+        X = bag_features.numpy()
+        y = np.array(bag_labels)
+        N = len(y)
+        ntrain = int(N * self.cfg.evaluation_fraction)
+        perm = np.random.permutation(N)
+        X_train, y_train = X[perm[:ntrain]], y[perm[:ntrain]]
+        X_test,  y_test  = X[perm[ntrain:]], y[perm[ntrain:]]
+
+        # ---- fit classifier -----------------------------------------------
+        self.log.verbose(f"FITTING LogisticRegression "
+                         f"(fit_intercept={self.cfg.fit_intercept})")
+        clf = LogisticRegression(fit_intercept=self.cfg.fit_intercept)
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+        report = classification_report(y_test, y_pred)
+        self.log.verbose(f"Classification report:\n{report}")
+
+        # ---- persist results ----------------------------------------------
+        write_pickle(report,
+                     self.path('evaluation_report', ensure_dirpath=True))
+        write_tensor(torch.from_numpy(clf.coef_),
+                     self.path('coef', ensure_dirpath=True))
+        write_tensor(torch.from_numpy(clf.intercept_),
+                     self.path('intercept', ensure_dirpath=True))
+        write_npz(self.path('classes', ensure_dirpath=True),
+                  classes=clf.classes_)
+
+        self.log.verbose(
+            f"intercept norm = {np.linalg.norm(clf.intercept_):.6f}  "
+            f"(fit_intercept={self.cfg.fit_intercept})"
+        )
+        return self
+
+    def __read__(self, topic):
+        if topic == 'bag_labels':
+            result = read_npz(self.path('bag_labels'), 'labels')
+        elif topic == 'bag_features':
+            result = read_tensor(self.path('bag_features'))
+        elif topic == 'evaluation_report':
+            result = read_pickle(self.path('evaluation_report'))
+        elif topic == 'coef':
+            result = read_tensor(self.path('coef'))
+        elif topic == 'intercept':
+            result = read_tensor(self.path('intercept'))
+        elif topic == 'classes':
+            result = read_npz(self.path('classes'), 'classes')
+        else:
+            raise ValueError(f"Unknown topic: {topic}")
+        return result
 
 class FeatureBagMedianProbe(Datablock):
     TOPICFILES = {
