@@ -23,7 +23,7 @@ import lightning.pytorch.loggers
 import dbx
 from dbx import Datablock
 
-from autopath.databits import ClipDataLoaderBuilder
+from autopath.pancan.clips import TileClipDataLoaderBuilder
 from .layers import UpLayer, ConvBlock
 
 
@@ -758,7 +758,7 @@ class HydroStill(Datablock):
     @dataclass
     class CONFIG:
         lightning: HydroLightning
-        dataloader: ClipDataLoaderBuilder  # DataLoader or DataLoaderBuilder with .dataloader() method
+        dataloader: TileClipDataLoaderBuilder  # DataLoader or DataLoaderBuilder with .dataloader() method
         initial_ckpt: str = None
         from_scratch: bool = False
         reset_optimizer_state: bool = False

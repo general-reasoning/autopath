@@ -28,7 +28,7 @@ from dinov2.utils.utils import CosineScheduler
 import dbx
 from dbx import Datablock
 
-from autopath.pancan.tiles import PancanTileSet
+from autopath.pancan.clips import PancanTileSet
 from .backbone import gigapath_tile_backbone
 from .backbone import GigapathVisionTransformer
 from .ssl import SSL

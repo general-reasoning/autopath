@@ -31,7 +31,7 @@ import lightning.pytorch.loggers
 import dbx
 from dbx import Datablock
 
-from autopath.databits import ClipDataLoaderBuilder
+from autopath.pancan.clips import TileClipDataLoaderBuilder
 
 from einops import rearrange
 from helm.third_party_tools.control_net.ldm.modules.distributions.distributions import (

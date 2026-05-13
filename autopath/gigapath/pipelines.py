@@ -9,12 +9,12 @@ import torch.multiprocessing as mp
 import dbx
 from dbx import tagged
 
-from autopath.databits import ClipDatasetBuilder, ClipDataLoaderBuilder
+from autopath.pancan.clips import TileClipDatasetBuilder, TileClipDataLoaderBuilder
 
 from autopath.pancan.pipelines import (
     pancan_tile_bag,
     pancan_tile_bag_clip,
-    pancan_tile_bag_fold,
+    pancan_tile_fold,
 )
 
 from autopath.features import (
@@ -153,39 +153,39 @@ def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:s
     if name == "GIGAPATH_BASELINE_CPTAC":
         tilebagclip=dbx.quote(pancan_tile_bag_clip, 'CPTAC')
     elif name == "GIGAPATH_BASELINE_CPTAC_9802_TEST":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_9802_TEST')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_9802_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_9802_TRAIN":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_9802_TRAIN')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_9802_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_8020_TEST":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TEST')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_8020_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_8020_TRAIN":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TRAIN')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_8020_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_404020_CALIBRATE":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_CALIBRATE')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_CALIBRATE')
     elif name == "GIGAPATH_BASELINE_CPTAC_404020_TRAIN":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TRAIN')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_404020_TEST":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_404020_TEST')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_206020_CALIBRATE')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_206020_CALIBRATE')
     elif name == "GIGAPATH_BASELINE_CPTAC_206020_TRAIN":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_206020_TRAIN')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_206020_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_206020_TEST":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_206020_TEST')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_206020_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_CALIBRATE')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_CALIBRATE')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_TRAIN":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TRAIN')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_400159_TEST":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_400159_TEST')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_TEST')
     elif name == "GIGAPATH_BASELINE_5B_CPTAC_8020_TEST":
-        tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_8020_TEST')
+        tilebagclip = dbx.quote(pancan_tile_fold, 'CPTAC_8020_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_CALIBRATE')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_CALIBRATE')
     elif name == "GIGAPATH_BASELINE_CPTAC_200179_TRAIN":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TRAIN')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_TRAIN')
     elif name == "GIGAPATH_BASELINE_CPTAC_200179_TEST":
-        tilebagclip=dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TEST')
+        tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_TEST')
     else:
         raise ValueError(f"Unknown gigapath_feature_clip: {repr(name)}")
     return FeatureBagClip(
@@ -236,8 +236,8 @@ def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_
                                           shuffle_bags: bool = False,
                                           **dataloader_kwargs):
     featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
-    clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), shuffle_seed=shuffle_bags_seed))
-    return ClipDataLoaderBuilder(spec=dict(
+    clip_dataset_builder = TileClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), shuffle_seed=shuffle_bags_seed))
+    return TileClipDataLoaderBuilder(spec=dict(
                             clip_dataset_builder=clip_dataset_builder,
                             batch_size=dataloader_kwargs.get('batch_size', None),
                             shuffle=shuffle_bags or dataloader_kwargs.get('shuffle', False),
@@ -565,8 +565,8 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
         featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
-    clip_dataset_builder = ClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), transform=transform, target_transform=target_transform, shuffle_seed=shuffle_bags_seed))
-    return ClipDataLoaderBuilder(spec=dict(
+    clip_dataset_builder = TileClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), transform=transform, target_transform=target_transform, shuffle_seed=shuffle_bags_seed))
+    return TileClipDataLoaderBuilder(spec=dict(
                             clip_dataset_builder=clip_dataset_builder,
                             batch_size=dataloader_kwargs.get('batch_size', None),
                             shuffle=shuffle_bags or dataloader_kwargs.get('shuffle', False),
@@ -1220,11 +1220,11 @@ def gigapath_spectral_feature_bag_clip(name: str = None, *, tag: str | None = No
         return SpectralFeatureBagClip
     extractor = quote_spectral_extractor('GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_BLOCKS:5_SPEC:CLS')
     if name == "GIGAPATH_SPECTRAL_CPTAC_200179_TEST":
-        tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TEST')
+        tilebagclip = dbx.quote(pancan_tile_fold, 'CPTAC_200179_TEST')
     elif name == "GIGAPATH_SPECTRAL_CPTAC_200179_TRAIN":
-        tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_TRAIN')
+        tilebagclip = dbx.quote(pancan_tile_fold, 'CPTAC_200179_TRAIN')
     elif name == "GIGAPATH_SPECTRAL_CPTAC_200179_CALIBRATE":
-        tilebagclip = dbx.quote(pancan_tile_bag_fold, 'CPTAC_200179_CALIBRATE')
+        tilebagclip = dbx.quote(pancan_tile_fold, 'CPTAC_200179_CALIBRATE')
     else:
         raise ValueError(f"Unknown spectral feature clip: {repr(name)}")
     return SpectralFeatureBagClip(

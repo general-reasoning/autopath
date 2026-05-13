@@ -43,8 +43,8 @@ def get_executor_cls(parallelization):
         'inline': InlineCallableExecutor,
     }[parallelization.lower() if parallelization is not None else 'inline']
 
-from autopath.databits import Bag, Clip, ClipDatasetBuilder
-from .tiles import TileBag
+from autopath.databits import Bag, Clip
+from autopath.pancan.clips import TileBag, TileClipDatasetBuilder
 
 from autopath.tools import tensors_to_device, cat_tensor_dicts
 
@@ -401,7 +401,7 @@ class FeaturesLabelTileToFloat:
         
 
 def featurebag_dataset(featurebagclip: Clip, *, transform=None, target_transform=None, bags_shuffle_seed: int = None):
-    return ClipDatasetBuilder(spec=dict(clip=featurebagclip, transform=transform, target_transform=target_transform, shuffle_seed=bags_shuffle_seed)).dataset()
+    return TileClipDatasetBuilder(spec=dict(clip=featurebagclip, transform=transform, target_transform=target_transform, shuffle_seed=bags_shuffle_seed)).dataset()
 
 
 class BipolarFeatureBag(Bag):

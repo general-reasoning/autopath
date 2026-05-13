@@ -30,7 +30,7 @@ from dbx import (
 from streaming import MDSWriter, StreamingDataset
 
 from autopath.databits import Bag, Clip, DeepBackboneEvaluatorFactory
-from autopath.tiles import TileBag
+from autopath.pancan.clips import TileBag
 
 
 # ═══════════════════════════════════════════════════════════════════════

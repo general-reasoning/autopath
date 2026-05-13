@@ -21,7 +21,7 @@ from . import backbone
 
 from .augmentations import DataAugmentationDINO, dino_tile_transform
 
-from ...pancan.tiles import PancanTileSet
+from ...pancan.clips import PancanTileSet
 from ...pancan.pipelines import pancan_tile_fold
 
 
