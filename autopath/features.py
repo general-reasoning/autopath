@@ -405,7 +405,7 @@ def featurebag_dataset(featurebagclip: Clip, *, transform=None, target_transform
 
 
 class BipolarFeatureBag(Bag):
-    from autopath.pancan.probes import BipolarFeatureBagProbe
+    from autopath.probes import BipolarFeatureBagProbe
 
     VERSION = 1
     TOPICFILES = {
@@ -414,7 +414,7 @@ class BipolarFeatureBag(Bag):
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        from autopath.pancan.probes import BipolarFeatureBagProbe
+        from autopath.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
         bag_index: int
         featurebag: FeatureBag
@@ -489,7 +489,7 @@ class BipolarFeatureBagClip(Clip):
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        from autopath.pancan.probes import BipolarFeatureBagProbe
+        from autopath.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
 
     def __init__(self, 
@@ -620,7 +620,7 @@ class BipolarSingleFeatureBagClip(Clip):
     """Like BipolarFeatureBagClip, but contains exactly one bag at index `idx`
     from the given BipolarFeatureBagProbe."""
 
-    from autopath.pancan.probes import BipolarFeatureBagProbe
+    from autopath.probes import BipolarFeatureBagProbe
 
     VERSION = 1
 
@@ -628,7 +628,7 @@ class BipolarSingleFeatureBagClip(Clip):
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        from autopath.pancan.probes import BipolarFeatureBagProbe
+        from autopath.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
         idx: int
 

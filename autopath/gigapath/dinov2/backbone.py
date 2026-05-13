@@ -329,7 +329,7 @@ class BackboneEvaluator:
     ):
         self._backbone = backbone
         if self._backbone is None:
-            self._backbone = "@autopath.gigaq.dinov2.backbone.gigapath_tile_backbone()"
+            self._backbone = "@autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
         self.transform = transform
         if self.transform is None:
             self.transform = dino_tile_transform()
@@ -435,23 +435,14 @@ class SidebandBackboneEvaluator(BackboneEvaluator):
 
 
 class SpectralProbe:
-    """Estimates singular values of layer-to-layer Jacobians dh_{l+1}/dh_l.
+    """GigaPath-specific spectral probe (backward-compat wrapper).
 
-    Treats each transformer block as a map F_l : h_l -> h_{l+1} and estimates
-    the singular value spectrum of its Jacobian.  Two modes are available:
+    Accepts a GigaPath backbone and unwraps its blocks via
+    :func:`backbone_blocks`, then delegates to the model-agnostic
+    :class:`autopath.deep.probes.SpectralProbe`.
 
-        * **cls** — materialises the d×d Jacobian restricted to the CLS token
-          and computes a full dense SVD.  Fast and gives the complete spectrum.
-
-        * **full** — uses JVP/VJP to define a LinearOperator for the full
-          (Nd)×(Nd) Jacobian and calls scipy.sparse.linalg.svds for the top-k
-          and bottom-k singular values.  Memory-efficient but slower.
-
-    Args:
-        backbone:       The GigapathVisionTransformer model (already on device).
-        probe_blocks:   Which block indices to probe (e.g. [0, 10, 20, 30, 39]).
-        k:              Number of extreme singular values to estimate in full mode.
-        device:         Torch device string.
+    New code should use :class:`autopath.deep.probes.SpectralProbe`
+    directly.
     """
 
     def __init__(
@@ -462,212 +453,32 @@ class SpectralProbe:
         device: str = 'cuda',
         log: dbx.Logger = dbx.Logger(name='SpectralProbe', stack_depth=3),
     ):
+        from autopath.deep.probes import SpectralProbe as _GenericSpectralProbe
+        blocks = list(backbone_blocks(backbone))
+        self._delegate = _GenericSpectralProbe(
+            blocks=blocks,
+            probe_blocks=probe_blocks,
+            k=k,
+            device=device,
+            log=log,
+        )
         self.backbone = backbone
         self.probe_blocks = probe_blocks
         self.k = k
         self.device = device
         self.log = log
-        self._blocks = backbone_blocks(backbone)
 
-    # ------------------------------------------------------------------
-    #  Internal helpers
-    # ------------------------------------------------------------------
+    def probe(self, activations, mode='cls'):
+        return self._delegate.probe(activations, mode=mode)
 
-    def _block_fn(self, block_idx: int):
-        """Return a pure function h -> block(h) for a single block."""
-        block = self._blocks[block_idx]
-        def fn(h):
-            return block(h)
-        return fn
+    def _probe_cls(self, block_idx, h):
+        return self._delegate._probe_cls(block_idx, h)
 
-    # ------------------------------------------------------------------
-    #  Mode 1: CLS-token-only  (d × d, fully materialisable)
-    # ------------------------------------------------------------------
+    def _probe_composed_cls(self, first_block, last_block, h_input):
+        return self._delegate._probe_composed_cls(first_block, last_block, h_input)
 
-    def _probe_cls(self, block_idx: int, h: torch.Tensor) -> np.ndarray:
-        """Materialise the d×d CLS-token Jacobian and return all singular values.
-
-        Args:
-            block_idx:  Index of the block.
-            h:          Activation tensor, shape (B, N, d): 
-                - B is batch size
-                - N is number of tokens
-                - d is embedding dimension
-                Only the CLS token (index 0) of sample 0 from the batch is used.
-
-        Returns:
-            Singular values as a 1-D numpy array in decreasing order, length d.
-        """
-        block = self._blocks[block_idx]
-        d = h.shape[-1]
-        h0 = h[0:1].detach().clone().requires_grad_(True)          # (1, N, d)
-
-        def cls_fn(cls_vec):
-            """Replace the CLS token, run the block, return the output CLS token."""
-            h_in = h0.clone()
-            h_in[0, 0, :] = cls_vec
-            h_out = block(h_in)
-            return h_out[0, 0, :]                                  # (d,)
-
-        J = torch.autograd.functional.jacobian(cls_fn, h0[0, 0, :].detach())   # (d, d)
-        sv = torch.linalg.svdvals(J.float()).cpu().numpy()
-        return sv
-
-    # ------------------------------------------------------------------
-    #  Mode 1b: CLS-token composed Jacobian (first → last probed block)
-    # ------------------------------------------------------------------
-
-    def _probe_composed_cls(self, first_block: int, last_block: int,
-                            h_input: torch.Tensor) -> np.ndarray:
-        """Materialise the d×d CLS-token Jacobian of the composed map
-        blocks[first] ∘ … ∘ blocks[last] and return all singular values.
-
-        This chains every block from *first_block* to *last_block*
-        (inclusive), so it captures the end-to-end transformation over
-        the probed depth range.
-
-        Args:
-            first_block:  Index of the first block in the chain.
-            last_block:   Index of the last block in the chain.
-            h_input:      Activation tensor at the **input** of
-                          ``first_block``, shape ``(B, N, d)``.
-                          Only sample 0 is used.
-
-        Returns:
-            Singular values as a 1-D numpy array in decreasing order,
-            length *d*.
-        """
-        d = h_input.shape[-1]
-        h0 = h_input[0:1].detach().clone().requires_grad_(True)   # (1, N, d)
-
-        def composed_cls_fn(cls_vec):
-            h = h0.clone()
-            h[0, 0, :] = cls_vec
-            for b_idx in range(first_block, last_block + 1):
-                h = self._blocks[b_idx](h)
-            return h[0, 0, :]                                     # (d,)
-
-        self.log.verbose(
-            f"Computing composed CLS Jacobian for blocks {first_block}→{last_block}"
-        )
-        J = torch.autograd.functional.jacobian(
-            composed_cls_fn, h0[0, 0, :].detach(),
-        )                                                         # (d, d)
-        sv = torch.linalg.svdvals(J.float()).cpu().numpy()
-        return sv
-
-    # ------------------------------------------------------------------
-    #  Mode 2: Full-sequence matrix-free  (Nd × Nd, via JVP / VJP)
-    # ------------------------------------------------------------------
-
-    def _probe_full(self, block_idx: int, h: torch.Tensor) -> Tuple[np.ndarray, np.ndarray]:
-        """Estimate top-k and bottom-k singular values of the full Jacobian.
-
-        Uses torch.func.jvp / vjp wrapped in a scipy LinearOperator fed to
-        scipy.sparse.linalg.svds.
-
-        Args:
-            block_idx:  Index of the block.
-            h:          Activation tensor, shape (B, N, d).  Only sample 0 is used.
-
-        Returns:
-            (s_top, s_bot) — each a 1-D numpy array of length k.
-        """
-        block = self._blocks[block_idx]
-        B, N, d = h.shape
-        flat_dim = N * d
-        h0 = h[0:1].detach()                                      # (1, N, d)
-        dtype = h.dtype
-        k = min(self.k, flat_dim - 1)                              # svds requires k < min(m,n)
-
-        def flat_fn(flat_h):
-            return block(flat_h.view(1, N, d)).view(flat_dim)
-
-        def matvec(v):
-            """J @ v  via JVP."""
-            v_t = torch.tensor(v, device=self.device, dtype=dtype).view(flat_dim)
-            _, jvp_out = torch.func.jvp(flat_fn, (h0.view(flat_dim),), (v_t,))
-            return jvp_out.detach().cpu().numpy().astype(np.float64)
-
-        def rmatvec(u):
-            """J^T @ u  via VJP."""
-            u_t = torch.tensor(u, device=self.device, dtype=dtype).view(flat_dim)
-            _, vjp_fn = torch.func.vjp(flat_fn, h0.view(flat_dim))
-            v = vjp_fn(u_t)[0]
-            return v.detach().cpu().numpy().astype(np.float64)
-
-        J_op = ScipyLinearOperator(
-            shape=(flat_dim, flat_dim),
-            matvec=matvec,
-            rmatvec=rmatvec,
-            dtype=np.float64,
-        )
-
-        # Top-k singular values
-        try:
-            _, s_top, _ = scipy_svds(J_op, k=k, which='LM')
-            s_top = np.sort(s_top)[::-1]
-        except Exception as e:
-            self.log.warning(f"scipy_svds (LM) failed for block {block_idx}: {e}")
-            s_top = np.full(k, np.nan)
-
-        # Bottom-k singular values
-        try:
-            _, s_bot, _ = scipy_svds(J_op, k=k, which='SM')
-            s_bot = np.sort(s_bot)
-        except Exception as e:
-            self.log.warning(f"svds (SM) failed for block {block_idx}: {e}")
-            s_bot = np.full(k, np.nan)
-
-        return s_top, s_bot
-
-    # ------------------------------------------------------------------
-    #  Public API
-    # ------------------------------------------------------------------
-
-    def probe(
-        self,
-        activations: Dict[int, torch.Tensor],
-        mode: str = 'cls',
-    ) -> Dict[int, dict]:
-        """Run the spectral probe on pre-captured activations.
-
-        Args:
-            activations:  Mapping from block index to activation tensor (B, N, d),
-                          as captured by SidebandBackboneEvaluator hooks.
-            mode:         ``'cls'`` for CLS-token-only, ``'full'`` for matrix-free,
-                          or ``'both'`` to run both.
-
-        Returns:
-            Dict mapping block_idx -> result dict with keys depending on mode:
-                cls:  {'singular_values': ndarray of shape (d,)}
-                full: {'top_singular_values': ndarray, 'bottom_singular_values': ndarray,
-                       'condition_number': float}
-        """
-        results = {}
-        for block_idx in self.probe_blocks:
-            if block_idx not in activations:
-                self.log.warning(f"No activation captured for block {block_idx}, skipping")
-                continue
-
-            h = activations[block_idx]
-            self.log.debug(f"Probing block {block_idx}, h.shape={tuple(h.shape)}, mode={mode}")
-            entry = {}
-
-            if mode in ('cls', 'both'):
-                sv = self._probe_cls(block_idx, h)
-                entry['singular_values'] = sv
-                entry['log_singular_values'] = np.log(np.clip(sv, 1e-12, None))
-                entry['condition_number_cls'] = float(sv[0] / (sv[-1] + 1e-12))
-
-            if mode in ('full', 'both'):
-                s_top, s_bot = self._probe_full(block_idx, h)
-                entry['top_singular_values'] = s_top
-                entry['bottom_singular_values'] = s_bot
-                entry['condition_number_full'] = float(s_top[0] / (s_bot[0] + 1e-12))
-
-            results[block_idx] = entry
-        return results
+    def _probe_full(self, block_idx, h):
+        return self._delegate._probe_full(block_idx, h)
 
 
 class SpectralBackboneEvaluator(SidebandBackboneEvaluator):
@@ -798,123 +609,4 @@ class SpectralBackboneEvaluator(SidebandBackboneEvaluator):
         return self
 
 
-# DEPRECATED: internalize attention capture in a BackboneEvaluator and remove
-def gigapath_tile_backbone_with_sideband_and_preprocessor(
-    *, 
-    type: str = 'prov-gigapath',
-    weights: str = None,
-    cache: str = None,
-    tile_encoder_snapshot: str = "8d2b1d2e65832e16bf9ff100a081acf6170a44ca",
-    hf_token: str = "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", 
-    device: str = 'cuda',
-    resize: int = 256,
-    center_crop: int = 224,
-    **kwargs,
-):
-    model = gigapath_tile_backbone(
-        type=type,
-        weights=weights,
-        cache=cache,
-        tile_encoder_snapshot=tile_encoder_snapshot,
-        hf_token=hf_token, 
-        device=device,
-        resize=resize,
-        center_crop=center_crop,
-        **kwargs,
-    )
 
-    # ---------------------------------------------------------------------
-    num_features = 1536
-    # This preprocessing, with resizing to 256 followed by
-    # center crop to 224, is the same as the original Gigapath
-    all_transforms = []
-
-    if resize:
-        all_transforms += [
-            transforms.Resize(
-                256 if resize is True else resize,
-                interpolation=transforms.InterpolationMode.BICUBIC),
-        ]
-    if center_crop:
-        all_transforms += [
-            transforms.CenterCrop(
-                224 if center_crop is True else center_crop),
-        ]
-    all_transforms += [
-        transforms.Lambda(lambda x: x / 255.),
-        transforms.Normalize(
-            mean=IMAGENET_DEFAULT_MEAN,
-            std=IMAGENET_DEFAULT_STD),
-    ]
-    transform = transforms.Compose(all_transforms)
-    
-    sideband = {}
-    def capture_layer(name):
-        def hook(model, input, output):
-            sideband[f"{name}_input"] = input[0].detach()
-            sideband[f"{name}"] = output.detach()
-        return hook
-
-    blocks = backbone_blocks(model)
-    L = len(blocks)
-    for l in range(L):
-        blocks[l].norm1.register_forward_hook(capture_layer(f'B_{l}_norm1'))
-        blocks[l].attn.qkv.register_forward_hook(capture_layer(f'B_{l}_attn_qkv'))
-        blocks[l].attn.proj.register_forward_hook(capture_layer(f'B_{l}_attn_proj'))
-        blocks[l].ls1.register_forward_hook(capture_layer(f'B_{l}_ls1'))
-        blocks[l].norm2.register_forward_hook(capture_layer(f'B_{l}_norm2'))
-        blocks[l].mlp.fc1.register_forward_hook(capture_layer(f'B_{l}_mlp_fc1'))
-        blocks[l].mlp.act.register_forward_hook(capture_layer(f'B_{l}_mlp_act'))
-        blocks[l].mlp.fc2.register_forward_hook(capture_layer(f'B_{l}_mlp_fc2'))
-        blocks[l].mlp.drop1.register_forward_hook(capture_layer(f'B_{l}_mlp_drop1'))
-        blocks[l].mlp.register_forward_hook(capture_layer(f'B_{l}_mlp'))
-        blocks[l].mlp.register_forward_hook(capture_layer(f'B_{l}_ls2'))
-    blocks[L-1].attn.q_norm.register_forward_hook(capture_layer(f'Q_{L-1}'))
-    blocks[L-1].attn.k_norm.register_forward_hook(capture_layer(f'K_{L-1}'))
-    model.patch_embed.register_forward_hook(capture_layer('patch_embed'))
-    model.norm.register_forward_hook(capture_layer('norm'))
-    model.head.register_forward_hook(capture_layer('head'))
-    model.register_forward_hook(capture_layer('model'))
-    return model, sideband, transform
-
-
-def apply(backbone, sideband, transform, image, *, output_root: str = None, scale: bool = True):
-    image_size = image.shape[1]
-    timage = transform(image).to('cuda')
-    output = backbone.cuda()(timage[None].cuda()).cpu().detach()
-    timage = timage.cpu()
-    sb = sideband
-
-    blocks = backbone_blocks(backbone)
-    L = len(blocks)
-    attn = (sb[f'Q_{L-1}'].cpu()) @ (sb[f'K_{L-1}'].cpu().transpose(-2, -1))
-    if scale:
-        attn *= blocks[L-1].attn.scale 
-    b, num_heads, num_patches_1, _ = attn.shape 
-    map_size = int(np.sqrt(num_patches_1))
-    
-    attention_maps = {}
-    for attention_head in range(num_heads):
-        attention_map = attn[:,attention_head, 0, 1:]
-        attention_map = attention_map.view(1, 1, map_size, map_size)
-        attention_map = torch.nn.Upsample(size=(image_size, image_size))(attention_map)
-        attention_map = attention_map[0, 0, :, :]
-        attention_maps[(L-1, attention_head)] = attention_map.detach().cpu().numpy()
-    if output_root is not None:
-        os.makedirs(output_root, exist_ok=True)
-        image_path = os.path.join(output_root, f"input.npz")
-        with open(image_path, 'wb') as f:
-            np.savez(f, image=image)
-        output_path = os.path.join(output_root, f"output.npz")
-        with open(output_path, 'wb') as f:
-            np.savez(f, output=output)
-        sideband_path = os.path.join(output_root, f"sideband.npz")
-        sideband_ = dict(
-            **{f"attention_map_{i}_{j}": attention_map for (i, j), attention_map in attention_maps.items()},
-            **{k: v.cpu().detach().numpy() for k, v in sideband.items()},
-        )
-        with open(sideband_path, 'wb') as f:
-            np.savez(f, **sideband_)
-    return output, sideband_
-
-        

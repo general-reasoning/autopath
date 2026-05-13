@@ -30,7 +30,7 @@ from autopath.features import (
     SpectralFeatureBagClip,
 )
 
-from autopath.pancan.probes import (
+from autopath.probes import (
     LogisticFeatureBagProbe, 
     AffineLogisticFeatureBagProbe,
     FeatureBagMedianProbe,
@@ -46,13 +46,13 @@ from autopath.pancan.probes import (
 
 
 
-from autopath.models.hydro import (
+from autopath.stills.hydro import (
     Hydro,
     HydroLightning,
     HydroStill,
 )
 
-from autopath.gigaq.dinov2.backbone import (
+from autopath.gigapath.dinov2.backbone import (
     BackboneEvaluator,
     SidebandBackboneEvaluator,
     SpectralBackboneEvaluator,
@@ -106,7 +106,7 @@ def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
     else:
         raise ValueError(f"Unknown backbone evaluator: {name}")
 
-# git commit -am "gigaq: FeatureBag: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag('GIGAPATH_BASELINE_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=1024).build()"
+# git commit -am "gigaq: FeatureBag: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag('GIGAPATH_BASELINE_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=1024).build()"
 def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
     if name is None:
         return FeatureBag
@@ -120,23 +120,23 @@ def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
     else:
         raise ValueError(f"Unknown feature shard: {name}")
 
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC', n_devices=2, n_workers=16).set(gpu_batch_size=1024).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_9802_TEST', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC', n_devices=2, n_workers=16).set(gpu_batch_size=1024).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_9802_TEST', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', n_workers=16).build()"
 #
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', n_workers=16).build_tree()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_TRAIN', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_TEST', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', n_workers=16).build_tree()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_TRAIN', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020_TEST', n_workers=16).build()"
 #
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', n_workers=16).build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TEST', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', n_workers=16).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159_TEST', n_workers=16).build()"
 #
-# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=16, cpu_parallelization='ray').build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', n_workers=16, cpu_parallelization='ray').build()"
-# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TEST', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', n_workers=16, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TEST', n_workers=16, cpu_parallelization='ray').build()"
 
 @tagged
 def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:str = None, n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, cpu_batch_size: int = None,
@@ -207,19 +207,19 @@ def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:s
     )
 
 
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC')[0]"
 #
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020_TEST')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020_TEST')[0]"
 #
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_9802_TEST')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_9802_TEST')[0]"
 #
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE')[0]"
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TRAIN')[0]"
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TEST')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TRAIN')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_TEST')[0]"
 #
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE')[0]"
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_200179_TRAIN')[0]"
-# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_200179_TEST')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_200179_TRAIN')[0]"
+# git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_200179_TEST')[0]"
 #
 def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None, 
                               n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, cpu_batch_size: int = None,
@@ -246,33 +246,33 @@ def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_
     )
 
 
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TEST', 10, batch_size=1, num_workers=1)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 10, batch_size=1, num_workers=1)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 20, batch_size=1, num_workers=2)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1, prefetch_factor=1)" 2.71s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=4, prefetch_factor=1)" 2.61s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=None)" 2.58s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=1)" 2.47s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=2)" 2.47s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=1,)" 2.38s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=4, prefetch_factor=1,)" 2.28s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=1, prefetch_factor=1,)" 2.25s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=4, prefetch_factor=None)" 1.39s/it
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=8, prefetch_factor=1)" ~=
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=2, prefetch_factor=2)" ~=
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=2, prefetch_factor=1)" ~=
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=2, prefetch_factor=1)" ~=
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TEST', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 10, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 20, batch_size=1, num_workers=2)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=1, prefetch_factor=1)" 2.71s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=4, prefetch_factor=1)" 2.61s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=None)" 2.58s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 100, batch_size=1, num_workers=2, prefetch_factor=1)" 2.47s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=2)" 2.47s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=1, prefetch_factor=1,)" 2.38s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=4, prefetch_factor=1,)" 2.28s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=1, prefetch_factor=1,)" 2.25s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=4, prefetch_factor=None)" 1.39s/it
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=8, prefetch_factor=1)" ~=
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=2, prefetch_factor=2)" ~=
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=4, num_workers=2, prefetch_factor=1)" ~=
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020_TRAIN', 400, batch_size=8, num_workers=2, prefetch_factor=1)" ~=
 #
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
 #
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_206020_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
 #
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
-# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigaq.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
+# git commit -am "gigaq: FeaturebagDataloader: SAMPLES"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_200179_TRAIN', 100, batch_size=8, num_workers=2, prefetch_factor=1)"
 #
 def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', None)
@@ -287,10 +287,10 @@ def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_ba
 
 
 
-# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_8020_TRAIN').build()"
-# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', n_workers=4, cpu_parallelization='multithreading').build()"
-# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE').build()"
-# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=4, cpu_parallelization='ray').build()"
+# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_8020_TRAIN').build()"
+# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_206020_CALIBRATE', n_workers=4, cpu_parallelization='multithreading').build()"
+# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE').build()"
+# git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=4, cpu_parallelization='ray').build()"
 @tagged
 def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_devices: int = 1, gpu_batch_size: int = 16, n_workers: int = 1, cpu_batch_size: int = None,
                                     cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
@@ -323,10 +323,10 @@ def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_device
     return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, tag=tag, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),))
 
 
-# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
-# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', n_devices=1).build_tree()"
+# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
+# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', n_devices=1).build_tree()"
 #
-# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_200179', n_devices=1).build_tree()"
+# git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_200179', n_devices=1).build_tree()"
 @tagged
 def gigapath_bipolar_feature_bags_probe(name, 
                                         *, 
@@ -416,14 +416,14 @@ def gigapath_bipolar_feature_bags_probe(name,
         devices=[f'cuda:{i}' for i in range(n_devices)],
     )
  
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020', n_workers=4).build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020').build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', cpu_parallelization='multithreading', n_workers=4).build_tree()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020').build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179', cpu_parallelization='multiprocessing', n_workers=4).build_tree()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020', n_workers=4).build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020').build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', cpu_parallelization='multithreading', n_workers=4).build_tree()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_206020').build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179', cpu_parallelization='multiprocessing', n_workers=4).build_tree()"
 #
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
-# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=1).build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=0).build()"
+# git commit -am "gigaq: BipolarFeatureBagClip: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', single=1).build()"
 @tagged
 def gigapath_bipolar_feature_bag_clip(name, 
                                      *, 
@@ -529,12 +529,12 @@ def gigapath_bipolar_feature_bag_clip(name,
         )
     return clip
 
-# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
-# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159')[0]"
-# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_206020')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_8020')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_206020')[0]"
 #
-# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0')[0]"
-# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0')[0]"
+# git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1')[0]"
 def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None,
                                       n_workers: int = 0, n_devices: int = 1, gpu_batch_size: int = 16,
                                       cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
@@ -575,13 +575,13 @@ def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuff
     )
  
 
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_8020', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159', 1000)"
 #
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0', 1000)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000)"
 #
-# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000, shuffle=True)"
+# git commit -am "gigaq: BipolarFeaturebagDataloader: SAMPLES"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataloader_samples('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1', 1000, shuffle=True)"
 def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, shuffle_bags: bool = False, return_last: bool = True, **dataloader_kwargs):
     batch_size = dataloader_kwargs.get('batch_size', 1)
     dataloader_builder = gigapath_bipolar_featurebag_dataloader_builder(name, root=root, shuffle_bags=shuffle_bags, **dataloader_kwargs)
@@ -595,7 +595,7 @@ def gigapath_bipolar_featurebag_dataloader_samples(name, n, root: str = None, sh
 
 
 
-# git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigaq.pipelines.gigapath_hydro('GIGAPATH_BIPOLAR_HYDRO')"
+# git commit -am "gigaq: HYDRO"; dbx.pprint "autopath.gigapath.pipelines.gigapath_hydro('GIGAPATH_BIPOLAR_HYDRO')"
 def gigapath_hydro(name, *, model: Literal['cnn', 'vit'] = 'cnn', **kwargs):
     """Create a Hydro configuration by name.
     
@@ -653,54 +653,54 @@ def gigapath_hydro(name, *, model: Literal['cnn', 'vit'] = 'cnn', **kwargs):
 
 """
 ### CNN
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159', \\
     log_images=True, n_devices=1, batch_size=6, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_1', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=64, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
-git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
+git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_MEDIUM_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=False, cnn_use_feature_modulation=False, suffix='cnn_resup_nosag_nofmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='l1', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_l1', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, suffix='cnn_resup_sag_fmod_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 #
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     loss_type='lpips', cnn_use_residual_upsampling=True, cnn_use_bilinear_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     model='cnn', suffix='cnn_resup_bilup_sag_fmod_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 ### ViT
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     model='vit', loss_type='lpips',  suffix='vit_lpips', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     model='vit', loss_type='ssim',  suffix='vit_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
-    dbx.pprint "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     model='vit', loss_type='ssim',  ssim_companion_loss='lpips', ssim_companion_weight=0.1, suffix='vit_ssim_lpips_0.8',   \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()"
 ###: slurm
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
     dbx.slurm.pprint \
-    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
+    "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_400159_SINGLE_0', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_loss='lpips', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=100, n_devices=1, batch_size=16, num_workers=2, prefetch_factor=1, pin_memory=True).set(capture_output=True).build()" \
@@ -708,14 +708,14 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
 ### interactive
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
     dbx.pprint \
-    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_206020', \\
+    "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGHEST_CPTAC_206020', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_weight=0.0, suffix='cnn_resup_sag_fmod_ssim', \\
     log_images=True, log_images_interval=1, max_epochs=16, n_devices=1, batch_size=46, num_workers=2, prefetch_factor=1, pin_memory=True).build()"
 ### training set warmup
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
     dbx.pprint \
-    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGH_CPTAC_206020', \\
+    "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGH_CPTAC_206020', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_weight=0.0, \\
     initial_ckpt='/home/t-9dkarp/datalake/autopath.models.hydro.HydroStill/8407f891562e15019daa1cee2a565820602a4492eb48415a1a6ba1fb80bb2e78/ckpts/epoch=2-step=171600.ckpt', \\
@@ -726,7 +726,7 @@ git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
 ### training set warmup2: TOO SLOW: BATCH SIZE THAT FITS INTO GRAM IS TOO LOW
 git commit -am "gigaq: HYDRO: STILL: BUILD"; DBX_USE_WORK_REPO=True \
     dbx.pprint \
-    "autopath.gigaq.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGH_CPTAC_206020', \\
+    "autopath.gigapath.pipelines.gigapath_bipolar_hydro_still('GIGAPATH_BIPOLAR_HYDRO_HIGH_CPTAC_206020', \\
     cnn_use_residual_upsampling=True, cnn_use_spatial_attention_gates=True, cnn_use_feature_modulation=True, \\
     loss_type='ssim', ssim_companion_weight=0.0, \\
     initial_ckpt='/home/t-9dkarp/datalake/autopath.models.hydro.HydroStill/1f67c4f05eb5ddfa858e4e4ab703fd4aed68c309165d0fb479a94ba428c653db/ckpts/epoch=2-step=14800.ckpt', \\
@@ -864,12 +864,12 @@ def gigapath_bipolar_hydro_still(
     return still
     
 
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).build()"
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).read('evaluation_reports')"
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).build()"
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_bins=2).read('evaluation_reports')"
 #
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, polarize=True).build()"
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, polarize=True).build()"
 #
-# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, aggregation='cdf').build()"
+# git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, aggregation='cdf').build()"
 
 def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool = False, aggregation: str = 'mean',
                                          n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024,
@@ -879,8 +879,8 @@ def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool =
     
 
 # ---- SphericalFeatureBagClip ------------------------------------------------
-# git commit -am "gigaq: SphericalFeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_spherical_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159').build()"
-# git commit -am "gigaq: SphericalFeatureBagClip: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_spherical_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', cpu_parallelization='multithreading', n_workers=4).build_tree()"
+# git commit -am "gigaq: SphericalFeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_spherical_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159').build()"
+# git commit -am "gigaq: SphericalFeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_spherical_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_400159', cpu_parallelization='multithreading', n_workers=4).build_tree()"
 @tagged
 def gigapath_spherical_feature_bag_clip(name,
                                        *,
@@ -948,14 +948,14 @@ def gigapath_spherical_feature_bag_clip(name,
 
 
 # ---- AffineLogisticFeatureBagProbe ------------------------------------------
-# git commit -am "gigaq: AffineLogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
-# git commit -am "gigaq: AffineLogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', fit_intercept=False).build()"
-# git commit -am "gigaq: AffineLogisticFeatureBagProbe: READ";  dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').read('intercept')"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', fit_intercept=False).build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe: READ";  dbx.pprint "autopath.gigapath.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').read('intercept')"
 #
 # Run on spherical features:
-# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True).build()"
-# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True, fit_intercept=False).build()"
-# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): READ";  dbx.pprint "autopath.gigaq.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True).read('intercept')"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True).build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True, fit_intercept=False).build()"
+# git commit -am "gigaq: AffineLogisticFeatureBagProbe(spherical): READ";  dbx.pprint "autopath.gigapath.pipelines.gigapath_affine_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159', spherical=True).read('intercept')"
 @tagged
 def gigapath_affine_logistic_feature_bags_probe(name,
                                                 *,
@@ -1024,9 +1024,9 @@ def gigapath_affine_logistic_feature_bags_probe(name,
         ),
     )
 
-# git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000').set(n_devices=3).build()"
-# git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000').set(n_devices=3).build()"
-# git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_20_4000_20000').set(n_devices=3).build()"
+# git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000').set(n_devices=3).build()"
+# git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000').set(n_devices=3).build()"
+# git commit -am "gigaq: FeaturePairwiseDistances: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_pairwise_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_20_4000_20000').set(n_devices=3).build()"
 def gigapath_feature_pairwise_distances(name) -> FeaturePairwiseDistances:
     if name == "GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000":
         return FeaturePairwiseDistances(
@@ -1152,24 +1152,24 @@ def gigapath_feature_pairwise_distances(name) -> FeaturePairwiseDistances:
         raise ValueError(f"Unknown feature bags pairwise distances datablock: {name}")
 
 
-# git commit -am "gigaq: FeatureSortedDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_sorted_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000',).set(n_workers=3,).build()"
-# git commit -am "gigaq: FeatureSortedDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_sorted_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000',).set(n_workers=3,).build()"
+# git commit -am "gigaq: FeatureSortedDistances: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_sorted_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000',).set(n_workers=3,).build()"
+# git commit -am "gigaq: FeatureSortedDistances: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_sorted_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000',).set(n_workers=3,).build()"
 def gigapath_feature_sorted_distances(name) -> FeatureSortedDistances:
     return FeatureSortedDistances(
                     spec=dict(features_pairwise_distances=dbx.quote(gigapath_feature_pairwise_distances, name),)
     )
     
 
-# git commit -am "gigaq: Features=2NNDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_2nn_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000',).set(n_workers=3).build()"
-# git commit -am "gigaq: Feature2NNDistances: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_2nn_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000',).set(n_workers=3).build()"
+# git commit -am "gigaq: Features=2NNDistances: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_2nn_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000',).set(n_workers=3).build()"
+# git commit -am "gigaq: Feature2NNDistances: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_2nn_distances('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000',).set(n_workers=3).build()"
 def gigapath_feature_2nn_distances(name) -> Feature2NNDistances:
     return Feature2NNDistances(
                     spec=dict(features_sorted_distances=dbx.quote(gigapath_feature_sorted_distances, name),),
         )
     
 
-# git commit -am "gigaq: Feature2NNDim: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_2nn_dim('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000',).build_tree().dim"
-# git commit -am "gigaq: Feature2NNDim: BUILD"; dbx.pprint "autopath.gigaq.pipelines.gigapath_feature_2nn_dim('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000',).build_tree().dim"
+# git commit -am "gigaq: Feature2NNDim: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_2nn_dim('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_4000',).build_tree().dim"
+# git commit -am "gigaq: Feature2NNDim: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_2nn_dim('GIGAPATH_BASELINE_CPTAC_8020_TEST_10_4000_20000',).build_tree().dim"
 def gigapath_feature_2nn_dim(name) -> Feature2NNDim:
     return Feature2NNDim(
                     spec=dict(features_2nn_distances=dbx.quote(gigapath_feature_2nn_distances, name),),
@@ -1183,10 +1183,10 @@ def quote_spectral_extractor(name='GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_BLOCKS:5
         return dbx.quote(gigapath_backbone_evaluator, name)
         
 
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5CAPPED_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:BOTH10').set(device='cuda', gpu_batch_size=64).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5CAPPED_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:BOTH10').set(device='cuda', gpu_batch_size=64).build()"
 
 def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> SpectralFeatureBag:
     if name is None:
@@ -1203,7 +1203,7 @@ def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> Spec
         raise ValueError(f"Unknown spectral feature bag: {name}")
 
 
-# git commit -am "gigaq: SpectralFeatureBagClip: BUILD" > /dev/null || true; dbx.pprint "autopath.gigaq.pipelines.gigapath_spectral_feature_bag_clip('GIGAPATH_SPECTRAL_CPTAC_200179_TEST', n_workers=16).build()"
+# git commit -am "gigaq: SpectralFeatureBagClip: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag_clip('GIGAPATH_SPECTRAL_CPTAC_200179_TEST', n_workers=16).build()"
 @tagged
 def gigapath_spectral_feature_bag_clip(name: str = None, *, tag: str | None = None, root: str = None,
                                        n_workers: int = 1, n_devices: int = 1,

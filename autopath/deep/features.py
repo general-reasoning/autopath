@@ -38,7 +38,9 @@ from autopath.tiles import TileBag
 # ═══════════════════════════════════════════════════════════════════════
 
 class BagIndexDataset(Dataset):
-    """Wraps a base dataset and injects a ``bag_index`` field."""
+    """Zips a dataset with its bags of origin:
+    Wraps a base dataset and injects a ``bag_index`` field into the samples 
+    for referring back to bags of origin for additional data."""
 
     def __init__(self, base, *, bag_index: int):
         self.base = base
@@ -54,7 +56,8 @@ class BagIndexDataset(Dataset):
 
 
 class LabeledDataset(Dataset):
-    """Wraps a base dataset and injects a ``label`` field.
+    """Zips a dataset and its labels.
+    Wraps a base dataset and injects a ``label`` field.
 
     Parameters
     ----------

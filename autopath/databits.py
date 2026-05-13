@@ -204,100 +204,6 @@ class Fold(Clip):
         return self.cfg.partition.bag_lens(self.cfg.fold)
 
 
-class ClipDatasetBuilder(Datablock):
-    @dataclass
-    class CONFIG:
-        clip: Clip
-        transform: torchvision.transforms.Compose | None = None
-        target_transform: torchvision.transforms.Compose | None = None
-        shuffle_seed: int | None = None
-
-    def __post_init__(self):
-        self.n_bags = self.cfg.clip.n_bags
-        self.log.debug(f"INITIALIZING dataset using {self.n_bags} bags from clip {self.cfg.clip}: BEGIN")
-        self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
-        _bag_indices = np.arange(self.n_bags)
-        if self.cfg.shuffle_seed is not None:
-            self.log.verbose(f"Shuffling bag indices with seed {self.cfg.shuffle_seed}")
-            rng = np.random.default_rng(self.cfg.shuffle_seed)
-            rng.shuffle(_bag_indices)
-        self._bag_indices = [int(i) for i in _bag_indices]
-        self.bag_lens = [self.cfg.clip.bag_lens[i] for i in self._bag_indices]
-        self.log.debug(f"Computing bag_bounds...")
-        self.bag_bounds = np.cumsum(self.bag_lens)
-        self.log.debug(f"Computing bag_bounds... DONE")
-        self.log.detailed(f"{self.n_bags=}, {self.bag_bounds=}")
-        self._bag_idx = None
-        self._bag = None
-        self._bag_label = None
-        self._bag_slide = None
-        self.log.debug(f"INITIALIZING dataset using {self.n_bags} bags from clip {self.cfg.clip}: END")
-
-    @functools.lru_cache(maxsize=3)
-    def bag(self, bag_idx):
-        if bag_idx != self._bag_idx:
-            self._bag = None
-            self._bag_label = None
-            self._bag_slide = None
-            gc.collect()
-            self._bag_idx = bag_idx
-            self._bag = self.cfg.clip.bag(self._bag_indices[self._bag_idx])
-        return self._bag
-
-    def __len__(self):
-        return self.bag_bounds[-1]
-
-    class Dataset(torch.utils.data.Dataset):
-        def __init__(self, builder):
-            self.dataset_builder = builder
-        
-        def __len__(self):
-            return len(self.dataset_builder)
-        
-        def __getitem__(self, index):
-            self.dataset_builder.log.silent(f"GETTING item {index} from dataset")
-            bag_idx = np.searchsorted(self.dataset_builder.bag_bounds, index, side='right')
-            bag_lo = self.dataset_builder.bag_bounds[bag_idx-1] if bag_idx > 0 else 0
-            bag_hi = self.dataset_builder.bag_bounds[bag_idx]
-            bag_len = self.dataset_builder.bag_lens[bag_idx]
-            idx = index - bag_lo
-            self.dataset_builder.log.silent(f"----------------------> {index=}, {bag_idx=}, {bag_lo=}, {bag_len=}, {bag_hi=}, {idx=}")
-            tensor = self.dataset_builder.bag(bag_idx).tensor
-            sample = tensor[idx]
-            if self.dataset_builder.cfg.transform is not None:
-                sample = self.dataset_builder.cfg.transform(sample)
-            labels = self.dataset_builder.bag(bag_idx).labels
-            label = labels[idx]
-            self.dataset_builder.log.silent(f"APPLYING target_transform")
-            if self.dataset_builder.cfg.target_transform is not None:
-                label = self.dataset_builder.cfg.target_transform(label)
-            return sample, label
-    
-    def dataset(self):
-        return self.Dataset(self)
-    
-
-class ClipDataLoaderBuilder(Datablock):
-    @dataclass
-    class CONFIG:
-        clip_dataset_builder: ClipDatasetBuilder
-        batch_size: int
-        shuffle: bool = False
-
-    def __init__(self, spec: dict, *, dataloader_kwargs):
-        Datablock.__init__(self, spec=spec, dataloader_kwargs=dataloader_kwargs)
-        self.dataset = self.cfg.clip_dataset_builder.dataset()
-
-
-    def __post_init__(self):
-        self.dataloader_kwargs['shuffle'] = self.spec['shuffle']
-        self.dataloader_kwargs['batch_size'] = self.spec['batch_size']
-
-    def dataloader(self):
-        self.log.debug(f"Initializing ClipDataLoaderBuilder dataloader with kwargs: {self.dataloader_kwargs}")
-        return torch.utils.data.DataLoader(dataset=self.dataset, **self.dataloader_kwargs)
-
-
 # ═══════════════════════════════════════════════════════════════════════
 #  Abstract Deep Backbone Evaluator & Factory
 # ═══════════════════════════════════════════════════════════════════════
@@ -393,3 +299,210 @@ class DeepBackboneEvaluatorFactory(Datablock):
         Must be overridden by subclasses.
         """
         raise NotImplementedError
+
+
+class SpectralDeepBackboneEvaluator(DeepBackboneEvaluator):
+    """Abstract :class:`DeepBackboneEvaluator` with spectral probing.
+
+    Adds Jacobian singular-value analysis on top of the multi-layer
+    activation capture provided by :class:`DeepBackboneEvaluator`.
+    After each ``__call__``, a :class:`~autopath.deep.probes.SpectralProbe`
+    is run on the captured activations.
+
+    Subclasses **must** implement:
+
+    * :attr:`backbone_blocks` — property returning a ``list[nn.Module]``
+      of transformer blocks in forward-pass order.  The
+      :class:`SpectralProbe` uses these to compute Jacobians via autograd.
+    * All abstract methods inherited from :class:`DeepBackboneEvaluator`.
+
+    Parameters
+    ----------
+    spectral_probe_blocks : list[int] | None
+        Block indices to probe.  If ``None``, defaults to the
+        evaluator's entire ``layer_names`` list filtered for integer
+        block keys.
+    spectral_mode : str
+        ``'cls'``, ``'full'``, or ``'both'``.
+    spectral_k : int
+        Number of extreme singular values for full mode.
+    device : str
+        Target device.
+    """
+
+    def __init__(
+        self,
+        *,
+        spectral_probe_blocks=None,
+        spectral_mode: str = 'cls',
+        spectral_k: int = 10,
+        device: str = "cuda",
+        log: dbx.Logger = dbx.Logger(stack_depth=3),
+    ):
+        super().__init__(device=device, log=log)
+        self.spectral_probe_blocks = spectral_probe_blocks or []
+        self.spectral_mode = spectral_mode
+        self.spectral_k = spectral_k
+        self._spectral_probe = None
+        self._spectral_results = None
+
+    @property
+    def backbone_blocks(self):
+        """Return the ordered list of ``nn.Module`` transformer blocks.
+
+        Must be overridden by subclasses.
+        """
+        raise NotImplementedError
+
+    @property
+    def spectral_probe(self):
+        """Lazily create the :class:`SpectralProbe`."""
+        if self._spectral_probe is None and self.spectral_probe_blocks:
+            from autopath.deep.probes import SpectralProbe
+            self._spectral_probe = SpectralProbe(
+                blocks=self.backbone_blocks,
+                probe_blocks=self.spectral_probe_blocks,
+                k=self.spectral_k,
+                device=self.device,
+            )
+        return self._spectral_probe
+
+    def _run_spectral_probe(self, layer_features):
+        """Run spectral probing on captured activations.
+
+        Called automatically after ``__call__``.  Populates
+        ``spectral_results``.
+        """
+        if self.spectral_probe is None:
+            return
+        # Build activations dict from layer_features: keys like "block.0"
+        activations = {}
+        for b in self.spectral_probe_blocks:
+            key = f"block.{b}"
+            if key in layer_features and layer_features[key] is not None:
+                activations[b] = layer_features[key].to(self.device)
+        if activations:
+            self._spectral_results = self.spectral_probe.probe(
+                activations, mode=self.spectral_mode,
+            )
+            # Composed Jacobian (first → last probed block, CLS-only)
+            if len(self.spectral_probe_blocks) >= 2:
+                import numpy as np
+                first_b = min(self.spectral_probe_blocks)
+                last_b = max(self.spectral_probe_blocks)
+                input_key = f"block.{first_b}_input"
+                if input_key in layer_features and layer_features[input_key] is not None:
+                    h_input = layer_features[input_key].to(self.device)
+                    sv = self.spectral_probe._probe_composed_cls(
+                        first_b, last_b, h_input,
+                    )
+                    self._spectral_results['composed'] = {
+                        'singular_values': sv,
+                        'log_singular_values': np.log(np.clip(sv, 1e-12, None)),
+                        'condition_number_cls': float(sv[0] / (sv[-1] + 1e-12)),
+                    }
+
+    @property
+    def spectral_results(self):
+        """Spectral probe results from the last forward pass, keyed by block index."""
+        return self._spectral_results
+
+    def clear_spectral_results(self):
+        self._spectral_results = None
+        return self
+
+
+class ClipDatasetBuilder(Datablock):
+    @dataclass
+    class CONFIG:
+        clip: Clip
+        transform: torchvision.transforms.Compose | None = None
+        target_transform: torchvision.transforms.Compose | None = None
+        shuffle_seed: int | None = None
+
+    def __post_init__(self):
+        self.n_bags = self.cfg.clip.n_bags
+        self.log.debug(f"INITIALIZING dataset using {self.n_bags} bags from clip {self.cfg.clip}: BEGIN")
+        self.log.silent(f"traceback:\n{''.join(tb.format_stack())}")
+        _bag_indices = np.arange(self.n_bags)
+        if self.cfg.shuffle_seed is not None:
+            self.log.verbose(f"Shuffling bag indices with seed {self.cfg.shuffle_seed}")
+            rng = np.random.default_rng(self.cfg.shuffle_seed)
+            rng.shuffle(_bag_indices)
+        self._bag_indices = [int(i) for i in _bag_indices]
+        self.bag_lens = [self.cfg.clip.bag_lens[i] for i in self._bag_indices]
+        self.log.debug(f"Computing bag_bounds...")
+        self.bag_bounds = np.cumsum(self.bag_lens)
+        self.log.debug(f"Computing bag_bounds... DONE")
+        self.log.detailed(f"{self.n_bags=}, {self.bag_bounds=}")
+        self._bag_idx = None
+        self._bag = None
+        self._bag_label = None
+        self._bag_slide = None
+        self.log.debug(f"INITIALIZING dataset using {self.n_bags} bags from clip {self.cfg.clip}: END")
+
+    @functools.lru_cache(maxsize=3)
+    def bag(self, bag_idx):
+        if bag_idx != self._bag_idx:
+            self._bag = None
+            self._bag_label = None
+            self._bag_slide = None
+            gc.collect()
+            self._bag_idx = bag_idx
+            self._bag = self.cfg.clip.bag(self._bag_indices[self._bag_idx])
+        return self._bag
+
+    def __len__(self):
+        return self.bag_bounds[-1]
+
+    class Dataset(torch.utils.data.Dataset):
+        def __init__(self, builder):
+            self.dataset_builder = builder
+        
+        def __len__(self):
+            return len(self.dataset_builder)
+        
+        def __getitem__(self, index):
+            self.dataset_builder.log.silent(f"GETTING item {index} from dataset")
+            bag_idx = np.searchsorted(self.dataset_builder.bag_bounds, index, side='right')
+            bag_lo = self.dataset_builder.bag_bounds[bag_idx-1] if bag_idx > 0 else 0
+            bag_hi = self.dataset_builder.bag_bounds[bag_idx]
+            bag_len = self.dataset_builder.bag_lens[bag_idx]
+            idx = index - bag_lo
+            self.dataset_builder.log.silent(f"----------------------> {index=}, {bag_idx=}, {bag_lo=}, {bag_len=}, {bag_hi=}, {idx=}")
+            tensor = self.dataset_builder.bag(bag_idx).tensor
+            sample = tensor[idx]
+            if self.dataset_builder.cfg.transform is not None:
+                sample = self.dataset_builder.cfg.transform(sample)
+            labels = self.dataset_builder.bag(bag_idx).labels
+            label = labels[idx]
+            self.dataset_builder.log.silent(f"APPLYING target_transform")
+            if self.dataset_builder.cfg.target_transform is not None:
+                label = self.dataset_builder.cfg.target_transform(label)
+            return sample, label
+    
+    def dataset(self):
+        return self.Dataset(self)
+    
+
+class ClipDataLoaderBuilder(Datablock):
+    @dataclass
+    class CONFIG:
+        clip_dataset_builder: ClipDatasetBuilder
+        batch_size: int
+        shuffle: bool = False
+
+    def __init__(self, spec: dict, *, dataloader_kwargs):
+        Datablock.__init__(self, spec=spec, dataloader_kwargs=dataloader_kwargs)
+        self.dataset = self.cfg.clip_dataset_builder.dataset()
+
+
+    def __post_init__(self):
+        self.dataloader_kwargs['shuffle'] = self.spec['shuffle']
+        self.dataloader_kwargs['batch_size'] = self.spec['batch_size']
+
+    def dataloader(self):
+        self.log.debug(f"Initializing ClipDataLoaderBuilder dataloader with kwargs: {self.dataloader_kwargs}")
+        return torch.utils.data.DataLoader(dataset=self.dataset, **self.dataloader_kwargs)
+
+

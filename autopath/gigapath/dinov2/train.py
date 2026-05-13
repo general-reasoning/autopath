@@ -5,9 +5,9 @@
 """
     Examples:
     Bash:
-        python -m autopath.gigaq.dinov2.train
+        python -m autopath.gigapath.dinov2.train
     Python:
-        from autopath.gigaq.dinov2 import train; train.run()
+        from autopath.gigapath.dinov2 import train; train.run()
 """
 import argparse
 from functools import partial

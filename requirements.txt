@@ -13,6 +13,7 @@ tfrecord==1.14.6
 timm==1.0.15
 tensorboard==2.20.0
 xformers==0.0.29.post3
+mosaicml-streaming
 
 
 

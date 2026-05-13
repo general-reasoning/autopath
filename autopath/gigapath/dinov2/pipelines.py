@@ -1,9 +1,9 @@
 """
     Examples:
     ## GigaqStill: BASELINE_CPTAC_8020: train:
-    $ dbx "autopath.gigaq.dinov2.pipelines.gigaq_still('BASELINE_CPTAC_8020_TRAIN').build()"
+    $ dbx "autopath.gigapath.dinov2.pipelines.gigaq_still('BASELINE_CPTAC_8020_TRAIN').build()"
 	# or 
-	> import autopath.gigaq.dinov2.pipelines; autopath.gigaq.dinov2.pipelines.gigaq_still('BASELINE_CPTAC_8020_TRAIN',).build()
+	> import autopath.gigapath.dinov2.pipelines; autopath.gigapath.dinov2.pipelines.gigaq_still('BASELINE_CPTAC_8020_TRAIN',).build()
 
 
 
@@ -41,16 +41,16 @@ def dino_augmentations(name="DINO_DEFAULT"):
 def dino_pancan_tile_dataset(name):
     if name == "CPTAC_8020_TRAIN":
         tileset = PancanTileSet(spec=dict(tileshards=f"@autopath.pancan.pipelines.pancan_tile_fold(name='CPTAC_8020_TRAIN')", 
-                                       transform=f"@autopath.gigaq.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
+                                       transform=f"@autopath.gigapath.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
     elif name == "CPTAC_8020_TEST":
         tileset = PancanTileSet(spec=dict(tileshards=f"@autopath.pancan.pipelines.pancan_tile_fold(name='CPTAC_8020_TEST')", 
-                                       transform=f"@autopath.gigaq.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
+                                       transform=f"@autopath.gigapath.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
     elif name == "CPTAC_9802_TRAIN":
         tileset = PancanTileSet(spec=dict(tileshards=f"@autopath.pancan.pipelines.pancan_tile_fold(name='CPTAC_9802_TRAIN')", 
-                                       transform=f"@autopath.gigaq.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
+                                       transform=f"@autopath.gigapath.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
     elif name == "CPTAC_9802_TEST":
         tileset =PancanTileSet(spec=dict(tileshards=f"@autopath.pancan.pipelines.pancan_tile_fold(name='CPTAC_9802_TEST')", 
-                                       transform=f"@autopath.gigaq.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
+                                       transform=f"@autopath.gigapath.dinov2.pipelines.dino_augmentations('DINO_DEFAULT')"))
     else:
         raise ValueError(f"Unknown dataset: {name}")
     return tileset.dataset
@@ -79,11 +79,11 @@ def gigaq_arch(name):
 
 def gigaq_still(name):
     if name == 'BASELINE_CPTAC_9802_TRAIN':
-        return GigaqStill(spec=dict(dataset="@autopath.gigaq.dinov2.pipelines.dino_pancan_tile_dataset('CPTAC_9802_TRAIN')",
-                               arch="@autopath.gigaq.dinov2.pipelines.gigaq_arch('BASELINE')",))
+        return GigaqStill(spec=dict(dataset="@autopath.gigapath.dinov2.pipelines.dino_pancan_tile_dataset('CPTAC_9802_TRAIN')",
+                               arch="@autopath.gigapath.dinov2.pipelines.gigaq_arch('BASELINE')",))
     if name == 'BASELINE_CPTAC_8020_TRAIN':
-        return GigaqStill(spec=dict(dataset="@autopath.gigaq.dinov2.pipelines.dino_pancan_tile_dataset('CPTAC_8020_TRAIN')",
-                               arch="@autopath.gigaq.dinov2.pipelines.gigaq_arch('BASELINE')",))
+        return GigaqStill(spec=dict(dataset="@autopath.gigapath.dinov2.pipelines.dino_pancan_tile_dataset('CPTAC_8020_TRAIN')",
+                               arch="@autopath.gigapath.dinov2.pipelines.gigaq_arch('BASELINE')",))
     
     else:
         raise ValueError(f"Unknown gigaq: {name}")
