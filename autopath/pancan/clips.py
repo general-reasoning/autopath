@@ -238,7 +238,7 @@ class PancanTileBag(TileBag):
 
 
 class PancanTileClip(Clip):
-	TOPICFILE = "bag_lens.npz"
+	TOPICFILES = { "bag_lens": "bag_lens.npz"}
 	@dataclass
 	class CONFIG:
 		source: str
