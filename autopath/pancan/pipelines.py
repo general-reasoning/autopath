@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 
 #TODO: REMOVE?
@@ -8,15 +7,12 @@ from typing import Optional
 import dbx
 
 from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTilePartition, PancanTileFold, TileClipDatasetBuilder, pancan_tile_clip_dataset_builder
-
-PANCAN_CPTAC = os.environ.get("PANCAN_CPTAC", "/mnt/labshare/SLIDES/CPTAC_downloads")
-PANCAN_CPTAC_SAMPLE = os.path.join(PANCAN_CPTAC, "HNSCC/tfrecords/256px_256um/C3L-02621-23.tfrecords")
-PANCAN_CPTAC_RESOLUTION = os.environ.get("PANCAN_CPTAC_RESOLUTION", "256px_256um")
+from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RESOLUTION
 
 
-# git commit -am "gigaq: PancanTileBag: READ"; git commit -am "gigaq: PancanTileBag: READ"; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').valid()"
-# git commit -am "gigaq: PancanTileBag: READ"; git commit -am "gigaq: PancanTileBag: READ"; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('tiles')"
-# git commit -am "gigaq: PancanTileBag: READ"; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('labels')"
+# git commit -am "gigaq: PancanTileBag: READ" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').valid()"
+# git commit -am "gigaq: PancanTileBag: READ" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('tiles')"
+# git commit -am "gigaq: PancanTileBag: READ" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('labels')"
 def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
         return PancanTileBag
@@ -31,7 +27,7 @@ def pancan_tile_bag_clip(name=None) -> PancanTileClip:
         return PancanTileClip
     elif name == "CPTAC":     
         return PancanTileClip(spec=dict(
-                                source=PANCAN_CPTAC,
+                                source=PANCAN_CPTAC_ROOT,
                                 resolution=PANCAN_CPTAC_RESOLUTION,
         ))
     else:
