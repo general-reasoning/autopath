@@ -1,5 +1,5 @@
 import collections
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import functools
 import gc
 import math
@@ -298,7 +298,8 @@ class DeepBackboneEvaluatorFactory(Datablock):
 
     @dataclass
     class CONFIG:
-        capture_layers: list           # list[str | int]
+        capture_blocks: list           # list[int] — transformer block indices
+        capture_layers: list = field(default_factory=list)  # list[str] — named layers
         cls_token_only: bool = False   # capture only CLS token activations
 
     def evaluator(self, *, device: str = None, log: dbx.Logger = None):

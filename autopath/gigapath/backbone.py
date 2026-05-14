@@ -41,7 +41,7 @@ from autopath.gigapath.dinov2.backbone import (
 
 # ── Available sub-layers inside each transformer block ──────────────
 # This list mirrors the GigapathTensorBlock architecture; users pick a
-# subset via ``capture_layers``.
+# subset via ``capture_blocks`` and ``capture_layers``.
 BLOCK_SUBLAYERS = [
     "norm1",
     "attn",           # full attention module
@@ -77,14 +77,15 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
     """GigaPath-specific configurable activation-capturing backbone evaluator.
 
     Concrete subclass of :class:`~autopath.databits.DeepBackboneEvaluator`
-    for the GigaPath ViT backbone.  Capture targets are specified via a
-    unified ``capture_layers`` list:
+    for the GigaPath ViT backbone.  Capture targets are specified via
+    two parameters:
 
-    * **int** entries are transformer block indices — capture the block's
+    * ``capture_blocks`` — a list of **int** transformer block indices
+      (e.g. ``[0, 19, 38]`` or ``[-1]``).  Hooks capture each block's
       output activations (full sequence, shape ``(B, N, d)``).
-    * **str** entries are top-level model attribute names (e.g.
-      ``"patch_embed"``, ``"norm"``, ``"head"``) or ``"backbone"`` for
-      the model-level output.
+    * ``capture_layers`` — a list of **str** top-level model attribute
+      names (e.g. ``"patch_embed"``, ``"norm"``, ``"head"``) or
+      ``"backbone"`` for the model-level output.
 
     The raw backbone model is lazy-loaded from the default HuggingFace
     cache via :func:`~autopath.gigapath.dinov2.backbone.gigapath_tile_backbone`
@@ -96,9 +97,10 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
     backbone
         A pre-loaded model, a lazy-eval string, or ``None`` (default)
         to auto-load via ``gigapath_tile_backbone()``.
-    capture_layers : list[str | int]
-        Capture targets.  Integers are transformer block indices;
-        strings are top-level model layer names.
+    capture_blocks : list[int]
+        Transformer block indices to capture.
+    capture_layers : list[str]
+        Named model layers to capture.
     cls_token_only : bool
         When ``True``, hooks capture only the CLS token activation
         (index 0 of the sequence dimension), reducing output from
@@ -117,7 +119,8 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         self,
         backbone=None,
         *,
-        capture_layers: List[Union[str, int]],
+        capture_blocks: List[int] = None,
+        capture_layers: List[str] = None,
         cls_token_only: bool = False,
         transform=None, #defaults to dino_tile_transform (ImageNet normalisation)
         device: str = "cuda",
@@ -131,7 +134,8 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         self.transform = transform
         if self.transform is None:
             self.transform = dino_tile_transform()
-        self.capture_layers = list(capture_layers)
+        self.capture_blocks = list(capture_blocks or [])
+        self.capture_layers = list(capture_layers or [])
         self.cls_token_only = cls_token_only
         self._captured: Dict[str, torch.Tensor] = {}
         self._hooks_registered = False
@@ -163,25 +167,33 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
 
     @staticmethod
     def _capture_key(layer) -> str:
-        """Convert a ``capture_layers`` entry to its string key."""
+        """Convert a capture entry to its string key."""
         return f"block.{layer}" if isinstance(layer, int) else layer
 
     def _register_capture_hooks(self):
-        """Register forward hooks on the configured capture layers."""
+        """Register forward hooks on the configured blocks and layers."""
         if self._hooks_registered:
             return
 
         blocks = backbone_blocks(self.backbone)
+
+        # Block hooks (int indices, supports negative indexing)
+        for idx in self.capture_blocks:
+            if idx < 0:
+                idx = len(blocks) + idx
+            assert 0 <= idx < len(blocks), (
+                f"Block index {idx} out of range [0, {len(blocks)})"
+            )
+            key = self._capture_key(idx)
+            blocks[idx].register_forward_hook(
+                self._make_capture_hook(key)
+            )
+            self.log.debug(f"Registered capture hook: {key}")
+
+        # Named layer hooks (str names)
         for layer in self.capture_layers:
             key = self._capture_key(layer)
-            if isinstance(layer, int):
-                assert 0 <= layer < len(blocks), (
-                    f"Block index {layer} out of range [0, {len(blocks)})"
-                )
-                blocks[layer].register_forward_hook(
-                    self._make_capture_hook(key)
-                )
-            elif layer == "backbone":
+            if layer == "backbone":
                 self.backbone.register_forward_hook(
                     self._make_capture_hook(key)
                 )
@@ -198,7 +210,10 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
     @property
     def layer_names(self) -> List[str]:
         """Return the ordered list of capture keys that ``__call__`` will produce."""
-        return [self._capture_key(l) for l in self.capture_layers]
+        return (
+            [self._capture_key(b) for b in self.capture_blocks]
+            + [self._capture_key(l) for l in self.capture_layers]
+        )
 
     # ── Forward pass ────────────────────────────────────────────────
 
@@ -260,6 +275,7 @@ class GigapathDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
         log = log or self.log
         return GigapathDeepBackboneEvaluator(
             backbone=None,  # lazy-loaded from default
+            capture_blocks=self.cfg.capture_blocks,
             capture_layers=self.cfg.capture_layers,
             cls_token_only=self.cfg.cls_token_only,
             device=device,

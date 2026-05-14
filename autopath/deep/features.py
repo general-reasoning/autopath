@@ -19,6 +19,7 @@ import torch
 from torch.utils.data import Dataset, ConcatDataset
 
 import dbx
+from tqdm import tqdm
 from dbx import (
     Datablock,
     write_npz,
@@ -157,14 +158,13 @@ class DeepFeatureBag(Bag):
         factory = self.cfg.evaluator_factory
         if hasattr(factory, 'evaluator'):
             layer_names = factory.evaluator(log=self.log).layer_names
-        elif hasattr(factory, 'cfg') and hasattr(factory.cfg, 'capture_layers'):
+        elif hasattr(factory, 'cfg'):
             # Reconstruct names from config without loading model.
             layer_names = []
-            for layer in factory.cfg.capture_layers:
-                if isinstance(layer, int):
-                    layer_names.append(f"block.{layer}")
-                else:
-                    layer_names.append(layer)
+            for block in getattr(factory.cfg, 'capture_blocks', []):
+                layer_names.append(f"block.{block}")
+            for layer in getattr(factory.cfg, 'capture_layers', []):
+                layer_names.append(layer)
         else:
             layer_names = []
 
@@ -224,19 +224,20 @@ class DeepFeatureBag(Bag):
         # Accumulate per-layer feature lists.
         accumulated = {lyr: [] for lyr in layer_names}
 
-        for k in range(math.ceil(n_tiles / self.gpu_batch_size)):
+        n_batches = math.ceil(n_tiles / self.gpu_batch_size)
+        progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
+        for k in progress:
             m = k * self.gpu_batch_size
             n = min((k + 1) * self.gpu_batch_size, n_tiles)
             batch = tilebag.tiles[m:n].to(self.device)
-            self.log.verbose(
-                f"Evaluating batch {k}: {m}:{n} out of {n_tiles} "
-                f"on device: {self.device} | "
-                f"VRAM: {torch.cuda.memory_allocated(self.device)/1e9:.2f}GB / "
-                f"{torch.cuda.get_device_properties(self.device).total_memory/1e9:.1f}GB "
-                f"(peak: {torch.cuda.max_memory_allocated(self.device)/1e9:.2f}GB)"
-            )
 
             result = evaluator(batch)
+
+            progress.set_postfix_str(
+                f"VRAM {torch.cuda.memory_allocated(self.device)/1e9:.1f}/"
+                f"{torch.cuda.get_device_properties(self.device).total_memory/1e9:.0f}GB "
+                f"(peak {torch.cuda.max_memory_allocated(self.device)/1e9:.1f}GB)"
+            )
 
             for lyr in layer_names:
                 if lyr in result:
@@ -377,8 +378,10 @@ class DeepFeatureClip(Clip):
     def n_shards(self) -> int:
         return self.cfg.tilebagclip.n_shards
 
-    def __shard__(self, idx: int):
-        tilebag = self.cfg.tilebagclip.shard(idx)
+    def __shard__(self, idx: int, tilebagclip=None):
+        if tilebagclip is None:
+            tilebagclip = self.cfg.tilebagclip
+        tilebag = tilebagclip.shard(idx)
         return DeepFeatureBag(
             url=self.url,
             spec=dict(
@@ -390,6 +393,34 @@ class DeepFeatureClip(Clip):
             revision=self.revision,
             tag=tilebag.tag,
         )
+
+    def __build__(self, *args, **kwargs):
+        """Build all shards with a shared evaluator and precomputed clip.
+
+        Precomputes the evaluator and source tile-bag clip once, then
+        iterates over shards sequentially, passing the live evaluator
+        to each bag's ``__build__`` to avoid redundant model loading
+        and clip re-formation.
+        """
+        self.__split__()
+        tilebagclip = self.cfg.tilebagclip
+        device = self._devices[0]
+        evaluator = self.cfg.evaluator_factory.evaluator(
+            device=device, log=self.log,
+        )
+        self.log.info(
+            f"Building {self.n_shards} shards with shared evaluator "
+            f"on {device}"
+        )
+        for idx in tqdm(range(self.n_shards), desc='shards', unit='bag'):
+            shard = self.__shard__(idx, tilebagclip=tilebagclip)
+            if not shard.valid():
+                shard.build(evaluator=evaluator)
+            del shard
+            gc.collect()
+        self.log.info(f"Stacking {self.n_shards} shards")
+        self.__stack__()
+        return self
 
     def dataset(
         self,

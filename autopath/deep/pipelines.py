@@ -44,6 +44,7 @@ log = Logger()
 
 def gigapath_deep_backbone_evaluator(
     *,
+    capture_blocks: list | None = None,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
     device: str = "cuda",
@@ -52,18 +53,22 @@ def gigapath_deep_backbone_evaluator(
 
     Parameters
     ----------
-    capture_layers : list[int | str] | None
-        Layers to capture.  Defaults to all 39 transformer blocks
-        ``[0..38]``.
+    capture_blocks : list[int] | None
+        Transformer block indices to capture.  Defaults to all 39
+        blocks ``[0..38]``.
+    capture_layers : list[str] | None
+        Named model layers to capture (e.g. ``["norm"]``).
+        Defaults to ``[]``.
     cls_token_only : bool
         When ``True``, hooks capture only the CLS token (index 0).
     device : str
         Target device.
     """
-    if capture_layers is None:
-        capture_layers = list(range(39))
+    if capture_blocks is None:
+        capture_blocks = list(range(39))
     return GigapathDeepBackboneEvaluator(
-        capture_layers=capture_layers,
+        capture_blocks=capture_blocks,
+        capture_layers=capture_layers or [],
         cls_token_only=cls_token_only,
         device=device,
     )
@@ -75,21 +80,23 @@ def gigapath_deep_backbone_evaluator(
 
 """
 git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_backbone_evaluator_factory()"
-git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_backbone_evaluator_factory(capture_layers=[0,19,38], cls_token_only=True)"
+git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_backbone_evaluator_factory(capture_blocks=[0,19,38], cls_token_only=True)"
 """
 def gigapath_deep_backbone_evaluator_factory(
+    capture_blocks: list | None = None,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
     *,
     url: str | None = None,
 ) -> GigapathDeepBackboneEvaluatorFactory:
     """Create a :class:`GigapathDeepBackboneEvaluatorFactory` spec-block."""
-    if capture_layers is None:
-        capture_layers = list(range(39))
+    if capture_blocks is None:
+        capture_blocks = list(range(39))
     return GigapathDeepBackboneEvaluatorFactory(
         url=url,
         spec=dict(
-            capture_layers=capture_layers,
+            capture_blocks=capture_blocks,
+            capture_layers=capture_layers or [],
             cls_token_only=cls_token_only,
         ),
     )
@@ -109,6 +116,7 @@ git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "aut
 def gigapath_deep_feature_bag(
     name: str,
     *,
+    capture_blocks: list | None = None,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
     shard_size: int = 1024,
@@ -122,7 +130,7 @@ def gigapath_deep_feature_bag(
     name : str
         Name identifying the source tile-bag.  Currently supported:
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
-    capture_layers, cls_token_only
+    capture_blocks, capture_layers, cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     shard_size : int
         Number of samples written per MDS shard file for streaming
@@ -134,7 +142,7 @@ def gigapath_deep_feature_bag(
     url : str | None
         Datablock URL (symbolic specline for relocatability).
     """
-    factory = gigapath_deep_backbone_evaluator_factory(capture_layers, cls_token_only, url=url)
+    factory = gigapath_deep_backbone_evaluator_factory(capture_blocks, capture_layers, cls_token_only, url=url)
     if name == "GIGAPATH_DEEP_CPTAC_SAMPLE":
         from autopath.pancan.pipelines import pancan_tile_bag
         tilebag_quote = dbx.quote(pancan_tile_bag, "CPTAC_SAMPLE")
@@ -168,12 +176,25 @@ git commit -am 'deep: DeepFeatureClip: BUILD fold' > /dev/null || true; dbx.prin
     shard_size=1024, \
     gpu_batch_size=1024, \
     ).build()"
+git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
+    capture_blocks=[-1], \
+    cls_token_only=True, \
+    gpu_batch_size=1024, \
+    ).build()"
+git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
+    capture_layers=['norm'], \
+    cls_token_only=True, \
+    gpu_batch_size=4096, \
+    ).build()"
 """
 @tagged
 def gigapath_deep_feature_clip(
     name: str = None,
     *,
     tag: str | None = None,
+    capture_blocks: list | None = None,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
     shard_size: int = 1024,
@@ -193,7 +214,7 @@ def gigapath_deep_feature_clip(
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
     tag : str | None
         Human-readable pipeline tag.
-    capture_layers, cls_token_only
+    capture_blocks, capture_layers, cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     shard_size : int
         Number of samples per MDS shard.
@@ -213,7 +234,7 @@ def gigapath_deep_feature_clip(
         return DeepFeatureClip
     if devices is None:
         devices = ["cuda"]
-    factory = gigapath_deep_backbone_evaluator_factory(capture_layers, cls_token_only, url=url)
+    factory = gigapath_deep_backbone_evaluator_factory(capture_blocks, capture_layers, cls_token_only, url=url)
     # Resolve the tile-bag clip
     if name == "GIGAPATH_DEEP_CPTAC":
         tilebagclip = dbx.quote(pancan_tile_bag_clip, "CPTAC")
@@ -246,6 +267,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     n: int,
     *,
     url: str | None = None,
+    capture_blocks: list | None = None,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
     batch_size: int = 4,
@@ -276,6 +298,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     """
     clip = gigapath_deep_feature_clip(
         name, url=url,
+        capture_blocks=capture_blocks,
         capture_layers=capture_layers,
         cls_token_only=cls_token_only,
     )
