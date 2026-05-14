@@ -232,7 +232,7 @@ class DeepFeatureBag(Bag):
                 f"Evaluating batch {k}: {m}:{n} out of {n_tiles} "
                 f"on device: {self.device} | "
                 f"VRAM: {torch.cuda.memory_allocated(self.device)/1e9:.2f}GB / "
-                f"{torch.cuda.get_device_properties(self.device).total_mem/1e9:.1f}GB "
+                f"{torch.cuda.get_device_properties(self.device).total_memory/1e9:.1f}GB "
                 f"(peak: {torch.cuda.max_memory_allocated(self.device)/1e9:.2f}GB)"
             )
 
