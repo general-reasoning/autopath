@@ -64,7 +64,7 @@ class Clip(Datastack):
         """Persist bag lengths after all bags have been built."""
         self.log.verbose(f"Stacking bag lens")
         bag_lens = [len(self.shard(i)) for i in range(self.n_shards)]
-        dbx.write_npz(self.path(), bag_lens=bag_lens)
+        dbx.write_npz(self.path(ensure_dirpath=True), bag_lens=bag_lens)
         return self
 
     def __read__(self):
