@@ -271,9 +271,12 @@ class PancanTileClip(Clip):
 
 	def __shard__(self, idx: int):
 		bagpath = self.bagpaths[idx]
+		relpath = os.path.relpath(bagpath, self.config.source)
+		source_expr = self.spec['source'][1:]  # strip leading '$' from specline
+		source = f"$os.path.join({source_expr}, '{relpath}')"
 		return PancanTileBag(
 				url=self.url,
-				spec=dict(source=bagpath,),
+				spec=dict(source=source,),
 				revision=self.revision,
 				verbose=self.verbose,
 				debug=self.debug,
