@@ -150,8 +150,8 @@ class DeepFeatureBag(Bag):
         batch_size: int = 64
         shard_size: int = 1024    # samples per MDS shard
 
-    def __init__(self, *args, gpu_batch_size: int = 64, **kwargs):
-        Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, **kwargs)
+    def __init__(self, *args, gpu_batch_size: int = 64, device: str = "cuda", **kwargs):
+        Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, device=device, **kwargs)
 
     def __post_init__(self):
         # Build topic files from factory's capture config.
