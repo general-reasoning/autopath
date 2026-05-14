@@ -41,6 +41,7 @@ git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.prin
 git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
 git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
 git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_200179').build_tree()"
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_305020').build_tree()"
 """
 def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = None) -> PancanTilePartition:
     if name is None:
@@ -166,6 +167,10 @@ git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pi
 git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_CALIBRATE')[0]"
 git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_TRAIN')[0]"
 git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_TEST')[0]"
+
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_305020_CALIBRATE')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_305020_TRAIN')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_305020_TEST')[0]"
 """
 def pancan_tilebag_dataset(name=None) -> TileClipDatasetBuilder:
     if name == "CPTAC_8020_TEST":
