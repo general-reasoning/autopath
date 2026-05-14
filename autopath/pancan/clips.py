@@ -274,7 +274,7 @@ class PancanTileClip(Clip):
 		relpath = os.path.relpath(bagpath, self.config.source)
 		source_expr = self.spec['source'][1:]  # strip leading '$' from specline
 		source = f"$os.path.join({source_expr}, '{relpath}')"
-		tag = os.path.splitext(os.path.basename(bagpath))[0]
+		tag = os.path.join(relpath.split(os.sep)[0], os.path.splitext(os.path.basename(bagpath))[0])
 		return PancanTileBag(
 				url=self.url,
 				spec=dict(source=source,),
