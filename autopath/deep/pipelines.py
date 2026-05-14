@@ -64,8 +64,10 @@ def gigapath_deep_backbone_evaluator(
     device : str
         Target device.
     """
-    if capture_blocks is None:
+    if capture_blocks is None and capture_layers is None:
         capture_blocks = list(range(39))
+    elif capture_blocks is None:
+        capture_blocks = []
     return GigapathDeepBackboneEvaluator(
         capture_blocks=capture_blocks,
         capture_layers=capture_layers or [],
@@ -90,8 +92,10 @@ def gigapath_deep_backbone_evaluator_factory(
     url: str | None = None,
 ) -> GigapathDeepBackboneEvaluatorFactory:
     """Create a :class:`GigapathDeepBackboneEvaluatorFactory` spec-block."""
-    if capture_blocks is None:
+    if capture_blocks is None and capture_layers is None:
         capture_blocks = list(range(39))
+    elif capture_blocks is None:
+        capture_blocks = []
     return GigapathDeepBackboneEvaluatorFactory(
         url=url,
         spec=dict(

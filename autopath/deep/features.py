@@ -210,13 +210,14 @@ class DeepFeatureBag(Bag):
     def __len__(self):
         return len(self.cfg.tilebag.tiles)
 
-    def __build__(self, evaluator=None):
+    def __build__(self, evaluator=None, tilebag=None):
         if evaluator is None:
             evaluator = self.cfg.evaluator_factory.evaluator(
                 device=self.device, log=self.log
             )
 
-        tilebag = self.cfg.tilebag
+        if tilebag is None:
+            tilebag = self.cfg.tilebag
         n_tiles = len(tilebag.tiles)
         layer_names = evaluator.layer_names
         self._layer_names = layer_names
@@ -413,9 +414,10 @@ class DeepFeatureClip(Clip):
             f"on {device}"
         )
         for idx in tqdm(range(self.n_shards), desc='shards', unit='bag'):
+            tilebag = tilebagclip.shard(idx)
             shard = self.__shard__(idx, tilebagclip=tilebagclip)
             if not shard.valid():
-                shard.build(evaluator=evaluator)
+                shard.build(evaluator=evaluator, tilebag=tilebag)
             del shard
             gc.collect()
         self.log.info(f"Stacking {self.n_shards} shards")
