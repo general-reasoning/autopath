@@ -272,7 +272,7 @@ class PancanTileClip(Clip):
 	def __shard__(self, idx: int):
 		bagpath = self.bagpaths[idx]
 		return PancanTileBag(
-				url=self.url,
+				url=self._url_,
 				spec=dict(source=bagpath,),
 				revision=self.revision,
 				verbose=self.verbose,
