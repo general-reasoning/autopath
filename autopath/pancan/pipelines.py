@@ -21,7 +21,7 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
     else:
         raise ValueError(f"Unknown tile_bag: {name}")
 
-# git commit -am "gigaq: PancanTileClip: BUILD"; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_clip('CPTAC').build()"
+# git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_clip('CPTAC').build()"
 def pancan_tile_bag_clip(name=None) -> PancanTileClip:
     if name is None:
         return PancanTileClip
