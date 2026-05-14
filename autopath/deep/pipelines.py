@@ -70,20 +70,24 @@ def gigapath_deep_backbone_evaluator(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Factory helper
+#  Evaluator factory
 # ═══════════════════════════════════════════════════════════════════════
 
-def _evaluator_factory(
+"""
+git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_backbone_evaluator_factory()"
+git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_backbone_evaluator_factory(capture_layers=[0,19,38], cls_token_only=True)"
+"""
+def gigapath_deep_backbone_evaluator_factory(
     capture_layers: list | None = None,
     cls_token_only: bool = False,
     *,
-    root: str | None = None,
+    url: str | None = None,
 ) -> GigapathDeepBackboneEvaluatorFactory:
     """Create a :class:`GigapathDeepBackboneEvaluatorFactory` spec-block."""
     if capture_layers is None:
         capture_layers = list(range(39))
     return GigapathDeepBackboneEvaluatorFactory(
-        root=root,
+        url=url,
         spec=dict(
             capture_layers=capture_layers,
             cls_token_only=cls_token_only,
@@ -95,6 +99,9 @@ def _evaluator_factory(
 #  Single bag
 # ═══════════════════════════════════════════════════════════════════════
 
+"""
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE').build()"
+"""
 def gigapath_deep_feature_bag(
     name: str,
     *,
@@ -103,7 +110,7 @@ def gigapath_deep_feature_bag(
     batch_size: int = 64,
     shard_size: int = 1024,
     gpu_batch_size: int = 64,
-    root: str | None = None,
+    url: str | None = None,
 ) -> DeepFeatureBag:
     """Create a single :class:`DeepFeatureBag`.
 
@@ -113,24 +120,24 @@ def gigapath_deep_feature_bag(
         Name identifying the source tile-bag.  Currently supported:
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
     capture_layers, cls_token_only
-        Forwarded to :func:`_evaluator_factory`.
+        Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     batch_size : int
         Number of tiles per evaluator forward pass.
     shard_size : int
         Number of samples per MDS shard.
     gpu_batch_size : int
         Forwarded as a non-hashing kwarg to ``DeepFeatureBag``.
-    root : str | None
-        Datablock root.
+    url : str | None
+        Datablock URL (symbolic specline for relocatability).
     """
-    factory = _evaluator_factory(capture_layers, cls_token_only, root=root)
+    factory = gigapath_deep_backbone_evaluator_factory(capture_layers, cls_token_only, url=url)
     if name == "GIGAPATH_DEEP_CPTAC_SAMPLE":
         from autopath.pancan.pipelines import pancan_tile_bag
         tilebag_quote = dbx.quote(pancan_tile_bag, "CPTAC_SAMPLE")
     else:
         raise ValueError(f"Unknown deep feature bag: {name!r}")
     return DeepFeatureBag(
-        root=root,
+        url=url,
         spec=dict(
             tilebag=tilebag_quote,
             evaluator_factory=dbx.quote(factory),
@@ -154,7 +161,7 @@ def gigapath_deep_feature_clip(
     cls_token_only: bool = False,
     batch_size: int = 64,
     shard_size: int = 1024,
-    root: str | None = None,
+    url: str | None = None,
     n_workers: int = 1,
     gpu_batch_size: int = 64,
     parallelization: str | None = None,
@@ -171,13 +178,13 @@ def gigapath_deep_feature_clip(
     tag : str | None
         Human-readable pipeline tag.
     capture_layers, cls_token_only
-        Forwarded to :func:`_evaluator_factory`.
+        Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     batch_size : int
         Number of tiles per evaluator forward pass.
     shard_size : int
         Number of samples per MDS shard.
-    root : str | None
-        Datablock root.
+    url : str | None
+        Datablock URL (symbolic specline for relocatability).
     n_workers : int
         Number of parallel workers for building bags.
     gpu_batch_size : int
@@ -188,7 +195,7 @@ def gigapath_deep_feature_clip(
     """
     if name is None:
         return DeepFeatureClip
-    factory = _evaluator_factory(capture_layers, cls_token_only, root=root)
+    factory = gigapath_deep_backbone_evaluator_factory(capture_layers, cls_token_only, url=url)
     # Resolve the tile-bag clip
     if name == "GIGAPATH_DEEP_CPTAC":
         tilebagclip = dbx.quote(pancan_tile_bag_clip, "CPTAC")
@@ -198,7 +205,7 @@ def gigapath_deep_feature_clip(
     else:
         raise ValueError(f"Unknown deep feature clip: {name!r}")
     return DeepFeatureClip(
-        root=root,
+        url=url,
         spec=dict(
             tilebagclip=tilebagclip,
             evaluator_factory=dbx.quote(factory),
@@ -220,7 +227,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     name: str,
     n: int,
     *,
-    root: str | None = None,
+    url: str | None = None,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
     batch_size: int = 4,
@@ -250,7 +257,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         :class:`torch.utils.data.DataLoader`.
     """
     clip = gigapath_deep_feature_clip(
-        name, root=root,
+        name, url=url,
         capture_layers=capture_layers,
         cls_token_only=cls_token_only,
     )

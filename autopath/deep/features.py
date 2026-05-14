@@ -379,7 +379,7 @@ class DeepFeatureClip(Clip):
     def __shard__(self, idx: int):
         tilebag = self.cfg.tilebagclip.shard(idx)
         return DeepFeatureBag(
-            root=self._root_,
+            url=self.url,
             spec=dict(
                 tilebag=dbx.quote(tilebag),
                 evaluator_factory=self.spec['evaluator_factory'],
@@ -388,7 +388,7 @@ class DeepFeatureClip(Clip):
             ),
             gpu_batch_size=self.gpu_batch_size,
             revision=self.revision,
-            tag=self.tag,
+            tag=tilebag.tag,
         )
 
     def dataset(
@@ -498,38 +498,37 @@ class SphericalDeepFeatureBag(Bag):
         return self.cfg.deep_feature_bag.valid()
 
 
-class SphericalDeepFeatureClip:
-    """Runtime wrapper that yields :class:`SphericalDeepFeatureBag` views
+class SphericalDeepFeatureClip(Clip):
+    """Clip of L2-normalised :class:`SphericalDeepFeatureBag` views
     over a :class:`DeepFeatureClip`.
 
-    No separate build step — delegates storage to the underlying clip.
+    Pure runtime transformation — delegates storage to the underlying
+    clip.  No separate build step is required.
     """
 
-    def __init__(self, deep_feature_clip: DeepFeatureClip):
-        self._clip = deep_feature_clip
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        deep_feature_clip: DeepFeatureClip
 
     @property
     def n_shards(self):
-        return self._clip.n_shards
+        return self.cfg.deep_feature_clip.n_shards
 
-    @property
-    def n_bags(self):
-        return self.n_shards
-
-    def bag(self, idx: int):
-        dfb = self._clip.bag(idx)
+    def __shard__(self, idx: int):
+        dfb = self.cfg.deep_feature_clip.bag(idx)
         return SphericalDeepFeatureBag(
-            root=dfb._root_,
+            url=self.url,
             spec=dict(deep_feature_bag=dbx.quote(dfb)),
             tag=dfb.tag,
         )
 
-    def shard(self, idx: int):
-        return self.bag(idx)
+    def valid(self):
+        return self.cfg.deep_feature_clip.valid()
 
-    @property
-    def bags(self):
-        return [self.bag(i) for i in range(self.n_bags)]
+    def __build__(self):
+        """No build step — delegates to underlying clip. Persist bag_lens only."""
+        self.__stack__()
+        return self
 
 
 class CornerDeepFeatureBag(Bag):
@@ -608,35 +607,34 @@ class CornerDeepFeatureBag(Bag):
         return (signs[..., :d] * powers).sum(dim=-1)
 
 
-class CornerDeepFeatureClip:
-    """Runtime wrapper that yields :class:`CornerDeepFeatureBag` views
+class CornerDeepFeatureClip(Clip):
+    """Clip of bipolar-encoded :class:`CornerDeepFeatureBag` views
     over a :class:`DeepFeatureClip`.
 
-    No separate build step — delegates storage to the underlying clip.
+    Pure runtime transformation — delegates storage to the underlying
+    clip.  No separate build step is required.
     """
 
-    def __init__(self, deep_feature_clip: DeepFeatureClip):
-        self._clip = deep_feature_clip
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        deep_feature_clip: DeepFeatureClip
 
     @property
     def n_shards(self):
-        return self._clip.n_shards
+        return self.cfg.deep_feature_clip.n_shards
 
-    @property
-    def n_bags(self):
-        return self.n_shards
-
-    def bag(self, idx: int):
-        dfb = self._clip.bag(idx)
+    def __shard__(self, idx: int):
+        dfb = self.cfg.deep_feature_clip.bag(idx)
         return CornerDeepFeatureBag(
-            root=dfb._root_,
+            url=self.url,
             spec=dict(deep_feature_bag=dbx.quote(dfb)),
             tag=dfb.tag,
         )
 
-    def shard(self, idx: int):
-        return self.bag(idx)
+    def valid(self):
+        return self.cfg.deep_feature_clip.valid()
 
-    @property
-    def bags(self):
-        return [self.bag(i) for i in range(self.n_bags)]
+    def __build__(self):
+        """No build step — delegates to underlying clip. Persist bag_lens only."""
+        self.__stack__()
+        return self

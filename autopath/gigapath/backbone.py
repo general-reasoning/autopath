@@ -7,14 +7,11 @@ activation capture for the GigaPath ViT backbone) and
 the resolved capture configuration so that downstream consumers know
 the tensor shapes).
 
-Modelled on
-:class:`autopath.gigapath.dinov2.backbone.SidebandBackboneEvaluator` but
-with two key improvements:
-
-1.  Hook registration is driven entirely by a declarative
-    ``capture_layers: list[str | int]`` config, not hardcoded.
-2.  The evaluator *returns* captured activations from ``__call__``
-    instead of exposing a mutable internal dict.
+Inherits solely from :class:`~autopath.databits.DeepBackboneEvaluator`;
+the ``gigapath.dinov2`` package supplies only the raw model factory
+(:func:`~autopath.gigapath.dinov2.backbone.gigapath_tile_backbone`) and
+the tile transform
+(:func:`~autopath.gigapath.dinov2.backbone.dino_tile_transform`).
 """
 
 import copy
@@ -36,7 +33,6 @@ from autopath.databits import (
 )
 
 from autopath.gigapath.dinov2.backbone import (
-    BackboneEvaluator,
     backbone_blocks,
     dino_tile_transform,
 )
@@ -77,7 +73,7 @@ def _resolve_sublayer(block, sublayer_path: str):
     return obj
 
 
-class GigapathDeepBackboneEvaluator(BackboneEvaluator, DeepBackboneEvaluator):
+class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
     """GigaPath-specific configurable activation-capturing backbone evaluator.
 
     Concrete subclass of :class:`~autopath.databits.DeepBackboneEvaluator`
@@ -90,11 +86,16 @@ class GigapathDeepBackboneEvaluator(BackboneEvaluator, DeepBackboneEvaluator):
       ``"patch_embed"``, ``"norm"``, ``"head"``) or ``"backbone"`` for
       the model-level output.
 
+    The raw backbone model is lazy-loaded from the default HuggingFace
+    cache via :func:`~autopath.gigapath.dinov2.backbone.gigapath_tile_backbone`
+    on first access; ``dinov2`` supplies only the model and transform
+    factories — no evaluator base class.
+
     Parameters
     ----------
     backbone
-        A pre-loaded model or a lazy-eval string (see
-        :class:`BackboneEvaluator`).
+        A pre-loaded model, a lazy-eval string, or ``None`` (default)
+        to auto-load via ``gigapath_tile_backbone()``.
     capture_layers : list[str | int]
         Capture targets.  Integers are transformer block indices;
         strings are top-level model layer names.
@@ -122,13 +123,26 @@ class GigapathDeepBackboneEvaluator(BackboneEvaluator, DeepBackboneEvaluator):
         device: str = "cuda",
         log: Logger = Logger(),
     ):
-        if transform is None:
-            transform = dino_tile_transform()
-        super().__init__(backbone, transform=transform, device=device, log=log)
+        super().__init__(device=device, log=log)
+        # Lazy backbone: None → default eval string, str → dbx.eval on first access
+        self._backbone = backbone
+        if self._backbone is None:
+            self._backbone = "@autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
+        self.transform = transform
+        if self.transform is None:
+            self.transform = dino_tile_transform()
         self.capture_layers = list(capture_layers)
         self.cls_token_only = cls_token_only
         self._captured: Dict[str, torch.Tensor] = {}
         self._hooks_registered = False
+
+    @property
+    def backbone(self):
+        """Lazy-load the backbone model on first access."""
+        if isinstance(self._backbone, str):
+            self.log.verbose(f"Evaluating {self._backbone} on {self.device}")
+            self._backbone = dbx.eval(self._backbone).to(self.device)
+        return self._backbone
 
     # ── Hook management (private) ───────────────────────────────────
 
