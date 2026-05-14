@@ -1,0 +1,7 @@
+# autopath environment defaults
+# Source this file to set up the environment for autopath:
+#   source autopath/env/bashrc
+
+export PANCAN_CPTAC_ROOT="${PANCAN_CPTAC_ROOT:-/mnt/labshare/SLIDES/CPTAC_downloads}"
+export PANCAN_CPTAC_SAMPLE="${PANCAN_CPTAC_ROOT}/HNSCC/tfrecords/256px_256um/C3L-02621-23.tfrecords"
+export PANCAN_CPTAC_RESOLUTION="${PANCAN_CPTAC_RESOLUTION:-256px_256um}"
