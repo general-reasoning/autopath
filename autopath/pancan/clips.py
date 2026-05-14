@@ -187,7 +187,7 @@ class PancanTileBag(TileBag):
 			return self._dirpath
 		return os.path.join(self._dirpath, self.TOPICFILES[topic]) if self.TOPICFILES[topic] is not None else None
 
-	def UNSAFE_clear(self):
+	def UNSAFE_clear(self, *topics, OVERRIDE: bool = False, clear_dirpath: bool = False):
 		raise ValueError(f"Read-Only datablock: {self}")
 
 	def __read__(self, topic):
