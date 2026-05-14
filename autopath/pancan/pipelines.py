@@ -140,22 +140,24 @@ def pancan_tile_fold(name=None) -> PancanTileFold:
     else:
         raise ValueError(f"Unknown tile_fold: {name}")
 
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_8020_TRAIN')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_8020_TEST')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_9802_TRAIN')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_9802_TEST')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_404020_CALIBRATE')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_404020_TRAIN')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_404020_TEST')[0]"
-#
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_400159_CALIBRATE')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_400159_TRAIN')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_400159_TEST')[0]"
-#
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_CALIBRATE')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_TRAIN')[0]"
-# git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_TEST')[0]"
 
+"""
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_8020_TRAIN')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_8020_TEST')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_9802_TRAIN')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_9802_TEST')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_404020_CALIBRATE')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_404020_TRAIN')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_404020_TEST')[0]"
+
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_400159_CALIBRATE')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_400159_TRAIN')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_400159_TEST')[0]"
+
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_CALIBRATE')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_TRAIN')[0]"
+git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE'; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_200179_TEST')[0]"
+"""
 def pancan_tilebag_dataset(name=None) -> TileClipDatasetBuilder:
     if name == "CPTAC_8020_TEST":
         builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_8020_TEST'),)
