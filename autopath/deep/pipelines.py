@@ -155,6 +155,20 @@ def gigapath_deep_feature_bag(
 #  Clip
 # ═══════════════════════════════════════════════════════════════════════
 
+"""
+git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC', \
+    cls_token_only=True, \
+    shard_size=1024, \
+    gpu_batch_size=1024, \
+    ).build()"
+git commit -am 'deep: DeepFeatureClip: BUILD fold' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
+    cls_token_only=True, \
+    shard_size=1024, \
+    gpu_batch_size=1024, \
+    ).build()"
+"""
 @tagged
 def gigapath_deep_feature_clip(
     name: str = None,
@@ -164,7 +178,7 @@ def gigapath_deep_feature_clip(
     cls_token_only: bool = False,
     shard_size: int = 1024,
     url: str | None = None,
-    n_workers: int = 1,
+    devices: list | None = None,
     gpu_batch_size: int = 64,
     parallelization: str | None = None,
 ) -> DeepFeatureClip:
@@ -185,8 +199,10 @@ def gigapath_deep_feature_clip(
         Number of samples per MDS shard.
     url : str | None
         Datablock URL (symbolic specline for relocatability).
-    n_workers : int
-        Number of parallel workers for building bags.
+    devices : list | None
+        List of CUDA devices for parallel bag building
+        (e.g. ``["cuda:0", "cuda:1"]``).  Defaults to ``["cuda"]``.
+        Sets ``n_workers=len(devices)``.
     gpu_batch_size : int
         Number of tiles sent to the GPU in a single forward pass.
     parallelization : str | None
@@ -195,6 +211,8 @@ def gigapath_deep_feature_clip(
     """
     if name is None:
         return DeepFeatureClip
+    if devices is None:
+        devices = ["cuda"]
     factory = gigapath_deep_backbone_evaluator_factory(capture_layers, cls_token_only, url=url)
     # Resolve the tile-bag clip
     if name == "GIGAPATH_DEEP_CPTAC":
@@ -212,7 +230,8 @@ def gigapath_deep_feature_clip(
             shard_size=shard_size,
         ),
         gpu_batch_size=gpu_batch_size,
-        n_workers=n_workers,
+        devices=devices,
+        n_workers=len(devices),
         parallelization=parallelization,
         tag=tag,
     )
