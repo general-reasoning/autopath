@@ -187,6 +187,12 @@ def pancan_tilebag_dataset(name=None) -> TileClipDatasetBuilder:
         builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TRAIN'),)
     elif name == "CPTAC_404020_TEST":
         builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TEST'),)
+    elif name == "CPTAC_305020_CALIBRATE":
+        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_CALIBRATE'),)
+    elif name == "CPTAC_305020_TRAIN":
+        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_TRAIN'),)
+    elif name == "CPTAC_305020_TEST":
+        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_TEST'),)
     elif name == "CPTAC_400159_CALIBRATE":
         builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_CALIBRATE'),)
     elif name == "CPTAC_400159_TRAIN":
