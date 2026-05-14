@@ -34,13 +34,14 @@ def pancan_tile_bag_clip(name=None) -> PancanTileClip:
         raise ValueError(f"Unknown tile clip: {name}")
 
 
-
-# git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree()"
-# git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_9802').build_tree()"
-# git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build_tree()"
-# git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
-# git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
-# git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_200179').build_tree()"
+"""
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree()"
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_9802').build_tree()"
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build_tree()"
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_200179').build_tree()"
+"""
 def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = None) -> PancanTilePartition:
     if name is None:
         return PancanTilePartition
