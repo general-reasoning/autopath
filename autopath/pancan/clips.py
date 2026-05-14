@@ -238,7 +238,6 @@ class PancanTileBag(TileBag):
 
 
 class PancanTileClip(Clip):
-	TOPICFILES = { "bag_lens": "bag_lens.npz"}
 	@dataclass
 	class CONFIG:
 		source: str
@@ -293,7 +292,7 @@ class PancanTileClip(Clip):
 		return len(self.bags)
 
 	def __read__(self):
-		bag_lens = dbx.read_npz(self.path(), 'bag_lens')[0]
+		bag_lens = dbx.read_npz(self.path('bag_lens'), 'bag_lens')[0]
 		return bag_lens
 
 

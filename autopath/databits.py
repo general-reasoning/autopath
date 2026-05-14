@@ -55,7 +55,7 @@ class Clip(Datastack):
     materializing bags.
     """
 
-    TOPICFILE = "bag_lens.npz"
+    TOPICFILES = {"bag_lens": "bag_lens.npz"}
 
     def __len__(self):
         return sum(self.bag_lens)
@@ -64,11 +64,11 @@ class Clip(Datastack):
         """Persist bag lengths after all bags have been built."""
         self.log.verbose(f"Stacking bag lens")
         bag_lens = [len(self.shard(i)) for i in range(self.n_shards)]
-        dbx.write_npz(self.path(ensure_dirpath=True), bag_lens=bag_lens)
+        dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         return self
 
     def __read__(self):
-        bag_lens = dbx.read_npz(self.path(), 'bag_lens')['bag_lens']
+        bag_lens = dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
         return bag_lens
 
     @functools.cached_property
