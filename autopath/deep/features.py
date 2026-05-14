@@ -326,9 +326,11 @@ class DeepFeatureBag(Bag):
                 sample["tile_index"] = np.int32(i)
                 writer.write(sample)
 
+        n_shards = math.ceil(n_tiles / size_limit)
         self.log.verbose(
             f"Wrote MDS shards to {shards_dir}: "
-            f"{n_tiles} samples, ~{byte_limit} bytes/shard"
+            f"{n_shards} shards × ~{size_limit} samples/shard "
+            f"({n_tiles} tiles total)"
         )
         del cat
 
@@ -379,10 +381,29 @@ class DeepFeatureClip(Clip):
     def n_shards(self) -> int:
         return self.cfg.tilebagclip.n_shards
 
+    class ShardMaker(Clip.ShardMaker):
+        """Forward precomputed evaluator and tilebag to shard.build()."""
+        def __call__(self, stack, *, build=True):
+            shard = stack.__shard__(self.idx)
+            shard.keyby = stack.keyby
+            if build:
+                kwargs = {}
+                if hasattr(stack, '_shared_evaluator'):
+                    kwargs['evaluator'] = stack._shared_evaluator
+                if hasattr(stack, '_precomputed_tilebags'):
+                    kwargs['tilebag'] = stack._precomputed_tilebags[self.idx]
+                shard.build(**kwargs)
+            del shard
+            gc.collect()
+
     def __shard__(self, idx: int, tilebagclip=None):
         if tilebagclip is None:
             tilebagclip = self.cfg.tilebagclip
-        tilebag = tilebagclip.shard(idx)
+        # Use precomputed tilebag if available to avoid re-forming the fold.
+        if hasattr(self, '_precomputed_tilebags'):
+            tilebag = self._precomputed_tilebags[idx]
+        else:
+            tilebag = tilebagclip.shard(idx)
         return DeepFeatureBag(
             url=self.url,
             spec=dict(
@@ -396,32 +417,29 @@ class DeepFeatureClip(Clip):
         )
 
     def __build__(self, *args, **kwargs):
-        """Build all shards with a shared evaluator and precomputed clip.
+        """Build with shared evaluator and precomputed tile-bags.
 
-        Precomputes the evaluator and source tile-bag clip once, then
-        iterates over shards sequentially, passing the live evaluator
-        to each bag's ``__build__`` to avoid redundant model loading
-        and clip re-formation.
+        Precomputes the evaluator and a flat list of tile-bags once,
+        then delegates to :meth:`Datastack.__build__` for its standard
+        executor flow and progress bar.
         """
-        self.__split__()
+        # Precompute shared resources as flat attributes.
         tilebagclip = self.cfg.tilebagclip
+        self._precomputed_tilebags = [
+            tilebagclip.shard(idx) for idx in range(self.n_shards)
+        ]
         device = self._devices[0]
-        evaluator = self.cfg.evaluator_factory.evaluator(
+        self._shared_evaluator = self.cfg.evaluator_factory.evaluator(
             device=device, log=self.log,
         )
         self.log.info(
-            f"Building {self.n_shards} shards with shared evaluator "
-            f"on {device}"
+            f"Precomputed {self.n_shards} tile-bags and evaluator on {device}"
         )
-        for idx in tqdm(range(self.n_shards), desc='shards', unit='bag'):
-            tilebag = tilebagclip.shard(idx)
-            shard = self.__shard__(idx, tilebagclip=tilebagclip)
-            if not shard.valid():
-                shard.build(evaluator=evaluator, tilebag=tilebag)
-            del shard
-            gc.collect()
-        self.log.info(f"Stacking {self.n_shards} shards")
-        self.__stack__()
+        try:
+            super().__build__(*args, **kwargs)
+        finally:
+            del self._shared_evaluator
+            del self._precomputed_tilebags
         return self
 
     def dataset(
