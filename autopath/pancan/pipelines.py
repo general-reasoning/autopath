@@ -69,46 +69,46 @@ def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = Non
     else:
         raise ValueError(f"Unknown tile_partition: {name}")
 
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TRAIN').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TEST').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TRAIN').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TEST').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TEST').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TEST').build()"
 #
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_CALIBRATE').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TRAIN').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TEST').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_CALIBRATE').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TEST').build()"
 #
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_CALIBRATE').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TRAIN').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TEST').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_CALIBRATE').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TEST').build()"
 #
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_CALIBRATE').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TRAIN').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TEST').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_CALIBRATE').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TEST').build()"
 #
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TRAIN').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TEST').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').shard(0)"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').shard_lens"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TEST').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').shard(0)"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').shard_lens"
 #
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TRAIN').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TEST').build()"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').shard(0)"
-# git commit -am 'gigaq: PancanTileFold: BUILD'; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').shard_lens"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TRAIN').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TEST').build()"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').shard(0)"
+# git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').shard_lens"
 
 def pancan_tile_fold(name=None) -> PancanTileFold:
     if name is None:
         return PancanTileFold
     elif name == "CPTAC_8020_TEST":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold='test'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold='1'))
     elif name == "CPTAC_8020_TRAIN":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold='train'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold='0'))
     elif name == "CPTAC_9802_TEST":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold='test'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold='1'))
     elif name == "CPTAC_9802_TRAIN":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold='train'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold='0'))
     elif name == "CPTAC_404020_CALIBRATE":
         return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_404020'), fold="0"))
     elif name == "CPTAC_404020_TRAIN":
