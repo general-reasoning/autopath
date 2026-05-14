@@ -100,14 +100,17 @@ def gigapath_deep_backbone_evaluator_factory(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE').build()"
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    cls_token_only=True, \
+    shard_size=1024, \
+    gpu_batch_size=1024 \
+    ).build()"
 """
 def gigapath_deep_feature_bag(
     name: str,
     *,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
-    batch_size: int = 64,
     shard_size: int = 1024,
     gpu_batch_size: int = 64,
     url: str | None = None,
@@ -121,12 +124,13 @@ def gigapath_deep_feature_bag(
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
     capture_layers, cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    batch_size : int
-        Number of tiles per evaluator forward pass.
     shard_size : int
-        Number of samples per MDS shard.
+        Number of samples written per MDS shard file for streaming
+        reads.
     gpu_batch_size : int
-        Forwarded as a non-hashing kwarg to ``DeepFeatureBag``.
+        Number of tiles sent to the GPU in a single forward pass.
+        Controls VRAM usage.  Runtime parameter (not part of the
+        config hash).
     url : str | None
         Datablock URL (symbolic specline for relocatability).
     """
@@ -141,7 +145,6 @@ def gigapath_deep_feature_bag(
         spec=dict(
             tilebag=tilebag_quote,
             evaluator_factory=dbx.quote(factory),
-            batch_size=batch_size,
             shard_size=shard_size,
         ),
         gpu_batch_size=gpu_batch_size,
@@ -159,7 +162,6 @@ def gigapath_deep_feature_clip(
     tag: str | None = None,
     capture_layers: list | None = None,
     cls_token_only: bool = False,
-    batch_size: int = 64,
     shard_size: int = 1024,
     url: str | None = None,
     n_workers: int = 1,
@@ -179,8 +181,6 @@ def gigapath_deep_feature_clip(
         Human-readable pipeline tag.
     capture_layers, cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    batch_size : int
-        Number of tiles per evaluator forward pass.
     shard_size : int
         Number of samples per MDS shard.
     url : str | None
@@ -188,7 +188,7 @@ def gigapath_deep_feature_clip(
     n_workers : int
         Number of parallel workers for building bags.
     gpu_batch_size : int
-        Forwarded to ``DeepFeatureClip``.
+        Number of tiles sent to the GPU in a single forward pass.
     parallelization : str | None
         Parallelization strategy (``'inline'``, ``'multithreading'``,
         ``'multiprocessing'``, ``'ray'``).
@@ -209,7 +209,6 @@ def gigapath_deep_feature_clip(
         spec=dict(
             tilebagclip=tilebagclip,
             evaluator_factory=dbx.quote(factory),
-            batch_size=batch_size,
             shard_size=shard_size,
         ),
         gpu_batch_size=gpu_batch_size,

@@ -127,7 +127,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         # Lazy backbone: None → default eval string, str → dbx.eval on first access
         self._backbone = backbone
         if self._backbone is None:
-            self._backbone = "@autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
+            self._backbone = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
         self.transform = transform
         if self.transform is None:
             self.transform = dino_tile_transform()

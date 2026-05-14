@@ -147,7 +147,6 @@ class DeepFeatureBag(Bag):
     class CONFIG(Datablock.CONFIG):
         tilebag: TileBag
         evaluator_factory: DeepBackboneEvaluatorFactory
-        batch_size: int = 64
         shard_size: int = 1024    # samples per MDS shard
 
     def __init__(self, *args, gpu_batch_size: int = 64, device: str = "cuda", **kwargs):
@@ -364,7 +363,6 @@ class DeepFeatureClip(Clip):
     class CONFIG(Datablock.CONFIG):
         tilebagclip: Clip
         evaluator_factory: DeepBackboneEvaluatorFactory
-        batch_size: int = 64
         shard_size: int = 1024
 
     def __init__(self, *args, gpu_batch_size: int = 64,
@@ -383,7 +381,6 @@ class DeepFeatureClip(Clip):
             spec=dict(
                 tilebag=dbx.quote(tilebag),
                 evaluator_factory=self.spec['evaluator_factory'],
-                batch_size=self.cfg.batch_size,
                 shard_size=self.cfg.shard_size,
             ),
             gpu_batch_size=self.gpu_batch_size,
