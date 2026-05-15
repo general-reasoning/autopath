@@ -90,7 +90,11 @@ class Clip(Datastack):
     @property
     def shard_lens(self):
         return self.bag_lens
-    # ───────────────────────────────────────────────────────────────
+
+    def validbags(self):
+        """Return a list of booleans indicating which bags are valid."""
+        return [bag.valid() for bag in self.bags]
+
 
     def UNSAFE_clear_bags(self, *, OVERRIDE: bool = False):
         return self.UNSAFE_clear_shards(OVERRIDE=OVERRIDE)
