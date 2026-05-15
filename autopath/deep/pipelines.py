@@ -44,22 +44,6 @@ from autopath.pancan.pipelines import (
 log = Logger()
 
 
-def make_pipeline_tag(func, **cfg_kwargs):
-    """Build an explicit tag from config-relevant kwargs only.
-
-    Unlike ``@tagged``, this never accidentally includes runtime params
-    (gpu_batch_size, devices, parallelization, …) in the storage path.
-    """
-    parts = []
-    for k, v in cfg_kwargs.items():
-        if v is not None:
-            # Strip cfg_ prefix — storage anchors use canonical CONFIG names.
-            tag_key = k[4:] if k.startswith("cfg_") else k
-            parts.append(f"{tag_key}={v!r}")
-    qualname = f"{func.__module__}.{func.__qualname__}"
-    return f"{qualname}({', '.join(parts)})"
-
-
 # ═══════════════════════════════════════════════════════════════════════
 #  Evaluator
 # ═══════════════════════════════════════════════════════════════════════
@@ -223,7 +207,6 @@ git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || tr
 def gigapath_deep_feature_clip(
     name: str = None,
     *,
-    tag: str | None = None,
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
@@ -245,8 +228,6 @@ def gigapath_deep_feature_clip(
         ``"GIGAPATH_DEEP_CPTAC"`` — full CPTAC tile-bag clip.
         ``"GIGAPATH_DEEP_CPTAC_<partition_fold>"`` — a specific fold
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
-    tag : str | None
-        Human-readable pipeline tag.
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     cfg_capture_tiles : bool
@@ -270,18 +251,6 @@ def gigapath_deep_feature_clip(
     """
     if name is None:
         return DeepFeatureClip
-    # Build tag from config-relevant params only.
-    if tag is None:
-        tag = make_pipeline_tag(
-            gigapath_deep_feature_clip,
-            name=name,
-            cfg_capture_blocks=cfg_capture_blocks,
-            cfg_capture_layers=cfg_capture_layers,
-            cfg_capture_outputs=cfg_capture_outputs if not cfg_capture_outputs else None,
-            cfg_cls_token_only=cfg_cls_token_only if cfg_cls_token_only else None,
-            cfg_capture_tiles=cfg_capture_tiles if not cfg_capture_tiles else None,
-            cfg_shard_size=cfg_shard_size if cfg_shard_size != 1024 else None,
-        )
     # Resolve devices.
     if devices is not None:
         pass  # explicit devices wins
@@ -315,7 +284,6 @@ def gigapath_deep_feature_clip(
         devices=devices,
         n_workers=len(devices),
         parallelization=parallelization,
-        tag=tag,
     )
 
 
@@ -429,7 +397,6 @@ git commit -am 'deep: SphericalDeepFeatureClip: BUILD fold' > /dev/null || true;
 def gigapath_spherical_deep_feature_clip(
     name: str = None,
     *,
-    tag: str | None = None,
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
@@ -455,8 +422,6 @@ def gigapath_spherical_deep_feature_clip(
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC"``,
         ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).
-    tag : str | None
-        Human-readable pipeline tag.
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     cfg_capture_tiles, cfg_shard_size
@@ -469,20 +434,8 @@ def gigapath_spherical_deep_feature_clip(
     """
     if name is None:
         return SphericalDeepFeatureClip
-    if tag is None:
-        tag = make_pipeline_tag(
-            gigapath_spherical_deep_feature_clip,
-            name=name,
-            cfg_capture_blocks=cfg_capture_blocks,
-            cfg_capture_layers=cfg_capture_layers,
-            cfg_capture_outputs=cfg_capture_outputs if not cfg_capture_outputs else None,
-            cfg_cls_token_only=cfg_cls_token_only if cfg_cls_token_only else None,
-            cfg_capture_tiles=cfg_capture_tiles if not cfg_capture_tiles else None,
-            cfg_shard_size=cfg_shard_size if cfg_shard_size != 1024 else None,
-        )
     deep_clip = gigapath_deep_feature_clip(
         name,
-        tag=tag,
         cfg_capture_blocks=cfg_capture_blocks,
         cfg_capture_layers=cfg_capture_layers,
         cfg_capture_outputs=cfg_capture_outputs,
@@ -498,7 +451,6 @@ def gigapath_spherical_deep_feature_clip(
     return SphericalDeepFeatureClip(
         url=url,
         spec=dict(deep_feature_clip=dbx.quote(deep_clip)),
-        tag=tag,
     )
 
 
@@ -523,7 +475,6 @@ git commit -am 'deep: CornerDeepFeatureClip: BUILD fold' > /dev/null || true; db
 def gigapath_corner_deep_feature_clip(
     name: str = None,
     *,
-    tag: str | None = None,
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
@@ -549,8 +500,6 @@ def gigapath_corner_deep_feature_clip(
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC"``,
         ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).
-    tag : str | None
-        Human-readable pipeline tag.
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     cfg_capture_tiles, cfg_shard_size
@@ -563,20 +512,8 @@ def gigapath_corner_deep_feature_clip(
     """
     if name is None:
         return CornerDeepFeatureClip
-    if tag is None:
-        tag = make_pipeline_tag(
-            gigapath_corner_deep_feature_clip,
-            name=name,
-            cfg_capture_blocks=cfg_capture_blocks,
-            cfg_capture_layers=cfg_capture_layers,
-            cfg_capture_outputs=cfg_capture_outputs if not cfg_capture_outputs else None,
-            cfg_cls_token_only=cfg_cls_token_only if cfg_cls_token_only else None,
-            cfg_capture_tiles=cfg_capture_tiles if not cfg_capture_tiles else None,
-            cfg_shard_size=cfg_shard_size if cfg_shard_size != 1024 else None,
-        )
     deep_clip = gigapath_deep_feature_clip(
         name,
-        tag=tag,
         cfg_capture_blocks=cfg_capture_blocks,
         cfg_capture_layers=cfg_capture_layers,
         cfg_capture_outputs=cfg_capture_outputs,
@@ -592,5 +529,4 @@ def gigapath_corner_deep_feature_clip(
     return CornerDeepFeatureClip(
         url=url,
         spec=dict(deep_feature_clip=dbx.quote(deep_clip)),
-        tag=tag,
     )
