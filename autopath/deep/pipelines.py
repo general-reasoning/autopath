@@ -197,6 +197,7 @@ git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || tr
     'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
     cls_token_only=True, \
     gpu_batch_size=2048, \
+    n_devices=3, \
     ).build()"
 """
 @tagged
@@ -211,6 +212,7 @@ def gigapath_deep_feature_clip(
     capture_tiles: bool = True,
     shard_size: int = 1024,
     url: str | None = None,
+    n_devices: int | None = None,
     devices: list | None = None,
     gpu_batch_size: int = 64,
     parallelization: str | None = None,
@@ -234,20 +236,31 @@ def gigapath_deep_feature_clip(
         Number of samples per MDS shard.
     url : str | None
         Datablock URL (symbolic specline for relocatability).
+    n_devices : int | None
+        Shorthand: use *n* CUDA devices (``['cuda:0', ..., 'cuda:{n-1}']``).
+        Ignored if *devices* is explicitly provided.
     devices : list | None
-        List of CUDA devices for parallel bag building
-        (e.g. ``["cuda:0", "cuda:1"]``).  Defaults to ``["cuda"]``.
-        Sets ``n_workers=len(devices)``.
+        Explicit list of CUDA devices (e.g. ``["cuda:0", "cuda:1"]``).
+        Overrides *n_devices*.  Defaults to ``["cuda"]``.
     gpu_batch_size : int
         Number of tiles sent to the GPU in a single forward pass.
     parallelization : str | None
         Parallelization strategy (``'inline'``, ``'multithreading'``,
-        ``'multiprocessing'``, ``'ray'``).
+        ``'multiprocessing'``, ``'ray'``).  Defaults to
+        ``'multiprocessing'`` when multiple devices are used.
     """
     if name is None:
         return DeepFeatureClip
-    if devices is None:
+    # Resolve devices.
+    if devices is not None:
+        pass  # explicit devices wins
+    elif n_devices is not None:
+        devices = [f"cuda:{i}" for i in range(n_devices)]
+    else:
         devices = ["cuda"]
+    # Default to multiprocessing when multiple devices are used.
+    if parallelization is None and len(devices) > 1:
+        parallelization = "multiprocessing"
     factory = gigapath_deep_backbone_evaluator_factory(
         capture_blocks, capture_layers, capture_outputs, cls_token_only, url=url,
     )

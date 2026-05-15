@@ -427,6 +427,8 @@ class DeepFeatureClip(Clip):
             tilebag = self._precomputed_tilebags[idx]
         else:
             tilebag = tilebagclip.shard(idx)
+        # Assign device round-robin across available GPUs.
+        device = self._devices[idx % len(self._devices)]
         return DeepFeatureBag(
             url=self.url,
             spec=dict(
@@ -436,33 +438,44 @@ class DeepFeatureClip(Clip):
                 capture_tiles=self.cfg.capture_tiles,
             ),
             gpu_batch_size=self.gpu_batch_size,
+            device=device,
             revision=self.revision,
             tag=tilebag.tag,
         )
 
     def __build__(self, *args, **kwargs):
-        """Build with shared evaluator and precomputed tile-bags.
+        """Build with optional shared evaluator and precomputed tile-bags.
 
-        Precomputes the evaluator and a flat list of tile-bags once,
-        then delegates to :meth:`Datastack.__build__` for its standard
-        executor flow and progress bar.
+        In inline mode (single device), precomputes the evaluator once
+        and shares it across all shards.  In multiprocessing mode, each
+        worker creates its own evaluator on its assigned device.
         """
-        # Precompute shared resources as flat attributes.
+        # Precompute flat tilebag list to avoid re-forming the fold.
         tilebagclip = self.cfg.tilebagclip
         self._precomputed_tilebags = [
             tilebagclip.shard(idx) for idx in range(self.n_shards)
         ]
-        device = self._devices[0]
-        self._shared_evaluator = self.cfg.evaluator_factory.evaluator(
-            device=device, log=self.log,
-        )
-        self.log.info(
-            f"Precomputed {self.n_shards} tile-bags and evaluator on {device}"
-        )
+        # Share a single evaluator only when running inline on one device.
+        inline = (self.parallelization in (None, 'inline')
+                  and len(self._devices) == 1)
+        if inline:
+            device = self._devices[0]
+            self._shared_evaluator = self.cfg.evaluator_factory.evaluator(
+                device=device, log=self.log,
+            )
+            self.log.info(
+                f"Precomputed {self.n_shards} tile-bags and evaluator on {device}"
+            )
+        else:
+            self.log.info(
+                f"Precomputed {self.n_shards} tile-bags; "
+                f"workers will create evaluators on {self._devices}"
+            )
         try:
             super().__build__(*args, **kwargs)
         finally:
-            del self._shared_evaluator
+            if hasattr(self, '_shared_evaluator'):
+                del self._shared_evaluator
             del self._precomputed_tilebags
         return self
 
