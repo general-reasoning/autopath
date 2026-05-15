@@ -44,14 +44,14 @@ from autopath.pancan.pipelines import (
 log = Logger()
 
 
-def make_pipeline_tag(func, **config_kwargs):
+def make_pipeline_tag(func, **cfg_kwargs):
     """Build an explicit tag from config-relevant kwargs only.
 
     Unlike ``@tagged``, this never accidentally includes runtime params
     (gpu_batch_size, devices, parallelization, …) in the storage path.
     """
     parts = []
-    for k, v in config_kwargs.items():
+    for k, v in cfg_kwargs.items():
         if v is not None:
             parts.append(f"{k}={v!r}")
     qualname = f"{func.__module__}.{func.__qualname__}"
