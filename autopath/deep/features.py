@@ -142,7 +142,7 @@ class DeepFeatureBag(Bag):
         Ordered list of captured layer keys.
     """
 
-    VERSION = 2
+    VERSION = 3
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -381,7 +381,7 @@ class DeepFeatureClip(Clip):
     :class:`DeepBackboneEvaluatorFactory`.
     """
 
-    VERSION = 1
+    VERSION = 2
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -529,7 +529,7 @@ class SphericalDeepFeatureBag(Bag):
     runtime transformation — no separate build step is required.
     """
 
-    VERSION = 1
+    VERSION = 2
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -613,7 +613,7 @@ class CornerDeepFeatureBag(Bag):
     Pure runtime transformation — no separate build step required.
     """
 
-    VERSION = 1
+    VERSION = 2
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
