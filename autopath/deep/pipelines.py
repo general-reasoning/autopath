@@ -328,7 +328,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     batch_size: int = 4,
     shuffle: bool = False,
     include_tiles: bool = False,
-    skip_unbuilt_bags: bool = True,
+    skip_invalid_bags: bool = True,
     return_last: bool = True,
     **dataloader_kwargs,
 ):
@@ -344,7 +344,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         Number of samples to iterate.
     batch_size : int
         DataLoader batch size.
-    shuffle, include_tiles, skip_unbuilt_bags
+    shuffle, include_tiles, skip_invalid_bags
         Forwarded to :meth:`DeepFeatureClip.dataset`.
     return_last : bool
         If ``True``, return the last batch.
@@ -366,7 +366,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
             f"  validpaths = {clip.validpaths()}\n"
             f"  hashpath   = {clip.anchorkeypath}"
         )
-    ds = clip.dataset(shuffle=shuffle, include_tiles=include_tiles, skip_unbuilt_bags=skip_unbuilt_bags)
+    ds = clip.dataset(shuffle=shuffle, include_tiles=include_tiles, skip_invalid_bags=skip_invalid_bags)
     loader = torch.utils.data.DataLoader(
         ds, batch_size=batch_size, **dataloader_kwargs,
     )
