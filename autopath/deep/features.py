@@ -28,7 +28,7 @@ from dbx import (
     read_tensor,
 )
 
-from streaming import MDSWriter, StreamingDataset
+from streaming import MDSWriter, Stream, StreamingDataset
 
 from autopath.databits import Bag, Clip, DeepBackboneEvaluatorFactory
 from autopath.pancan.clips import TileBag
@@ -38,46 +38,38 @@ from autopath.pancan.clips import TileBag
 #  Dataset wrappers for label injection and tile pairing
 # ═══════════════════════════════════════════════════════════════════════
 
-class BagIndexDataset(Dataset):
-    """Zips a dataset with its bags of origin:
-    Wraps a base dataset and injects a ``bag_index`` field into the samples 
-    for referring back to bags of origin for additional data."""
+class LabeledStreamDataset(Dataset):
+    """Wraps a single merged :class:`StreamingDataset` built from multiple
+    :class:`Stream` sources and injects ``bag_index`` and ``label`` fields.
 
-    def __init__(self, base, *, bag_index: int):
-        self.base = base
-        self.bag_index = bag_index
-
-    def __len__(self):
-        return len(self.base)
-
-    def __getitem__(self, idx):
-        sample = self.base[idx]
-        sample["bag_index"] = self.bag_index
-        return sample
-
-
-class LabeledDataset(Dataset):
-    """Zips a dataset and its labels.
-    Wraps a base dataset and injects a ``label`` field.
+    Bag membership is derived at access time from cumulative bag lengths:
+    the global sample index is binary-searched against the cumulative
+    boundary array to find the originating bag.
 
     Parameters
     ----------
-    base : Dataset
-        Underlying dataset.
-    labels : array-like
-        Flat label array, one per sample.
+    base : StreamingDataset
+        Merged streaming dataset (one :class:`Stream` per bag).
+    bag_lens : list[int]
+        Length of each bag, in stream order.
+    labels : list[str]
+        Per-bag label, in stream order.
     """
 
-    def __init__(self, base, labels):
+    def __init__(self, base, bag_lens, labels):
         self.base = base
-        self.labels = labels
+        self.labels = np.array(labels)
+        # cumsum[i] = start index of bag i; cumsum[-1] = total length
+        self._cumsum = np.cumsum([0] + list(bag_lens))
 
     def __len__(self):
         return len(self.base)
 
     def __getitem__(self, idx):
         sample = self.base[idx]
-        sample["label"] = self.labels[idx]
+        bag_idx = int(np.searchsorted(self._cumsum[1:], idx, side='right'))
+        sample['bag_index'] = bag_idx
+        sample['label'] = self.labels[bag_idx]
         return sample
 
 
@@ -545,6 +537,10 @@ class DeepFeatureClip(Clip):
     ) -> Dataset:
         """Return a unified, labeled dataset over all bags.
 
+        Uses the MDS multi-stream API to create a **single**
+        :class:`StreamingDataset` backed by one :class:`Stream` per bag.
+        This avoids opening hundreds of separate shared-memory segments.
+
         Each sample dict contains:
 
         * ``features_{layer_name}`` — per-layer activation ndarray
@@ -555,7 +551,7 @@ class DeepFeatureClip(Clip):
         Parameters
         ----------
         shuffle : bool
-            Whether to shuffle within each bag's streaming dataset.
+            Whether to shuffle within the streaming dataset.
         include_tiles : bool
             If ``True``, each sample also contains a ``tile`` field
             loaded lazily from the source TileBag (slower; suitable
@@ -570,42 +566,30 @@ class DeepFeatureClip(Clip):
         Dataset
             A :class:`torch.utils.data.Dataset` over all bags.
         """
-        bag_datasets = []
+        streams = []
         tilebags = []
         bag_labels = []
-        bag_lens = []
+        bag_lens_list = []
         n_skipped = 0
-
-        # Raise soft fd limit — each StreamingDataset opens shared memory.
-        import resource
-        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-        if soft < hard:
-            resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
         for i, bag in enumerate(self.bags):
             if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
                 continue
-            ds = bag.dataset(shuffle=shuffle)
-            bag_datasets.append(BagIndexDataset(ds, bag_index=i))
+            streams.append(Stream(local=bag.shards_path))
             tilebags.append(bag.tilebag)
             bag_labels.append(bag.tilebag.label)
-            bag_lens.append(len(bag))
+            bag_lens_list.append(len(bag))
 
         if n_skipped:
             self.log.info(
-                f"Skipped {n_skipped}/{n_skipped + len(bag_datasets)} "
+                f"Skipped {n_skipped}/{n_skipped + len(streams)} "
                 f"unbuilt bags in {self.__class__.__name__}.dataset()"
             )
 
-        # Concatenate all bag datasets.
-        base = ConcatDataset(bag_datasets)
-
-        # Build flat label array and wrap.
-        labels = np.concatenate([
-            np.full(n, label) for label, n in zip(bag_labels, bag_lens)
-        ])
-        result = LabeledDataset(base, labels)
+        # One StreamingDataset with N streams — one shared-memory segment.
+        base = StreamingDataset(streams=streams, shuffle=shuffle)
+        result = LabeledStreamDataset(base, bag_lens_list, bag_labels)
 
         if include_tiles:
             result = TilePairingDataset(result, tilebags)
