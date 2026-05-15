@@ -364,7 +364,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         clip.log.verbose(
             f"dataloader_samples: clip NOT valid (hash={clip.hash[:8]})\n"
             f"  validpaths = {clip.validpaths()}\n"
-            f"  hashpath   = {clip.hashpath()}"
+            f"  hashpath   = {clip.anchorkeypath}"
         )
     ds = clip.dataset(shuffle=shuffle, include_tiles=include_tiles, skip_unbuilt=skip_unbuilt)
     loader = torch.utils.data.DataLoader(
