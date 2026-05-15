@@ -354,7 +354,6 @@ def gigapath_deep_feature_clip_dataloader_samples(
         cfg_capture_layers=cfg_capture_layers,
         cfg_cls_token_only=cfg_cls_token_only,
     )
-    clip.log.verbose(f"dataloader_samples: clip.hash = {clip.hash}")
     assert clip.valid(), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
         f"Build it first with gigapath_deep_feature_clip(...).build()\n"
