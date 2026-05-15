@@ -405,9 +405,17 @@ class DeepFeatureClip(Clip):
         return self.cfg.tilebagclip.n_shards
 
     class ShardMaker(Clip.ShardMaker):
-        """Forward precomputed evaluator and tilebag to shard.build()."""
+        """Forward precomputed evaluator and tilebag to shard.build().
+
+        Carries its assigned ``device`` so the assignment survives
+        serialisation across process boundaries.
+        """
+        def __init__(self, idx: int, *, device: str = "cuda"):
+            super().__init__(idx)
+            self.device = device
+
         def __call__(self, stack, *, build=True):
-            shard = stack.__shard__(self.idx)
+            shard = stack.__shard__(self.idx, device=self.device)
             shard.keyby = stack.keyby
             if build:
                 kwargs = {}
@@ -419,7 +427,7 @@ class DeepFeatureClip(Clip):
             del shard
             gc.collect()
 
-    def __shard__(self, idx: int, tilebagclip=None):
+    def __shard__(self, idx: int, tilebagclip=None, device: str = "cuda"):
         if tilebagclip is None:
             tilebagclip = self.cfg.tilebagclip
         # Use precomputed tilebag if available to avoid re-forming the fold.
@@ -427,8 +435,6 @@ class DeepFeatureClip(Clip):
             tilebag = self._precomputed_tilebags[idx]
         else:
             tilebag = tilebagclip.shard(idx)
-        # Assign device round-robin across available GPUs.
-        device = self._devices[idx % len(self._devices)]
         return DeepFeatureBag(
             url=self.url,
             spec=dict(
@@ -450,6 +456,7 @@ class DeepFeatureClip(Clip):
         and shares it across all shards.  In multiprocessing mode, each
         worker creates its own evaluator on its assigned device.
         """
+        devices = self._devices
         # Precompute flat tilebag list to avoid re-forming the fold.
         tilebagclip = self.cfg.tilebagclip
         self._precomputed_tilebags = [
@@ -457,9 +464,9 @@ class DeepFeatureClip(Clip):
         ]
         # Share a single evaluator only when running inline on one device.
         inline = (self.parallelization in (None, 'inline')
-                  and len(self._devices) == 1)
+                  and len(devices) == 1)
         if inline:
-            device = self._devices[0]
+            device = devices[0]
             self._shared_evaluator = self.cfg.evaluator_factory.evaluator(
                 device=device, log=self.log,
             )
@@ -469,14 +476,37 @@ class DeepFeatureClip(Clip):
         else:
             self.log.info(
                 f"Precomputed {self.n_shards} tile-bags; "
-                f"workers will create evaluators on {self._devices}"
+                f"workers will create evaluators on {devices}"
             )
+        # Override maker list with device-assigned ShardMakers.
+        self.__split__()
+        makers = [
+            self.ShardMaker(idx, device=devices[idx % len(devices)])
+            for idx in range(self.n_shards)
+        ]
+        executor_kwargs = dict(
+            n_workers=self.n_workers,
+            tag=f"BUILDING {len(makers)} shards [{self.__class__.__name__}, n_workers={self.n_workers}]",
+        )
+        if (hasattr(self, 'multiprocessing_start_method')
+                and self.multiprocessing_start_method is not None):
+            from dbx.dataparts import MultiprocessingCallableExecutor
+            if issubclass(self.executor_cls, MultiprocessingCallableExecutor):
+                executor_kwargs['start_method'] = self.multiprocessing_start_method
+        executor = self.executor_cls(**executor_kwargs)
+        self.log.info(
+            f"Building {self.__class__.__name__}: {len(makers)} shards, "
+            f"executor={executor.__class__.__name__}, n_workers={self.n_workers}"
+        )
         try:
-            super().__build__(*args, **kwargs)
+            executor.exec_callables(makers, self, build=True)
         finally:
             if hasattr(self, '_shared_evaluator'):
                 del self._shared_evaluator
             del self._precomputed_tilebags
+        self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
+        self.__stack__()
+        self.log.info(f"Build complete: {self.__class__.__name__}")
         return self
 
     def dataset(
