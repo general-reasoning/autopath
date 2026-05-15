@@ -21,7 +21,7 @@ import tqdm
 import torch
 
 import dbx
-from dbx import Logger, tagged
+from dbx import Logger
 
 from autopath.pancan.pipelines import pancan_tile_bag
 
@@ -42,6 +42,20 @@ from autopath.pancan.pipelines import (
 
 
 log = Logger()
+
+
+def _make_pipeline_tag(func, **config_kwargs):
+    """Build an explicit tag from config-relevant kwargs only.
+
+    Unlike ``@tagged``, this never accidentally includes runtime params
+    (gpu_batch_size, devices, parallelization, …) in the storage path.
+    """
+    parts = []
+    for k, v in config_kwargs.items():
+        if v is not None:
+            parts.append(f"{k}={v!r}")
+    qualname = f"{func.__module__}.{func.__qualname__}"
+    return f"{qualname}({', '.join(parts)})"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -204,7 +218,6 @@ git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || tr
     n_devices=3, \
 ).build().valid()"
 """
-@tagged(skip=frozenset({'tag', 'url', 'gpu_batch_size', 'n_devices', 'devices', 'parallelization'}))
 def gigapath_deep_feature_clip(
     name: str = None,
     *,
@@ -255,6 +268,18 @@ def gigapath_deep_feature_clip(
     """
     if name is None:
         return DeepFeatureClip
+    # Build tag from config-relevant params only.
+    if tag is None:
+        tag = _make_pipeline_tag(
+            gigapath_deep_feature_clip,
+            name=name,
+            capture_blocks=capture_blocks,
+            capture_layers=capture_layers,
+            capture_outputs=capture_outputs if not capture_outputs else None,
+            cls_token_only=cls_token_only if cls_token_only else None,
+            capture_tiles=capture_tiles if not capture_tiles else None,
+            shard_size=shard_size if shard_size != 1024 else None,
+        )
     # Resolve devices.
     if devices is not None:
         pass  # explicit devices wins
@@ -399,7 +424,6 @@ git commit -am 'deep: SphericalDeepFeatureClip: BUILD fold' > /dev/null || true;
     gpu_batch_size=1024, \
 ).build()"
 """
-@tagged
 def gigapath_spherical_deep_feature_clip(
     name: str = None,
     *,
@@ -443,6 +467,17 @@ def gigapath_spherical_deep_feature_clip(
     """
     if name is None:
         return SphericalDeepFeatureClip
+    if tag is None:
+        tag = _make_pipeline_tag(
+            gigapath_spherical_deep_feature_clip,
+            name=name,
+            capture_blocks=capture_blocks,
+            capture_layers=capture_layers,
+            capture_outputs=capture_outputs if not capture_outputs else None,
+            cls_token_only=cls_token_only if cls_token_only else None,
+            capture_tiles=capture_tiles if not capture_tiles else None,
+            shard_size=shard_size if shard_size != 1024 else None,
+        )
     deep_clip = gigapath_deep_feature_clip(
         name,
         tag=tag,
@@ -483,7 +518,6 @@ git commit -am 'deep: CornerDeepFeatureClip: BUILD fold' > /dev/null || true; db
     gpu_batch_size=1024, \
 ).build()"
 """
-@tagged
 def gigapath_corner_deep_feature_clip(
     name: str = None,
     *,
@@ -527,6 +561,17 @@ def gigapath_corner_deep_feature_clip(
     """
     if name is None:
         return CornerDeepFeatureClip
+    if tag is None:
+        tag = _make_pipeline_tag(
+            gigapath_corner_deep_feature_clip,
+            name=name,
+            capture_blocks=capture_blocks,
+            capture_layers=capture_layers,
+            capture_outputs=capture_outputs if not capture_outputs else None,
+            cls_token_only=cls_token_only if cls_token_only else None,
+            capture_tiles=capture_tiles if not capture_tiles else None,
+            shard_size=shard_size if shard_size != 1024 else None,
+        )
     deep_clip = gigapath_deep_feature_clip(
         name,
         tag=tag,
