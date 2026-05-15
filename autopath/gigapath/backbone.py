@@ -121,6 +121,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         *,
         capture_blocks: List[int] = None,
         capture_layers: List[str] = None,
+        capture_outputs: bool = True,
         cls_token_only: bool = False,
         transform=None, #defaults to dino_tile_transform (ImageNet normalisation)
         device: str = "cuda",
@@ -136,6 +137,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
             self.transform = dino_tile_transform()
         self.capture_blocks = list(capture_blocks or [])
         self.capture_layers = list(capture_layers or [])
+        self.capture_outputs = capture_outputs
         self.cls_token_only = cls_token_only
         self._captured: Dict[str, torch.Tensor] = {}
         self._hooks_registered = False
@@ -210,10 +212,11 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
     @property
     def layer_names(self) -> List[str]:
         """Return the ordered list of capture keys that ``__call__`` will produce."""
-        return (
-            [self._capture_key(b) for b in self.capture_blocks]
-            + [self._capture_key(l) for l in self.capture_layers]
-        )
+        names = [self._capture_key(b) for b in self.capture_blocks]
+        names += [self._capture_key(l) for l in self.capture_layers]
+        if self.capture_outputs:
+            names.append('features')
+        return names
 
     # ── Forward pass ────────────────────────────────────────────────
 
@@ -243,7 +246,12 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
             del y
 
         result = dict(self._captured)
-        result["output"] = z
+        if self.capture_outputs:
+            out = z
+            if self.cls_token_only and out.dim() == 3:
+                out = out[:, 0]
+            result['features'] = out
+        result['output'] = z
         return result
 
     @property
@@ -277,6 +285,7 @@ class GigapathDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
             backbone=None,  # lazy-loaded from default
             capture_blocks=self.cfg.capture_blocks,
             capture_layers=self.cfg.capture_layers,
+            capture_outputs=self.cfg.capture_outputs,
             cls_token_only=self.cfg.cls_token_only,
             device=device,
             log=log,

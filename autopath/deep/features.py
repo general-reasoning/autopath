@@ -149,6 +149,7 @@ class DeepFeatureBag(Bag):
         tilebag: TileBag
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024    # samples per MDS shard
+        capture_tiles: bool = True
 
     def __init__(self, *args, gpu_batch_size: int = 64, device: str = "cuda", **kwargs):
         Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, device=device, **kwargs)
@@ -165,6 +166,8 @@ class DeepFeatureBag(Bag):
                 layer_names.append(f"block.{block}")
             for layer in getattr(factory.cfg, 'capture_layers', []):
                 layer_names.append(layer)
+            if getattr(factory.cfg, 'capture_outputs', True):
+                layer_names.append('features')
         else:
             layer_names = []
 
@@ -224,6 +227,7 @@ class DeepFeatureBag(Bag):
 
         # Accumulate per-layer feature lists.
         accumulated = {lyr: [] for lyr in layer_names}
+        tiles_list = [] if self.cfg.capture_tiles else None
 
         n_batches = math.ceil(n_tiles / self.gpu_batch_size)
         progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
@@ -243,6 +247,9 @@ class DeepFeatureBag(Bag):
             for lyr in layer_names:
                 if lyr in result:
                     accumulated[lyr].append(result[lyr].cpu().detach())
+
+            if tiles_list is not None:
+                tiles_list.append(tilebag.tiles[m:n].cpu())
 
             evaluator.clear()
             del batch, result
@@ -273,20 +280,26 @@ class DeepFeatureBag(Bag):
             torch.cuda.empty_cache()
 
         # ── Write MDS shards ────────────────────────────────────────
-        self._write_mds_shards(accumulated, layer_names, n_tiles)
+        tiles_cat = None
+        if tiles_list is not None:
+            tiles_cat = torch.cat(tiles_list, dim=0).numpy()
+            del tiles_list
+        self._write_mds_shards(accumulated, layer_names, n_tiles, tiles=tiles_cat)
 
-        del accumulated
+        del accumulated, tiles_cat
         gc.collect()
         self._len = n_tiles
         return self
 
-    def _write_mds_shards(self, accumulated, layer_names, n_tiles):
+    def _write_mds_shards(self, accumulated, layer_names, n_tiles, *, tiles=None):
         """Write accumulated features as MDS shards for streaming reads."""
         # Build column schema.
         columns = {}
         for lyr in layer_names:
             safe = lyr.replace(".", "_")
             columns[f"features_{safe}"] = "ndarray:float32"
+        if tiles is not None:
+            columns["tiles"] = "ndarray:uint8"
         columns["tile_index"] = "int32"
 
         # Concatenate once per layer for indexing.
@@ -305,6 +318,8 @@ class DeepFeatureBag(Bag):
         sample_bytes = sum(
             cat[lyr][0].nbytes for lyr in layer_names if lyr in cat
         ) + 4  # +4 for tile_index int32
+        if tiles is not None:
+            sample_bytes += tiles[0].nbytes
         byte_limit = size_limit * sample_bytes
 
         with MDSWriter(
@@ -323,6 +338,8 @@ class DeepFeatureBag(Bag):
                     else:
                         # Layer missing — should not happen in practice.
                         pass
+                if tiles is not None:
+                    sample["tiles"] = tiles[i].astype(np.uint8)
                 sample["tile_index"] = np.int32(i)
                 writer.write(sample)
 
@@ -371,6 +388,7 @@ class DeepFeatureClip(Clip):
         tilebagclip: Clip
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024
+        capture_tiles: bool = True
 
     def __init__(self, *args, gpu_batch_size: int = 64,
                  devices: list = None, **kwargs):
@@ -410,6 +428,7 @@ class DeepFeatureClip(Clip):
                 tilebag=dbx.quote(tilebag),
                 evaluator_factory=self.spec['evaluator_factory'],
                 shard_size=self.cfg.shard_size,
+                capture_tiles=self.cfg.capture_tiles,
             ),
             gpu_batch_size=self.gpu_batch_size,
             revision=self.revision,

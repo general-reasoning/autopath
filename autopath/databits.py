@@ -298,8 +298,9 @@ class DeepBackboneEvaluatorFactory(Datablock):
 
     @dataclass
     class CONFIG:
-        capture_blocks: list           # list[int] — transformer block indices
+        capture_blocks: list = field(default_factory=list)  # list[int] — transformer block indices
         capture_layers: list = field(default_factory=list)  # list[str] — named layers
+        capture_outputs: bool = True   # capture model output as 'features'
         cls_token_only: bool = False   # capture only CLS token activations
 
     def evaluator(self, *, device: str = None, log: dbx.Logger = None):

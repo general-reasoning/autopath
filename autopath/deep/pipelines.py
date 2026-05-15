@@ -46,6 +46,7 @@ def gigapath_deep_backbone_evaluator(
     *,
     capture_blocks: list | None = None,
     capture_layers: list | None = None,
+    capture_outputs: bool = True,
     cls_token_only: bool = False,
     device: str = "cuda",
 ) -> GigapathDeepBackboneEvaluator:
@@ -54,23 +55,22 @@ def gigapath_deep_backbone_evaluator(
     Parameters
     ----------
     capture_blocks : list[int] | None
-        Transformer block indices to capture.  Defaults to all 39
-        blocks ``[0..38]``.
+        Transformer block indices to capture.  Defaults to ``[]``.
     capture_layers : list[str] | None
         Named model layers to capture (e.g. ``["norm"]``).
         Defaults to ``[]``.
+    capture_outputs : bool
+        When ``True`` (default), store the model's direct output
+        under the key ``'features'``.
     cls_token_only : bool
         When ``True``, hooks capture only the CLS token (index 0).
     device : str
         Target device.
     """
-    if capture_blocks is None and capture_layers is None:
-        capture_blocks = list(range(39))
-    elif capture_blocks is None:
-        capture_blocks = []
     return GigapathDeepBackboneEvaluator(
-        capture_blocks=capture_blocks,
+        capture_blocks=capture_blocks or [],
         capture_layers=capture_layers or [],
+        capture_outputs=capture_outputs,
         cls_token_only=cls_token_only,
         device=device,
     )
@@ -87,20 +87,18 @@ git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "a
 def gigapath_deep_backbone_evaluator_factory(
     capture_blocks: list | None = None,
     capture_layers: list | None = None,
+    capture_outputs: bool = True,
     cls_token_only: bool = False,
     *,
     url: str | None = None,
 ) -> GigapathDeepBackboneEvaluatorFactory:
     """Create a :class:`GigapathDeepBackboneEvaluatorFactory` spec-block."""
-    if capture_blocks is None and capture_layers is None:
-        capture_blocks = list(range(39))
-    elif capture_blocks is None:
-        capture_blocks = []
     return GigapathDeepBackboneEvaluatorFactory(
         url=url,
         spec=dict(
-            capture_blocks=capture_blocks,
+            capture_blocks=capture_blocks or [],
             capture_layers=capture_layers or [],
+            capture_outputs=capture_outputs,
             cls_token_only=cls_token_only,
         ),
     )
@@ -122,7 +120,9 @@ def gigapath_deep_feature_bag(
     *,
     capture_blocks: list | None = None,
     capture_layers: list | None = None,
+    capture_outputs: bool = True,
     cls_token_only: bool = False,
+    capture_tiles: bool = True,
     shard_size: int = 1024,
     gpu_batch_size: int = 64,
     url: str | None = None,
@@ -134,8 +134,10 @@ def gigapath_deep_feature_bag(
     name : str
         Name identifying the source tile-bag.  Currently supported:
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
-    capture_blocks, capture_layers, cls_token_only
+    capture_blocks, capture_layers, capture_outputs, cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
+    capture_tiles : bool
+        When ``True`` (default), write raw tile images into MDS shards.
     shard_size : int
         Number of samples written per MDS shard file for streaming
         reads.
@@ -146,7 +148,9 @@ def gigapath_deep_feature_bag(
     url : str | None
         Datablock URL (symbolic specline for relocatability).
     """
-    factory = gigapath_deep_backbone_evaluator_factory(capture_blocks, capture_layers, cls_token_only, url=url)
+    factory = gigapath_deep_backbone_evaluator_factory(
+        capture_blocks, capture_layers, capture_outputs, cls_token_only, url=url,
+    )
     if name == "GIGAPATH_DEEP_CPTAC_SAMPLE":
         from autopath.pancan.pipelines import pancan_tile_bag
         tilebag_quote = dbx.quote(pancan_tile_bag, "CPTAC_SAMPLE")
@@ -158,6 +162,7 @@ def gigapath_deep_feature_bag(
             tilebag=tilebag_quote,
             evaluator_factory=dbx.quote(factory),
             shard_size=shard_size,
+            capture_tiles=capture_tiles,
         ),
         gpu_batch_size=gpu_batch_size,
     )
@@ -200,7 +205,9 @@ def gigapath_deep_feature_clip(
     tag: str | None = None,
     capture_blocks: list | None = None,
     capture_layers: list | None = None,
+    capture_outputs: bool = True,
     cls_token_only: bool = False,
+    capture_tiles: bool = True,
     shard_size: int = 1024,
     url: str | None = None,
     devices: list | None = None,
@@ -218,8 +225,10 @@ def gigapath_deep_feature_clip(
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
     tag : str | None
         Human-readable pipeline tag.
-    capture_blocks, capture_layers, cls_token_only
+    capture_blocks, capture_layers, capture_outputs, cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
+    capture_tiles : bool
+        When ``True`` (default), write raw tile images into MDS shards.
     shard_size : int
         Number of samples per MDS shard.
     url : str | None
@@ -238,7 +247,9 @@ def gigapath_deep_feature_clip(
         return DeepFeatureClip
     if devices is None:
         devices = ["cuda"]
-    factory = gigapath_deep_backbone_evaluator_factory(capture_blocks, capture_layers, cls_token_only, url=url)
+    factory = gigapath_deep_backbone_evaluator_factory(
+        capture_blocks, capture_layers, capture_outputs, cls_token_only, url=url,
+    )
     # Resolve the tile-bag clip
     if name == "GIGAPATH_DEEP_CPTAC":
         tilebagclip = dbx.quote(pancan_tile_bag_clip, "CPTAC")
@@ -253,6 +264,7 @@ def gigapath_deep_feature_clip(
             tilebagclip=tilebagclip,
             evaluator_factory=dbx.quote(factory),
             shard_size=shard_size,
+            capture_tiles=capture_tiles,
         ),
         gpu_batch_size=gpu_batch_size,
         devices=devices,
