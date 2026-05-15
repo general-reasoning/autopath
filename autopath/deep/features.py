@@ -524,6 +524,7 @@ class DeepFeatureClip(Clip):
         *,
         shuffle: bool = False,
         include_tiles: bool = False,
+        skip_unbuilt: bool = False,
     ) -> Dataset:
         """Return a unified, labeled dataset over all bags.
 
@@ -542,6 +543,10 @@ class DeepFeatureClip(Clip):
             If ``True``, each sample also contains a ``tile`` field
             loaded lazily from the source TileBag (slower; suitable
             for visualization, not training).
+        skip_unbuilt : bool
+            If ``True``, silently skip bags whose MDS shards have not
+            been built yet instead of raising.  The number of skipped
+            bags is reported at the end.
 
         Returns
         -------
@@ -552,15 +557,23 @@ class DeepFeatureClip(Clip):
         tilebags = []
         bag_labels = []
         bag_lens = []
+        n_skipped = 0
 
         for i, bag in enumerate(self.bags):
-            if not bag.valid():
+            if skip_unbuilt and not bag.valid():
+                n_skipped += 1
                 continue
             ds = bag.dataset(shuffle=shuffle)
             bag_datasets.append(BagIndexDataset(ds, bag_index=i))
             tilebags.append(bag.tilebag)
             bag_labels.append(bag.tilebag.label)
             bag_lens.append(len(bag))
+
+        if n_skipped:
+            self.log.info(
+                f"Skipped {n_skipped}/{n_skipped + len(bag_datasets)} "
+                f"unbuilt bags in {self.__class__.__name__}.dataset()"
+            )
 
         # Concatenate all bag datasets.
         base = ConcatDataset(bag_datasets)
