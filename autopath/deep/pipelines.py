@@ -299,8 +299,8 @@ def gigapath_deep_feature_clip(
 """
 git commit -am 'deep: dataloader_samples: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC', \
-    n=8, \
     cls_token_only=True, \
+    n=8,\
 )"
 git commit -am 'deep: dataloader_samples: TEST shuffle' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
