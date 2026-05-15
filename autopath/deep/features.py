@@ -529,7 +529,7 @@ class DeepFeatureClip(Clip):
         *,
         shuffle: bool = False,
         include_tiles: bool = False,
-        skip_unbuilt: bool = False,
+        skip_unbuilt_bags: bool = False,
     ) -> Dataset:
         """Return a unified, labeled dataset over all bags.
 
@@ -548,7 +548,7 @@ class DeepFeatureClip(Clip):
             If ``True``, each sample also contains a ``tile`` field
             loaded lazily from the source TileBag (slower; suitable
             for visualization, not training).
-        skip_unbuilt : bool
+        skip_unbuilt_bags : bool
             If ``True``, silently skip bags whose MDS shards have not
             been built yet instead of raising.  The number of skipped
             bags is reported at the end.
@@ -565,7 +565,7 @@ class DeepFeatureClip(Clip):
         n_skipped = 0
 
         for i, bag in enumerate(self.bags):
-            if skip_unbuilt and not bag.valid():
+            if skip_unbuilt_bags and not bag.valid():
                 n_skipped += 1
                 continue
             ds = bag.dataset(shuffle=shuffle)
