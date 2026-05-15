@@ -554,6 +554,8 @@ class DeepFeatureClip(Clip):
         bag_lens = []
 
         for i, bag in enumerate(self.bags):
+            if not bag.valid():
+                continue
             ds = bag.dataset(shuffle=shuffle)
             bag_datasets.append(BagIndexDataset(ds, bag_index=i))
             tilebags.append(bag.tilebag)

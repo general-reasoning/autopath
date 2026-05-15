@@ -202,7 +202,7 @@ git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || tr
     cls_token_only=True, \
     gpu_batch_size=758, \
     n_devices=3, \
-).build()"
+).build().valid()"
 """
 @tagged
 def gigapath_deep_feature_clip(
