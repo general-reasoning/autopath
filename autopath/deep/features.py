@@ -207,6 +207,11 @@ class DeepFeatureBag(Bag):
             )
         return super().validtopic(topic)
 
+    def valid(self, topic=None):
+        if topic is not None:
+            return self.validtopic(topic)
+        return self.validtopics(reduce=True)
+
     # ── Build ───────────────────────────────────────────────────────
 
     def __build__(self, evaluator=None, tilebag=None):
