@@ -63,7 +63,7 @@ def gigapath_deep_backbone_evaluator(
         Defaults to ``[]``.
     capture_outputs : bool
         When ``True`` (default), store the model's direct output
-        under the key ``'features'``.
+        under the key ``'output'``.
     cls_token_only : bool
         When ``True``, hooks capture only the CLS token (index 0).
     device : str

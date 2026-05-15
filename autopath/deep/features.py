@@ -167,7 +167,7 @@ class DeepFeatureBag(Bag):
             for layer in getattr(factory.cfg, 'capture_layers', []):
                 layer_names.append(layer)
             if getattr(factory.cfg, 'capture_outputs', True):
-                layer_names.append('features')
+                layer_names.append('output')
         else:
             layer_names = []
 

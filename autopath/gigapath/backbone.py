@@ -215,7 +215,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         names = [self._capture_key(b) for b in self.capture_blocks]
         names += [self._capture_key(l) for l in self.capture_layers]
         if self.capture_outputs:
-            names.append('features')
+            names.append('output')
         return names
 
     # ── Forward pass ────────────────────────────────────────────────
@@ -250,8 +250,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
             out = z
             if self.cls_token_only and out.dim() == 3:
                 out = out[:, 0]
-            result['features'] = out
-        result['output'] = z
+            result['output'] = out
         return result
 
     @property
