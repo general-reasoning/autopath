@@ -524,6 +524,18 @@ class DeepFeatureClip(Clip):
         self.log.info(f"Build complete: {self.__class__.__name__}")
         return self
 
+    def _ensure_precomputed_tilebags(self):
+        """Precompute the tilebag list to avoid re-forming the source clip."""
+        if not hasattr(self, '_precomputed_tilebags'):
+            tilebagclip = self.cfg.tilebagclip
+            self._precomputed_tilebags = [
+                tilebagclip.shard(idx) for idx in range(self.n_shards)
+            ]
+
+    def shards(self):
+        self._ensure_precomputed_tilebags()
+        return super().shards()
+
     def dataset(
         self,
         *,
