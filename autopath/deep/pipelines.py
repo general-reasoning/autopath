@@ -359,6 +359,11 @@ def gigapath_deep_feature_clip_dataloader_samples(
         capture_layers=capture_layers,
         cls_token_only=cls_token_only,
     )
+    clip.log.verbose(f"dataloader_samples: clip.hash = {clip.hash}")
+    assert clip.valid(), (
+        f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
+        f"Build it first with gigapath_deep_feature_clip(...).build()"
+    )
     ds = clip.dataset(shuffle=shuffle, include_tiles=include_tiles, skip_unbuilt=skip_unbuilt)
     loader = torch.utils.data.DataLoader(
         ds, batch_size=batch_size, **dataloader_kwargs,
