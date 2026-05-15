@@ -479,9 +479,19 @@ class DeepFeatureClip(Clip):
                 f"workers will create evaluators on {devices}"
             )
         # Override maker list with device-assigned ShardMakers.
+        # The executor splits makers into contiguous chunks via
+        # np.array_split — worker w gets chunk w.  Assign the device
+        # for each shard based on which chunk (worker) it will land in.
         self.__split__()
+        n_workers = len(devices)
+        chunk_boundaries = np.array_split(range(self.n_shards), n_workers)
+        shard_device = {}
+        for worker_idx, chunk in enumerate(chunk_boundaries):
+            dev = devices[worker_idx % len(devices)]
+            for idx in chunk:
+                shard_device[idx] = dev
         makers = [
-            self.ShardMaker(idx, device=devices[idx % len(devices)])
+            self.ShardMaker(idx, device=shard_device[idx])
             for idx in range(self.n_shards)
         ]
         executor_kwargs = dict(

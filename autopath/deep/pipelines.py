@@ -180,25 +180,25 @@ git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.print "au
     cls_token_only=True, \
     shard_size=1024, \
     gpu_batch_size=1024, \
-    ).build()"
+).build()"
 git commit -am 'deep: DeepFeatureClip: BUILD fold' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
     cls_token_only=True, \
     shard_size=1024, \
     gpu_batch_size=1024, \
-    ).build()"
+).build()"
 git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
     capture_blocks=[-1], \
     cls_token_only=True, \
     gpu_batch_size=1024, \
-    ).build()"
+).build()"
 git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
     cls_token_only=True, \
     gpu_batch_size=758, \
     n_devices=3, \
-    ).build()"
+).build()"
 """
 @tagged
 def gigapath_deep_feature_clip(
