@@ -127,22 +127,27 @@ class DeepFeatureBagMaker:
 class DeepFeatureBag(Bag):
     """A Bag that stores multi-layer activations from a DeepBackboneEvaluator.
 
-    Features are written as MDS shards for efficient streaming reads.
-    Each MDS sample stores all captured layer features for a single tile
-    as ``ndarray`` columns, plus a ``tile_index`` for back-referencing
+    All data is stored as MDS shards for efficient streaming reads.
+    Each MDS sample contains feature columns for every captured layer,
+    optionally raw tile images, and a ``tile_index`` for back-referencing
     the source :class:`TileBag`.
 
-    Properties
-    ----------
-    tilebag : TileBag
-        The source tile bag.
-    shards_path : str
-        Directory containing MDS shards.
-    layer_names : list[str]
-        Ordered list of captured layer keys.
+    Topics
+    ------
+    feature_names
+        List of captured feature keys (e.g. ``['output']``,
+        ``['block.0', 'block.38', 'output']``).
+    dataset
+        MDS shards directory.  ``read('dataset')`` returns a
+        :class:`StreamingDataset`.
     """
 
-    VERSION = 3
+    VERSION = 4
+
+    TOPICFILES = {
+        'feature_names': 'feature_names.npz',
+        'dataset': 'shards',
+    }
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -155,30 +160,24 @@ class DeepFeatureBag(Bag):
         Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, device=device, **kwargs)
 
     def __post_init__(self):
-        # Build topic files from factory's capture config.
+        # Compute feature names from factory config (no model load needed).
         factory = self.cfg.evaluator_factory
         if hasattr(factory, 'evaluator'):
-            layer_names = factory.evaluator(log=self.log).layer_names
+            self._feature_names = factory.evaluator(log=self.log).layer_names
         elif hasattr(factory, 'cfg'):
-            # Reconstruct names from config without loading model.
-            layer_names = []
+            names = []
             for block in getattr(factory.cfg, 'capture_blocks', []):
-                layer_names.append(f"block.{block}")
+                names.append(f"block.{block}")
             for layer in getattr(factory.cfg, 'capture_layers', []):
-                layer_names.append(layer)
+                names.append(layer)
             if getattr(factory.cfg, 'capture_outputs', True):
-                layer_names.append('output')
+                names.append('output')
+            self._feature_names = names
         else:
-            layer_names = []
-
-        self._layer_names = layer_names
-        self.TOPICFILES = {
-            'layer_names': 'layer_names.npz',
-        }
-        for lyr in layer_names:
-            safe_name = lyr.replace(".", "_")
-            self.TOPICFILES[f'features_{safe_name}'] = f'features_{safe_name}.npy'
+            self._feature_names = []
         return self
+
+    # ── Properties ──────────────────────────────────────────────────
 
     @property
     def tilebag(self):
@@ -186,32 +185,29 @@ class DeepFeatureBag(Bag):
         return self.cfg.tilebag
 
     @property
-    def layer_names(self):
-        return list(self._layer_names)
-
-    def layer_features(self, layer: str):
-        """Read features for a single layer.
-
-        Parameters
-        ----------
-        layer : str
-            Capture key (e.g. ``"block.0"``, ``"output"``).
-        """
-        safe_name = layer.replace(".", "_")
-        return self.read(f'features_{safe_name}')
-
-    @functools.cached_property
-    def features(self) -> dict:
-        """All layer features as ``{layer_name: Tensor}``."""
-        return {lyr: self.layer_features(lyr) for lyr in self.layer_names}
+    def feature_names(self):
+        """Ordered list of captured feature keys."""
+        return list(self._feature_names)
 
     @property
     def shards_path(self):
-        """Directory containing MDS shards for this bag."""
-        return os.path.join(self.dirpath(), 'shards')
+        """Directory containing MDS shards."""
+        return self.path('dataset')
 
     def __len__(self):
         return len(self.cfg.tilebag.tiles)
+
+    # ── Validity ────────────────────────────────────────────────────
+
+    def validtopic(self, topic=None):
+        if topic == 'dataset':
+            # MDS directory is valid when index.json has been written.
+            return self.fs.exists(
+                os.path.join(self.path('dataset'), 'index.json')
+            )
+        return super().validtopic(topic)
+
+    # ── Build ───────────────────────────────────────────────────────
 
     def __build__(self, evaluator=None, tilebag=None):
         if evaluator is None:
@@ -222,11 +218,11 @@ class DeepFeatureBag(Bag):
         if tilebag is None:
             tilebag = self.cfg.tilebag
         n_tiles = len(tilebag.tiles)
-        layer_names = evaluator.layer_names
-        self._layer_names = layer_names
+        feature_names = evaluator.layer_names
+        self._feature_names = feature_names
 
         # Accumulate per-layer feature lists.
-        accumulated = {lyr: [] for lyr in layer_names}
+        accumulated = {lyr: [] for lyr in feature_names}
         tiles_list = [] if self.cfg.capture_tiles else None
 
         n_batches = math.ceil(n_tiles / self.gpu_batch_size)
@@ -244,7 +240,7 @@ class DeepFeatureBag(Bag):
                 f"(peak {torch.cuda.max_memory_allocated(self.device)/1e9:.1f}GB)"
             )
 
-            for lyr in layer_names:
+            for lyr in feature_names:
                 if lyr in result:
                     accumulated[lyr].append(result[lyr].cpu().detach())
 
@@ -256,46 +252,29 @@ class DeepFeatureBag(Bag):
             gc.collect()
             torch.cuda.empty_cache()
 
-        # Concatenate and write per-layer features (legacy .npy format).
+        # Write feature names.
         write_npz(
-            self.path('layer_names', ensure_dirpath=True),
-            layer_names=layer_names,
+            self.path('feature_names', ensure_dirpath=True),
+            feature_names=feature_names,
         )
 
-        for lyr in layer_names:
-            if accumulated[lyr]:
-                features = torch.cat(accumulated[lyr], dim=0)
-                safe_name = lyr.replace(".", "_")
-                write_tensor(
-                    features,
-                    self.path(f'features_{safe_name}', ensure_dirpath=True),
-                )
-                self.log.verbose(
-                    f"Wrote features for layer '{lyr}': {features.shape}"
-                )
-                del features
-            else:
-                self.log.warning(f"No features captured for layer '{lyr}'")
-            gc.collect()
-            torch.cuda.empty_cache()
-
-        # ── Write MDS shards ────────────────────────────────────────
+        # Write MDS shards (features + tiles + tile_index).
         tiles_cat = None
         if tiles_list is not None:
             tiles_cat = torch.cat(tiles_list, dim=0).numpy()
             del tiles_list
-        self._write_mds_shards(accumulated, layer_names, n_tiles, tiles=tiles_cat)
+        self._write_mds_shards(accumulated, feature_names, n_tiles, tiles=tiles_cat)
 
         del accumulated, tiles_cat
         gc.collect()
         self._len = n_tiles
         return self
 
-    def _write_mds_shards(self, accumulated, layer_names, n_tiles, *, tiles=None):
+    def _write_mds_shards(self, accumulated, feature_names, n_tiles, *, tiles=None):
         """Write accumulated features as MDS shards for streaming reads."""
         # Build column schema.
         columns = {}
-        for lyr in layer_names:
+        for lyr in feature_names:
             safe = lyr.replace(".", "_")
             columns[f"features_{safe}"] = "ndarray:float32"
         if tiles is not None:
@@ -304,7 +283,7 @@ class DeepFeatureBag(Bag):
 
         # Concatenate once per layer for indexing.
         cat = {}
-        for lyr in layer_names:
+        for lyr in feature_names:
             if accumulated[lyr]:
                 cat[lyr] = torch.cat(accumulated[lyr], dim=0).numpy()
 
@@ -316,7 +295,7 @@ class DeepFeatureBag(Bag):
         # Estimate bytes per sample for size_limit conversion.
         # MDSWriter.size_limit is in bytes; we convert from sample count.
         sample_bytes = sum(
-            cat[lyr][0].nbytes for lyr in layer_names if lyr in cat
+            cat[lyr][0].nbytes for lyr in feature_names if lyr in cat
         ) + 4  # +4 for tile_index int32
         if tiles is not None:
             sample_bytes += tiles[0].nbytes
@@ -329,7 +308,7 @@ class DeepFeatureBag(Bag):
         ) as writer:
             for i in range(n_tiles):
                 sample = {}
-                for lyr in layer_names:
+                for lyr in feature_names:
                     safe = lyr.replace(".", "_")
                     if lyr in cat:
                         sample[f"features_{safe}"] = cat[lyr][i].astype(
@@ -351,26 +330,52 @@ class DeepFeatureBag(Bag):
         )
         del cat
 
-    def __read__(self, topic):
-        if topic == 'layer_names':
-            return list(
-                read_npz(self.path('layer_names'), 'layer_names')['layer_names']
-            )
-        # Feature topics: features_{safe_name}
-        path = self.path(topic)
-        return read_tensor(path)
+    # ── Read ────────────────────────────────────────────────────────
 
+    def __read__(self, topic):
+        if topic == 'feature_names':
+            return list(
+                read_npz(self.path('feature_names'), 'feature_names')['feature_names']
+            )
+        if topic == 'dataset':
+            return self.dataset()
+        raise ValueError(f"Unknown topic: {topic!r}")
 
     def dataset(self, *, shuffle: bool = False) -> StreamingDataset:
         """Return a :class:`StreamingDataset` over this bag's MDS shards.
 
-        Each sample is a dict with keys ``features_{layer_name}`` (ndarray)
-        and ``tile_index`` (int32).
+        Each sample is a dict with keys ``features_{name}`` (ndarray),
+        optionally ``tiles`` (ndarray), and ``tile_index`` (int32).
         """
         return StreamingDataset(
             local=self.shards_path,
             shuffle=shuffle,
         )
+
+    def layer_features(self, layer: str):
+        """Read the full feature tensor for a single layer from MDS shards.
+
+        Parameters
+        ----------
+        layer : str
+            Feature key (e.g. ``"block.0"``, ``"output"``).
+
+        Returns
+        -------
+        Tensor
+            Shape ``(n_tiles, feature_dim)`` or ``(n_tiles, feature_dim)``
+            depending on ``cls_token_only``.
+        """
+        safe = layer.replace(".", "_")
+        col = f"features_{safe}"
+        ds = self.dataset()
+        arrays = [ds[i][col] for i in range(len(ds))]
+        return torch.from_numpy(np.stack(arrays))
+
+    @functools.cached_property
+    def features(self) -> dict:
+        """All layer features as ``{feature_name: Tensor}``."""
+        return {name: self.layer_features(name) for name in self.feature_names}
 
 
 class DeepFeatureClip(Clip):
@@ -538,18 +543,14 @@ class SphericalDeepFeatureBag(Bag):
     def __init__(self, *args, **kwargs):
         Datablock.__init__(self, *args, **kwargs)
 
-    def __post_init__(self):
-        self.TOPICFILES = dict(self.cfg.deep_feature_bag.TOPICFILES)
-        return self
-
     @property
     def tilebag(self):
         """The source TileBag (delegated through the underlying bag)."""
         return self.cfg.deep_feature_bag.tilebag
 
     @property
-    def layer_names(self):
-        return self.cfg.deep_feature_bag.layer_names
+    def feature_names(self):
+        return self.cfg.deep_feature_bag.feature_names
 
     def layer_features(self, layer: str):
         """L2-normalised features for a single layer."""
@@ -558,8 +559,8 @@ class SphericalDeepFeatureBag(Bag):
 
     @functools.cached_property
     def features(self) -> dict:
-        """All layer features (L2-normalised) as ``{layer_name: Tensor}``."""
-        return {lyr: self.layer_features(lyr) for lyr in self.layer_names}
+        """All layer features (L2-normalised) as ``{name: Tensor}``."""
+        return {name: self.layer_features(name) for name in self.feature_names}
 
     def __len__(self):
         return len(self.cfg.deep_feature_bag)
@@ -622,18 +623,14 @@ class CornerDeepFeatureBag(Bag):
     def __init__(self, *args, **kwargs):
         Datablock.__init__(self, *args, **kwargs)
 
-    def __post_init__(self):
-        self.TOPICFILES = dict(self.cfg.deep_feature_bag.TOPICFILES)
-        return self
-
     @property
     def tilebag(self):
         """The source TileBag (delegated through the underlying bag)."""
         return self.cfg.deep_feature_bag.tilebag
 
     @property
-    def layer_names(self):
-        return self.cfg.deep_feature_bag.layer_names
+    def feature_names(self):
+        return self.cfg.deep_feature_bag.feature_names
 
     def layer_features(self, layer: str):
         """Bipolar-encoded features for a single layer: sign(x) ∈ {-1, +1}^d."""
@@ -642,8 +639,8 @@ class CornerDeepFeatureBag(Bag):
 
     @functools.cached_property
     def features(self) -> dict:
-        """All layer features (bipolar-encoded) as ``{layer_name: Tensor}``."""
-        return {lyr: self.layer_features(lyr) for lyr in self.layer_names}
+        """All layer features (bipolar-encoded) as ``{name: Tensor}``."""
+        return {name: self.layer_features(name) for name in self.feature_names}
 
     def __len__(self):
         return len(self.cfg.deep_feature_bag)
