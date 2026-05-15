@@ -44,7 +44,7 @@ from autopath.pancan.pipelines import (
 log = Logger()
 
 
-def _make_pipeline_tag(func, **config_kwargs):
+def make_pipeline_tag(func, **config_kwargs):
     """Build an explicit tag from config-relevant kwargs only.
 
     Unlike ``@tagged``, this never accidentally includes runtime params
@@ -270,7 +270,7 @@ def gigapath_deep_feature_clip(
         return DeepFeatureClip
     # Build tag from config-relevant params only.
     if tag is None:
-        tag = _make_pipeline_tag(
+        tag = make_pipeline_tag(
             gigapath_deep_feature_clip,
             name=name,
             capture_blocks=capture_blocks,
@@ -468,7 +468,7 @@ def gigapath_spherical_deep_feature_clip(
     if name is None:
         return SphericalDeepFeatureClip
     if tag is None:
-        tag = _make_pipeline_tag(
+        tag = make_pipeline_tag(
             gigapath_spherical_deep_feature_clip,
             name=name,
             capture_blocks=capture_blocks,
@@ -562,7 +562,7 @@ def gigapath_corner_deep_feature_clip(
     if name is None:
         return CornerDeepFeatureClip
     if tag is None:
-        tag = _make_pipeline_tag(
+        tag = make_pipeline_tag(
             gigapath_corner_deep_feature_clip,
             name=name,
             capture_blocks=capture_blocks,
