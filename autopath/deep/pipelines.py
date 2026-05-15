@@ -298,23 +298,23 @@ def gigapath_deep_feature_clip(
 
 """
 git commit -am 'deep: dataloader_samples: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
-    'GIGAPATH_DEEP_CPTAC', \
+    'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
     cls_token_only=True, \
     n=8,\
 )"
 git commit -am 'deep: dataloader_samples: TEST shuffle' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
-    n=16, \
     capture_blocks=[0,19,38], \
     cls_token_only=True, \
     batch_size=8, \
     shuffle=True, \
+    n=16,\
 )"
 git commit -am 'deep: dataloader_samples: TEST tiles' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC', \
-    n=4, \
     cls_token_only=True, \
     include_tiles=True, \
+    n=4,\
 )"
 """
 def gigapath_deep_feature_clip_dataloader_samples(
