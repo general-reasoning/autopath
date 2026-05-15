@@ -576,6 +576,12 @@ class DeepFeatureClip(Clip):
         bag_lens = []
         n_skipped = 0
 
+        # Raise soft fd limit — each StreamingDataset opens shared memory.
+        import resource
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        if soft < hard:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
+
         for i, bag in enumerate(self.bags):
             if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
