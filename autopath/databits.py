@@ -92,8 +92,8 @@ class Clip(Datastack):
         return self.bag_lens
 
     def validbags(self):
-        """Return a list of booleans indicating which bags are valid."""
-        return [bag.valid() for bag in self.bags]
+        """Return a boolean array indicating which bags are valid."""
+        return np.array([bag.valid() for bag in self.bags])
 
 
     def UNSAFE_clear_bags(self, *, OVERRIDE: bool = False):
