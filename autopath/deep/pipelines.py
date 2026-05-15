@@ -21,6 +21,8 @@ import torch
 import dbx
 from dbx import Logger, tagged
 
+from autopath.pancan.pipelines import pancan_tile_bag
+
 from autopath.gigapath.backbone import (
     GigapathDeepBackboneEvaluator,
     GigapathDeepBackboneEvaluatorFactory,
@@ -152,7 +154,7 @@ def gigapath_deep_feature_bag(
         capture_blocks, capture_layers, capture_outputs, cls_token_only, url=url,
     )
     if name == "GIGAPATH_DEEP_CPTAC_SAMPLE":
-        from autopath.pancan.pipelines import pancan_tile_bag
+        
         tilebag_quote = dbx.quote(pancan_tile_bag, "CPTAC_SAMPLE")
     else:
         raise ValueError(f"Unknown deep feature bag: {name!r}")
