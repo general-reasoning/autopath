@@ -353,7 +353,8 @@ def gigapath_deep_feature_clip_dataloader_samples(
         :class:`torch.utils.data.DataLoader`.
     """
     clip = gigapath_deep_feature_clip(
-        name, url=url,
+        name, 
+        url=url,
         capture_blocks=capture_blocks,
         capture_layers=capture_layers,
         cls_token_only=cls_token_only,
