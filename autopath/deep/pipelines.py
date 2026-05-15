@@ -204,7 +204,7 @@ git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || tr
     n_devices=3, \
 ).build().valid()"
 """
-@tagged
+@tagged(skip=frozenset({'tag', 'url', 'gpu_batch_size', 'n_devices', 'devices', 'parallelization'}))
 def gigapath_deep_feature_clip(
     name: str = None,
     *,
