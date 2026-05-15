@@ -195,7 +195,6 @@ git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || tr
     ).build()"
 git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
-    capture_layers=['norm'], \
     cls_token_only=True, \
     gpu_batch_size=4096, \
     ).build()"
