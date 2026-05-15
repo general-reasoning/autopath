@@ -172,7 +172,7 @@ class Partition(Datablock):
         return str(idx)
 
     def bags(self, fold):
-        return [self.cfg.clip.bags[i] for i in self.bag_indices(fold)]
+        return [self.cfg.clip.shard(i) for i in self.bag_indices(fold)]
     
     def bag_lens(self, fold):
         return self.read("bag_lens")[self._resolve_fold(fold)]
@@ -181,7 +181,7 @@ class Partition(Datablock):
         return self.read("bag_indices")[self._resolve_fold(fold)]
 
     def bag(self, fold, idx: int):
-        return self.cfg.clip.bags[self.bag_indices(fold)[idx]]
+        return self.cfg.clip.shard(self.bag_indices(fold)[idx])
 
     def n_bags(self, fold):
         return len(self.bag_indices(fold))
