@@ -162,6 +162,7 @@ class PancanTileBag(TileBag):
 	@dataclass
 	class CONFIG(Datablock.CONFIG):
 		source: str
+		shard_size: int = 256
 
 	def __init__(self, *args, **kwargs):
 		TileBag.__init__(self, *args, **kwargs)
@@ -249,27 +250,27 @@ class PancanTileBag(TileBag):
 		name = self._name
 
 		columns = {
-			'tiles': 'ndarray:uint8',
+			'tile': 'ndarray:uint8',
 			'label': 'str',
-			'name': 'str',
+			'bag_name': 'str',
 			'tile_index': 'int32',
 		}
 
 		shards_dir = self.path('shards', ensure_dirpath=True)
 
 		sample_bytes = tiles_np[0].nbytes + len(label) + len(name) + 4
-		byte_limit = max(n_tiles * sample_bytes, sample_bytes)
+		size_limit = self.config.shard_size * sample_bytes
 
 		with MDSWriter(
 			out=shards_dir,
 			columns=columns,
-			size_limit=byte_limit,
+			size_limit=size_limit,
 		) as writer:
 			for i in range(n_tiles):
 				writer.write({
-					'tiles': tiles_np[i],
+					'tile': tiles_np[i],
 					'label': label,
-					'name': name,
+					'bag_name': name,
 					'tile_index': np.int32(i),
 				})
 
@@ -287,8 +288,8 @@ class PancanTileBag(TileBag):
 	def dataset(self, *, shuffle: bool = False) -> StreamingDataset:
 		"""Return a :class:`StreamingDataset` over this bag's MDS shards.
 
-		Each sample is a dict with keys ``tiles`` (ndarray), ``label``
-		(str), ``name`` (str), and ``tile_index`` (int32).
+		Each sample is a dict with keys ``tile`` (ndarray), ``label``
+		(str), ``bag_name`` (str), and ``tile_index`` (int32).
 		"""
 		if self._is_local_fs:
 			return StreamingDataset(local=self.path('shards'), shuffle=shuffle)
@@ -428,9 +429,9 @@ class PancanTileClip(Clip):
 
 		Each sample dict contains:
 
-		* ``tiles`` — uint8 tile image ndarray
+		* ``tile`` — uint8 tile image ndarray
 		* ``label`` — cancer type label string
-		* ``name`` — bag/slide name string
+		* ``bag_name`` — bag/slide name string
 		* ``tile_index`` — index into the originating bag
 		* ``bag_index`` — index of the bag within this clip
 
