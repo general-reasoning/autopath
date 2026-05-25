@@ -15,7 +15,7 @@ from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RE
 """
 git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().valid()"
 git commit -am "gigaq: PancanTileBag: READ SHARDS" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('shards')"
-git commit -am "gigaq: PancanTileBag: DATASET" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').dataset()"
+git commit -am "gigaq: PancanTileBag: DATASET" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').dataset()[0]"
 """
 def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
@@ -25,7 +25,9 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
     else:
         raise ValueError(f"Unknown tile_bag: {name}")
 
-# git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build()"
+"""
+git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build().valid()"
+"""
 def pancan_tile_clip(name=None) -> PancanTileClip:
     if name is None:
         return PancanTileClip
