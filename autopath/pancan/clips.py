@@ -155,7 +155,7 @@ class PancanTileBag(TileBag):
 		:class:`StreamingDataset`.
 	"""
 
-	VERSION = 2
+	VERSION = 3
 
 	TOPICS = ['shards']
 
