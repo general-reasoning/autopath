@@ -1,4 +1,7 @@
 from typing import Optional
+import tqdm
+import torch
+import torchvision
 
 #TODO: REMOVE?
 # import torch.multiprocessing as mp
@@ -6,7 +9,7 @@ from typing import Optional
 
 import dbx
 
-from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTilePartition, PancanTileFold, TileClipDatasetBuilder, pancan_tile_clip_dataset_builder
+from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTilePartition, PancanTileFold, TileClipDatasetBuilder
 from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RESOLUTION
 
 
@@ -34,7 +37,9 @@ def pancan_tile_bag_clip(name=None) -> PancanTileClip:
         raise ValueError(f"Unknown tile clip: {name}")
 
 
+
 """
+
 git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree()"
 git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_9802').build_tree()"
 git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build_tree()"
@@ -151,6 +156,88 @@ def pancan_tile_fold(name=None) -> PancanTileFold:
         raise ValueError(f"Unknown tile_fold: {name}")
 
 
+def _resolve_tile_clip(name):
+    """Resolve *name* to a :class:`PancanTileClip` or :class:`PancanTileFold`.
+
+    Tries ``pancan_tile_fold(name)`` first; falls back to
+    ``pancan_tile_bag_clip(name)`` for bare clip names like ``'CPTAC'``.
+    """
+    try:
+        return pancan_tile_fold(name)
+    except ValueError:
+        return pancan_tile_bag_clip(name)
+
+
+# git commit -am "gigaq: pancan_tile_dataset: CPTAC" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC')[0]"
+# git commit -am "gigaq: pancan_tile_dataset: fold" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC_404020_TRAIN')[0]"
+def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: bool = False):
+    """Return an MDS-backed :class:`LabeledStreamDataset`.
+
+    Uses the new MDS multi-stream interface — each bag's shards are
+    combined into a single streaming dataset with per-sample label
+    resolution.
+
+    Parameters
+    ----------
+    name : str
+        A clip name (e.g. ``'CPTAC'``) or fold name
+        (e.g. ``'CPTAC_404020_TRAIN'``).
+    shuffle : bool
+        Whether to shuffle within the streaming dataset.
+    skip_invalid_bags : bool
+        If ``True``, silently skip bags whose MDS shards have not
+        been built yet.
+    """
+    clip = _resolve_tile_clip(name)
+    return clip.dataset(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+
+
+# git commit -am "gigaq: pancan_tile_dataset_samples: CPTAC" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC', n=8)"
+# git commit -am "gigaq: pancan_tile_dataset_samples: fold" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_404020_TRAIN', n=8, batch_size=4)"
+def pancan_tile_dataset_samples(
+    name=None,
+    n: int = 5,
+    *,
+    batch_size: int = 4,
+    shuffle: bool = False,
+    skip_invalid_bags: bool = False,
+    return_last: bool = True,
+    **dataloader_kwargs,
+):
+    """Iterate *n* samples from the MDS-backed tile dataset.
+
+    Useful for smoke-testing the pipeline and inspecting sample dicts.
+
+    Parameters
+    ----------
+    name : str
+        A clip name (e.g. ``'CPTAC'``) or fold name
+        (e.g. ``'CPTAC_404020_TRAIN'``).
+    n : int
+        Number of samples to iterate.
+    batch_size : int
+        DataLoader batch size.
+    shuffle, skip_invalid_bags
+        Forwarded to :func:`pancan_tile_dataset`.
+    return_last : bool
+        If ``True``, return the last batch.
+    **dataloader_kwargs
+        Extra keyword arguments forwarded to
+        :class:`torch.utils.data.DataLoader`.
+    """
+    ds = pancan_tile_dataset(name, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+    loader = torch.utils.data.DataLoader(ds, batch_size=batch_size, **dataloader_kwargs)
+    progress = tqdm.tqdm(total=n)
+    last = None
+    for i, batch in enumerate(loader):
+        progress.update(batch_size)
+        last = batch
+        if (i + 1) * batch_size >= n:
+            break
+    if return_last:
+        return last
+
+
 """
 git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE' > /dev/null || true; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_8020_TRAIN')[0]"
 git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE' > /dev/null || true; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_8020_TEST')[0]"
@@ -172,39 +259,59 @@ git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE' > /dev/null || true; dbx
 git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE' > /dev/null || true; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_305020_TRAIN')[0]"
 git commit -am 'gigaq: pancan_tile_bag_dataset: SAMPLE' > /dev/null || true; dbx "autopath.pancan.pipelines.pancan_tilebag_dataset('CPTAC_305020_TEST')[0]"
 """
+def pancan_tilebag_dataset_builder(
+	*,
+	clip: PancanTileClip,
+	transform: Optional[torchvision.transforms.Compose] = None,
+	debug: bool = False,
+	verbose: bool = False,
+	log = None,
+):
+		clip = dbx.eval(clip)
+		transform = dbx.eval(transform)
+		kwargs = dict(
+			debug=debug, 
+			verbose=verbose,
+		)
+		if log is not None:
+			kwargs['log'] = log
+
+		return TileClipDatasetBuilder(spec=dict(clip=clip, transform=transform,), **kwargs)
+
+
 def pancan_tilebag_dataset(name=None) -> TileClipDatasetBuilder:
     if name == "CPTAC_8020_TEST":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_8020_TEST'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_8020_TEST'),)
     elif name == "CPTAC_8020_TRAIN":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_8020_TRAIN'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_8020_TRAIN'),)
     elif name == "CPTAC_9802_TEST":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_9802_TEST'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_9802_TEST'),)
     elif name == "CPTAC_9802_TRAIN":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_9802_TRAIN'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_9802_TRAIN'),)
     elif name == "CPTAC_404020_CALIBRATE":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_CALIBRATE'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_CALIBRATE'),)
     elif name == "CPTAC_404020_TRAIN":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TRAIN'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TRAIN'),)
     elif name == "CPTAC_404020_TEST":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TEST'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_404020_TEST'),)
     elif name == "CPTAC_305020_CALIBRATE":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_CALIBRATE'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_CALIBRATE'),)
     elif name == "CPTAC_305020_TRAIN":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_TRAIN'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_TRAIN'),)
     elif name == "CPTAC_305020_TEST":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_TEST'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_305020_TEST'),)
     elif name == "CPTAC_400159_CALIBRATE":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_CALIBRATE'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_CALIBRATE'),)
     elif name == "CPTAC_400159_TRAIN":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_TRAIN'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_TRAIN'),)
     elif name == "CPTAC_400159_TEST":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_TEST'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_400159_TEST'),)
     elif name == "CPTAC_200179_CALIBRATE":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_CALIBRATE'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_CALIBRATE'),)
     elif name == "CPTAC_200179_TRAIN":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_TRAIN'),)
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_TRAIN'),)
     elif name == "CPTAC_200179_TEST":
-        builder = pancan_tile_clip_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_TEST'),)   
+        builder = pancan_tilebag_dataset_builder(clip=dbx.quote(pancan_tile_fold, 'CPTAC_200179_TEST'),)   
     else:
         raise ValueError(f"Unknown pancan_tilebag_dataset: {name}")
     return builder.dataset()

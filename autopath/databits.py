@@ -41,7 +41,24 @@ class Bag(Datablock):
     def label(self):
         raise NotImplementedError
 
-    
+
+class TileBag(Bag):
+    """A bag of image tiles backed by a tensor.
+
+    Combines the former ``TileShard`` (tensor-backed tile storage) and
+    ``TileBag`` (Bag subclass) into a single class.
+    """
+
+    @functools.cached_property
+    def tiles(self):
+        return self.tensor
+
+    @property
+    def labels(self):
+        raise NotImplementedError()
+
+
+
 class Clip(Datastack):
     """Abstract clip of bags, built in parallel via :class:`Datastack`.
 
@@ -55,12 +72,14 @@ class Clip(Datastack):
     materializing bags.
     """
 
+    v2 = True
+    
     TOPICFILES = {"bag_lens": "bag_lens.npz"}
 
     def __len__(self):
         return sum(self.bag_lens)
 
-    def __stack__(self):
+    def __stack__(self, results=None):
         """Persist bag lengths after all bags have been built."""
         self.log.verbose(f"Stacking bag lens")
         bag_lens = [len(self.shard(i)) for i in tqdm.tqdm(range(self.n_shards), desc="Stacking bag lens")]
@@ -193,6 +212,9 @@ class Fold(Clip):
         partition: Partition
         fold: Union[str, int]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, v2=True, **kwargs)
+
     def __post_init__(self):
         return self
     
@@ -206,10 +228,13 @@ class Fold(Clip):
     def __shard__(self, idx: int):
         return self.cfg.partition.bag(self.cfg.fold, idx)
 
-    def __build__(self):
-        """Bags are managed by the Partition — skip parallel shard building."""
-        self.__stack__()
-        return self
+    def __split_v2__(self, *args, **kwargs):
+        """Bags are managed by the Partition — no parallel work needed."""
+        return [], dict()
+
+    def __stack_v2__(self, results):
+        """Persist bag_lens after (vacuous) parallel phase."""
+        return super().__stack__(results)
 
     @functools.cached_property
     def bag_lens(self):

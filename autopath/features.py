@@ -43,8 +43,8 @@ def get_executor_cls(parallelization):
         'inline': InlineCallableExecutor,
     }[parallelization.lower() if parallelization is not None else 'inline']
 
-from autopath.databits import Bag, Clip
-from autopath.pancan.clips import TileBag, TileClipDatasetBuilder
+from autopath.databits import Bag, Clip, TileBag
+from autopath.pancan.clips import TileClipDatasetBuilder
 
 from autopath.tools import tensors_to_device, cat_tensor_dicts
 

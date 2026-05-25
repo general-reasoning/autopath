@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import functools
 import gc
 import itertools
+import math
 import os
 from typing import Optional
 
@@ -13,31 +14,17 @@ import numpy as np
 import torch
 import torchvision
 
+from streaming import MDSWriter, Stream, StreamingDataset
 
 import dbx
 from dbx import Logger, Datablock
 
-from autopath.databits import Bag, Clip, Partition, Fold
+from autopath.databits import Bag, TileBag, Clip, Partition, Fold
 from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
 
 
 logger = Logger()
 
-
-class TileBag(Bag):
-    """A bag of image tiles backed by a tensor.
-
-    Combines the former ``TileShard`` (tensor-backed tile storage) and
-    ``TileBag`` (Bag subclass) into a single class.
-    """
-
-    @functools.cached_property
-    def tiles(self):
-        return self.tensor
-
-    @property
-    def labels(self):
-        raise NotImplementedError()
 
 
 class TileClipDatasetBuilder(Datablock):
@@ -143,6 +130,7 @@ class TileClipDataLoaderBuilder(Datablock):
 
 
 
+
 	
 class PancanTFRecordDataset(TFRecordDataset):
 		def __init__(self, tfrecords_path, index_path, transform):
@@ -154,6 +142,25 @@ class PancanTFRecordDataset(TFRecordDataset):
 
 
 class PancanTileBag(TileBag):
+	"""A bag of pathology tiles repacked from TFRecords into MDS shards.
+
+	During ``__build__``, reads all tiles from the source TFRecord,
+	duplicates the slide-level label for every tile, and writes them
+	as MDS samples together with the bag ``name``.
+
+	Topics
+	------
+	dataset
+		MDS shards directory.  ``dataset()`` returns a
+		:class:`StreamingDataset`.
+	"""
+
+	VERSION = 2
+
+	TOPICFILES = {
+		'dataset': 'shards',
+	}
+
 	@dataclass
 	class CONFIG(Datablock.CONFIG):
 		source: str
@@ -166,10 +173,12 @@ class PancanTileBag(TileBag):
 		self._label = root.split('/')[-1] #cancer
 		self.resolution, records = tail.split('/')
 		self._name, _  = os.path.splitext(records)
+		# Legacy source paths used for reading raw TFRecords.
 		tilesfile = os.path.basename(self.config.source)
 		indexfile = tilesfile.split('.')[0] + '.index.npz'
-		self.TOPICFILES = {'index': indexfile, 'tiles': tilesfile, 'labels': None}
-		self._dirpath = os.path.dirname(self.config.source)
+		self._source_dirpath = os.path.dirname(self.config.source)
+		self._source_tilesfile = tilesfile
+		self._source_indexfile = indexfile
 
 	@property
 	def label(self):
@@ -179,39 +188,21 @@ class PancanTileBag(TileBag):
 	def name(self):
 		return self._name
 
-	def dirpath(self, topic=None, *, ensure: bool = False): 
-		return self._dirpath
 
-	def path(self, topic=None, *, ensure_dirpath: bool = False):
-		if topic is None:
-			return self._dirpath
-		return os.path.join(self._dirpath, self.TOPICFILES[topic]) if self.TOPICFILES[topic] is not None else None
-
-	def UNSAFE_clear(self, *topics, OVERRIDE: bool = False, clear_dirpath: bool = False):
-		raise ValueError(f"Read-Only datablock: {self}")
-
-	def __read__(self, topic):
-		if topic == 'index':
-			result = np.load(self.path(topic))['arr_0']
-		elif topic == 'tiles':
-			result = self.tiles
-		elif topic == 'labels':
-			result = np.array([self.label]*len(self))
-		else:
-			raise ValueError(f"Unknown topic: {topic}")
-		return result
-
-	def __len__(self):
-		return len(self.read('index'))
+	# ── Source TFRecord access (for build) ──────────────────────────
 
 	@property
-	def size(self):
-		return len(self)
-	
+	def _source_tiles_path(self):
+		return os.path.join(self._source_dirpath, self._source_tilesfile)
+
 	@property
-	def dataset(self):
+	def _source_index_path(self):
+		return os.path.join(self._source_dirpath, self._source_indexfile)
+
+	def _source_dataset(self):
+		"""Load the source TFRecord as a dataset (heavy — reads from disk)."""
 		parser = get_tfrecord_parser(
-				self.path('tiles'),
+				self._source_tiles_path,
 				('image_raw',),
 				to_numpy=True,
 				decode_images=True
@@ -219,22 +210,120 @@ class PancanTileBag(TileBag):
 	
 		def transform(*args, **kwargs):
 			return parser(*args, **kwargs)[0]
-		dataset = PancanTFRecordDataset(self.path('tiles'), self.path('index'), transform=transform)
+		dataset = PancanTFRecordDataset(self._source_tiles_path, self._source_index_path, transform=transform)
 		return dataset
-	
-	@property
-	def tensor(self):
-		tensors = list(self.dataset)
+
+	def _source_tensor(self):
+		"""Load all tiles from source TFRecord as a tensor (heavy — full decode)."""
+		tensors = list(self._source_dataset())
 		tensor = torch.stack(tensors).permute(0, 3, 1, 2)
 		return tensor
 
+	def _source_len(self):
+		index = np.load(self._source_index_path)['arr_0']
+		return len(index)
+
+	# ── Validity ────────────────────────────────────────────────────
+
+	def validtopic(self, topic=None):
+		if topic == 'dataset':
+			# MDS directory is valid when index.json has been written.
+			return self.fs.exists(
+				os.path.join(self.path('dataset'), 'index.json')
+			)
+		return super().validtopic(topic)
+
+	# ── Build ───────────────────────────────────────────────────────
+
+	@property
+	def _is_local_fs(self):
+		"""True when this bag's storage is on a local filesystem."""
+		protocol = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
+		return protocol in ('file', 'local', '')
+
+	def __build__(self):
+		"""Read tiles from source TFRecord and repack as MDS shards."""
+		tiles_tensor = self._source_tensor()
+		n_tiles = tiles_tensor.shape[0]
+		tiles_np = tiles_tensor.numpy().astype(np.uint8)
+
+		label = self._label
+		name = self._name
+
+		columns = {
+			'tiles': 'ndarray:uint8',
+			'label': 'str',
+			'name': 'str',
+			'tile_index': 'int32',
+		}
+
+		shards_dir = self.path('dataset', ensure_dirpath=True)
+
+		sample_bytes = tiles_np[0].nbytes + len(label) + len(name) + 4
+		byte_limit = max(n_tiles * sample_bytes, sample_bytes)
+
+		with MDSWriter(
+			out=shards_dir,
+			columns=columns,
+			size_limit=byte_limit,
+		) as writer:
+			for i in range(n_tiles):
+				writer.write({
+					'tiles': tiles_np[i],
+					'label': label,
+					'name': name,
+					'tile_index': np.int32(i),
+				})
+
+		self.log.verbose(
+			f"Wrote MDS shards to {shards_dir}: "
+			f"{n_tiles} tiles, label={label!r}, name={name!r}"
+		)
+
+		del tiles_tensor, tiles_np
+		gc.collect()
+		return self
+
+	# ── Read / Dataset ──────────────────────────────────────────────
+
+	def dataset(self, *, shuffle: bool = False) -> StreamingDataset:
+		"""Return a :class:`StreamingDataset` over this bag's MDS shards.
+
+		Each sample is a dict with keys ``tiles`` (ndarray), ``label``
+		(str), ``name`` (str), and ``tile_index`` (int32).
+		"""
+		if self._is_local_fs:
+			return StreamingDataset(local=self.path('dataset'), shuffle=shuffle)
+		else:
+			return StreamingDataset(remote=self.path('dataset'), shuffle=shuffle)
+
+	def __read__(self, topic=None):
+		if topic == 'dataset':
+			return self.dataset()
+		raise ValueError(f"Unknown topic: {topic!r}")
+
+	def __len__(self):
+		return self._source_len()
+
+	@property
+	def size(self):
+		return len(self)
+	
+	@property
+	def tensor(self):
+		return self._source_tensor()
+
 	@property
 	def tiles(self):
-		return self.tensor
+		return self._source_tensor()
 
 	@property
 	def labels(self):
-		return self.read('labels')
+		return np.array([self._label] * len(self))
+
+	def UNSAFE_clear(self, *topics, OVERRIDE: bool = False, clear_dirpath: bool = False):
+		"""Allow clearing the MDS shards (they are derived, not source data)."""
+		return super().UNSAFE_clear(*topics, OVERRIDE=OVERRIDE, clear_dirpath=clear_dirpath)
 
 
 class PancanTileClip(Clip):
@@ -242,6 +331,9 @@ class PancanTileClip(Clip):
 	class CONFIG:
 		source: str
 		resolution: str
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, v2=True, **kwargs)
 
 	def __post_init__(self):
 		def _is_tfrecords_dir(fs, d, resolution):
@@ -279,15 +371,43 @@ class PancanTileClip(Clip):
 				url=self.url,
 				spec=dict(source=source,),
 				tag=tag,
+				keyby=self.keyby,
 				revision=self.revision,
 				verbose=self.verbose,
 				debug=self.debug,
 			)
 
-	def __build__(self):
-		"""Bags are pre-existing TFRecords — skip parallel shard building."""
-		self.__stack__()
-		return self
+	class ShardMaker(Clip.ShardMaker):
+		"""Build a single PancanTileBag shard.
+
+		Carries the bag index. Takes the clip (stack) as the first arg
+		via the executor, instantiates the bag and builds it.
+		"""
+		def __init__(self, idx: int):
+			super().__init__(idx)
+
+		def __call__(self, stack, *, build=True):
+			shard = stack.__shard__(self.idx)
+			if build:
+				shard.build()
+			del shard
+			gc.collect()
+
+	def __split__(self, *args, **kwargs):
+		"""Return one ShardMaker per bag for parallel building."""
+		makers = [self.ShardMaker(idx) for idx in range(self.n_shards)]
+		callable_kwargs = dict(build=True)
+		self.log.info(
+			f"Split {self.__class__.__name__}: {len(makers)} bags to build"
+		)
+		return makers, callable_kwargs
+
+	def __stack__(self, results=None):
+		"""Persist bag_lens after all parallel bag builds complete."""
+		self.log.info(f"Stacking {self.n_shards} bags of {self.__class__.__name__}")
+		result = super().__stack__(results)
+		self.log.info(f"Build complete: {self.__class__.__name__}")
+		return result
 
 	@property
 	def bag_lens(self):
@@ -297,8 +417,61 @@ class PancanTileClip(Clip):
 		return len(self.bags)
 
 	def __read__(self):
-		bag_lens = dbx.read_npz(self.path('bag_lens'), 'bag_lens')[0]
+		bag_lens = dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
 		return bag_lens
+
+	def dataset(
+		self,
+		*,
+		shuffle: bool = False,
+		skip_invalid_bags: bool = False,
+	):
+		"""Return a unified dataset over all bags using MDS multi-stream API.
+
+		Each sample dict contains:
+
+		* ``tiles`` — uint8 tile image ndarray
+		* ``label`` — cancer type label string
+		* ``name`` — bag/slide name string
+		* ``tile_index`` — index into the originating bag
+		* ``bag_index`` — index of the bag within this clip
+
+		Parameters
+		----------
+		shuffle : bool
+			Whether to shuffle within the streaming dataset.
+		skip_invalid_bags : bool
+			If ``True``, silently skip bags whose MDS shards have not
+			been built yet.
+		"""
+		from autopath.deep.features import LabeledStreamDataset
+
+		streams = []
+		bag_labels = []
+		bag_lens_list = []
+		n_skipped = 0
+
+		for i in range(self.n_shards):
+			bag = self.shard(i)
+			if skip_invalid_bags and not bag.valid():
+				n_skipped += 1
+				continue
+			if bag._is_local_fs:
+				streams.append(Stream(local=bag.path('dataset')))
+			else:
+				streams.append(Stream(remote=bag.path('dataset')))
+			bag_labels.append(bag.label)
+			bag_lens_list.append(len(bag))
+
+		if n_skipped:
+			self.log.info(
+				f"Skipped {n_skipped}/{n_skipped + len(streams)} "
+				f"unbuilt bags in {self.__class__.__name__}.dataset()"
+			)
+
+		base = StreamingDataset(streams=streams, shuffle=shuffle)
+		result = LabeledStreamDataset(base, bag_lens_list, bag_labels)
+		return result
 
 
 
@@ -309,22 +482,3 @@ class PancanTilePartition(Partition):
 class PancanTileFold(Fold):
 	pass
 
-
-def pancan_tile_clip_dataset_builder(
-	*,
-	clip: PancanTileClip,
-	transform: Optional[torchvision.transforms.Compose] = None,
-	debug: bool = False,
-	verbose: bool = False,
-	log = None,
-):
-		clip = dbx.eval(clip)
-		transform = dbx.eval(transform)
-		kwargs = dict(
-			debug=debug, 
-			verbose=verbose,
-		)
-		if log is not None:
-			kwargs['log'] = log
-
-		return TileClipDatasetBuilder(spec=dict(clip=clip, transform=transform,), **kwargs)

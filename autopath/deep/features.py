@@ -30,8 +30,7 @@ from dbx import (
 
 from streaming import MDSWriter, Stream, StreamingDataset
 
-from autopath.databits import Bag, Clip, DeepBackboneEvaluatorFactory
-from autopath.pancan.clips import TileBag
+from autopath.databits import Bag, Clip, DeepBackboneEvaluatorFactory, TileBag
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -381,6 +380,14 @@ class DeepFeatureClip(Clip):
     Orchestrates building one :class:`DeepFeatureBag` per tile-bag in the
     source ``tilebagclip``, using the configured
     :class:`DeepBackboneEvaluatorFactory`.
+
+    Uses the v2 :class:`Datastack` API: :meth:`__split_v2__` returns
+    device-assigned :class:`ShardMaker` callables and shared state as
+    ``callable_kwargs``; :meth:`__stack_v2__` persists bag lengths.
+
+    All shared state (evaluator, tilebags, evaluator factory) flows
+    through ``callable_kwargs`` — never as side-effected ``self``
+    attributes — so it survives serialisation across process boundaries.
     """
 
     VERSION = 2
@@ -395,42 +402,61 @@ class DeepFeatureClip(Clip):
     def __init__(self, *args, gpu_batch_size: int = 64,
                  devices: list = None, **kwargs):
         self._devices = devices or ["cuda"]
-        super().__init__(*args, gpu_batch_size=gpu_batch_size, **kwargs)
+        super().__init__(*args, gpu_batch_size=gpu_batch_size, v2=True, **kwargs)
 
     @property
     def n_shards(self) -> int:
         return self.cfg.tilebagclip.n_shards
 
     class ShardMaker(Clip.ShardMaker):
-        """Forward precomputed evaluator and tilebag to shard.build().
+        """Build a single shard using shared state from ``callable_kwargs``.
 
         Carries its assigned ``device`` so the assignment survives
         serialisation across process boundaries.
+
+        All shared resources (evaluator, tilebags, factory) are received
+        as keyword arguments from the executor's ``ctx_kwargs`` — the
+        same dict is shared by all ShardMakers within a worker's chunk.
+        A mutable ``evaluator_cache`` dict provides worker-local lazy
+        caching: the first ShardMaker creates the evaluator and stores
+        it; subsequent ShardMakers in the same worker reuse it.
         """
         def __init__(self, idx: int, *, device: str = "cuda"):
             super().__init__(idx)
             self.device = device
 
-        def __call__(self, stack, *, build=True):
-            shard = stack.__shard__(self.idx, device=self.device)
+        def __call__(self, stack, *, build=True,
+                     tilebags=None, evaluator=None,
+                     evaluator_cache=None, evaluator_factory=None):
+            shard = stack.__shard__(self.idx, device=self.device,
+                                    tilebag=tilebags[self.idx] if tilebags else None)
             shard.keyby = stack.keyby
             if build:
-                kwargs = {}
-                if hasattr(stack, '_shared_evaluator'):
-                    kwargs['evaluator'] = stack._shared_evaluator
-                if hasattr(stack, '_precomputed_tilebags'):
-                    kwargs['tilebag'] = stack._precomputed_tilebags[self.idx]
-                shard.build(**kwargs)
+                build_kwargs = {}
+                if evaluator is not None:
+                    # Inline mode: evaluator pre-created by __split_v2__.
+                    build_kwargs['evaluator'] = evaluator
+                elif evaluator_cache is not None:
+                    # Multiprocessing mode: lazily cache one evaluator
+                    # per worker.  All ShardMakers within a worker share
+                    # the same ctx_kwargs dict, so the cache dict is
+                    # worker-local mutable state.
+                    if 'evaluator' not in evaluator_cache:
+                        evaluator_cache['evaluator'] = evaluator_factory.evaluator(
+                            device=self.device, log=stack.log,
+                        )
+                    build_kwargs['evaluator'] = evaluator_cache['evaluator']
+                if tilebags is not None:
+                    build_kwargs['tilebag'] = tilebags[self.idx]
+                shard.build(**build_kwargs)
             del shard
             gc.collect()
 
-    def __shard__(self, idx: int, tilebagclip=None, device: str = "cuda"):
-        if tilebagclip is None:
-            tilebagclip = self.cfg.tilebagclip
-        # Use precomputed tilebag if available to avoid re-forming the fold.
-        if hasattr(self, '_precomputed_tilebags'):
-            tilebag = self._precomputed_tilebags[idx]
-        else:
+    def __shard__(self, idx: int, tilebagclip=None, device: str = "cuda",
+                  tilebag=None):
+        if tilebag is None:
+            if tilebagclip is None:
+                tilebagclip = self.cfg.tilebagclip
             tilebag = tilebagclip.shard(idx)
         return DeepFeatureBag(
             url=self.url,
@@ -446,40 +472,60 @@ class DeepFeatureClip(Clip):
             tag=tilebag.tag,
         )
 
-    def __build__(self, *args, **kwargs):
-        """Build with optional shared evaluator and precomputed tile-bags.
+    def __split_v2__(self, *args, **kwargs):
+        """Precompute tilebags and evaluator; return device-assigned ShardMakers.
 
-        In inline mode (single device), precomputes the evaluator once
-        and shares it across all shards.  In multiprocessing mode, each
-        worker creates its own evaluator on its assigned device.
+        All shared state is returned in ``callable_kwargs`` so it
+        flows through the executor's ``ctx_kwargs`` mechanism — no
+        ``self``-attribute side effects.
+
+        In inline mode (single device), the evaluator is pre-created
+        and passed directly.  In multiprocessing mode, the factory
+        and an empty ``evaluator_cache`` dict are passed instead;
+        each worker lazily creates one evaluator via the cache.
+
+        Returns
+        -------
+        callables : list[ShardMaker]
+            One ShardMaker per shard, each carrying its target device.
+        callable_kwargs : dict
+            Shared state forwarded to each ShardMaker.__call__:
+            ``build``, ``tilebags``, ``evaluator``,
+            ``evaluator_cache``, ``evaluator_factory``.
         """
         devices = self._devices
         # Precompute flat tilebag list to avoid re-forming the fold.
         tilebagclip = self.cfg.tilebagclip
-        self._precomputed_tilebags = [
-            tilebagclip.shard(idx) for idx in range(self.n_shards)
-        ]
+        tilebags = [tilebagclip.shard(idx) for idx in range(self.n_shards)]
+
+        callable_kwargs = dict(
+            build=True,
+            tilebags=tilebags,
+        )
         # Share a single evaluator only when running inline on one device.
         inline = (self.parallelization in (None, 'inline')
                   and len(devices) == 1)
         if inline:
             device = devices[0]
-            self._shared_evaluator = self.cfg.evaluator_factory.evaluator(
+            callable_kwargs['evaluator'] = self.cfg.evaluator_factory.evaluator(
                 device=device, log=self.log,
             )
             self.log.info(
                 f"Precomputed {self.n_shards} tile-bags and evaluator on {device}"
             )
         else:
+            # Pass factory + mutable cache for worker-local lazy creation.
+            callable_kwargs['evaluator'] = None
+            callable_kwargs['evaluator_cache'] = {}
+            callable_kwargs['evaluator_factory'] = self.cfg.evaluator_factory
             self.log.info(
                 f"Precomputed {self.n_shards} tile-bags; "
                 f"workers will create evaluators on {devices}"
             )
-        # Override maker list with device-assigned ShardMakers.
-        # The executor splits makers into contiguous chunks via
+        # Assign devices to ShardMakers based on executor chunking.
+        # The executor splits callables into contiguous chunks via
         # np.array_split — worker w gets chunk w.  Assign the device
         # for each shard based on which chunk (worker) it will land in.
-        self.__split__()
         n_workers = len(devices)
         chunk_boundaries = np.array_split(range(self.n_shards), n_workers)
         shard_device = {}
@@ -491,30 +537,18 @@ class DeepFeatureClip(Clip):
             self.ShardMaker(idx, device=shard_device[idx])
             for idx in range(self.n_shards)
         ]
-        executor_kwargs = dict(
-            n_workers=self.n_workers,
-            tag=f"BUILDING {len(makers)} shards [{self.__class__.__name__}, n_workers={self.n_workers}]",
-        )
-        if (hasattr(self, 'multiprocessing_start_method')
-                and self.multiprocessing_start_method is not None):
-            from dbx.dataparts import MultiprocessingCallableExecutor
-            if issubclass(self.executor_cls, MultiprocessingCallableExecutor):
-                executor_kwargs['start_method'] = self.multiprocessing_start_method
-        executor = self.executor_cls(**executor_kwargs)
         self.log.info(
-            f"Building {self.__class__.__name__}: {len(makers)} shards, "
-            f"executor={executor.__class__.__name__}, n_workers={self.n_workers}"
+            f"Split {self.__class__.__name__}: {len(makers)} shards across "
+            f"{n_workers} workers on devices {devices}"
         )
-        try:
-            executor.exec_callables(makers, self, build=True)
-        finally:
-            if hasattr(self, '_shared_evaluator'):
-                del self._shared_evaluator
-            del self._precomputed_tilebags
+        return makers, callable_kwargs
+
+    def __stack_v2__(self, results):
+        """Persist bag_lens after parallel build."""
         self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
-        self.__stack__()
+        result = super().__stack__(results)
         self.log.info(f"Build complete: {self.__class__.__name__}")
-        return self
+        return result
 
     def _ensure_precomputed_tilebags(self):
         """Precompute the tilebag list to avoid re-forming the source clip."""
@@ -656,6 +690,9 @@ class SphericalDeepFeatureClip(Clip):
     class CONFIG(Datablock.CONFIG):
         deep_feature_clip: DeepFeatureClip
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, v2=True, **kwargs)
+
     @property
     def n_shards(self):
         return self.cfg.deep_feature_clip.n_shards
@@ -671,10 +708,13 @@ class SphericalDeepFeatureClip(Clip):
     def valid(self):
         return self.cfg.deep_feature_clip.valid()
 
-    def __build__(self):
-        """No build step — delegates to underlying clip. Persist bag_lens only."""
-        self.__stack__()
-        return self
+    def __split_v2__(self, *args, **kwargs):
+        """No parallel work — delegates to underlying clip."""
+        return [], dict()
+
+    def __stack_v2__(self, results):
+        """Persist bag_lens only."""
+        return super().__stack__(results)
 
 
 class CornerDeepFeatureBag(Bag):
@@ -761,6 +801,9 @@ class CornerDeepFeatureClip(Clip):
     class CONFIG(Datablock.CONFIG):
         deep_feature_clip: DeepFeatureClip
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, v2=True, **kwargs)
+
     @property
     def n_shards(self):
         return self.cfg.deep_feature_clip.n_shards
@@ -776,7 +819,10 @@ class CornerDeepFeatureClip(Clip):
     def valid(self):
         return self.cfg.deep_feature_clip.valid()
 
-    def __build__(self):
-        """No build step — delegates to underlying clip. Persist bag_lens only."""
-        self.__stack__()
-        return self
+    def __split_v2__(self, *args, **kwargs):
+        """No parallel work — delegates to underlying clip."""
+        return [], dict()
+
+    def __stack_v2__(self, results):
+        """Persist bag_lens only."""
+        return super().__stack__(results)
