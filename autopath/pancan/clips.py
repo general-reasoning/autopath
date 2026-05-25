@@ -265,6 +265,7 @@ class PancanTileBag(TileBag):
 			out=shards_dir,
 			columns=columns,
 			size_limit=size_limit,
+			exist_ok=True,
 		) as writer:
 			for i in range(n_tiles):
 				writer.write({
