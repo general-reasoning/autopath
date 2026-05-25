@@ -36,7 +36,7 @@ from autopath.deep.features import (
     CornerDeepFeatureClip,
 )
 from autopath.pancan.pipelines import (
-    pancan_tile_bag_clip,
+    pancan_tile_clip,
     pancan_tile_fold,
 )
 
@@ -266,7 +266,7 @@ def gigapath_deep_feature_clip(
     )
     # Resolve the tile-bag clip
     if name == "GIGAPATH_DEEP_CPTAC":
-        tilebagclip = dbx.quote(pancan_tile_bag_clip, "CPTAC")
+        tilebagclip = dbx.quote(pancan_tile_clip, "CPTAC")
     elif name.startswith("GIGAPATH_DEEP_CPTAC_"):
         fold_name = "CPTAC_" + name[len("GIGAPATH_DEEP_CPTAC_"):]
         tilebagclip = dbx.quote(pancan_tile_fold, fold_name)

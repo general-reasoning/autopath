@@ -26,8 +26,8 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
     else:
         raise ValueError(f"Unknown tile_bag: {name}")
 
-# git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_bag_clip('CPTAC').build()"
-def pancan_tile_bag_clip(name=None) -> PancanTileClip:
+# git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build()"
+def pancan_tile_clip(name=None) -> PancanTileClip:
     if name is None:
         return PancanTileClip
     elif name == "CPTAC":     
@@ -55,29 +55,29 @@ def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = Non
         return PancanTilePartition
     elif name == "CPTAC":
         assert fold_fractions is not None, "fold_fractions must be specified"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=fold_fractions))   
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=fold_fractions))   
     elif name == "CPTAC_8020":
         assert fold_fractions is None or fold_fractions == [0.8, 0.2], "fold_fractions must be [0.8, 0.2]"   
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=[0.8, 0.2]))
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.8, 0.2]))
     elif name == "CPTAC_9802": 
         assert fold_fractions is None or fold_fractions == [0.98, 0.02], "fold_fractions must be [0.98, 0.02]"  
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=[0.98, 0.02])
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.98, 0.02])
         )
     elif name == "CPTAC_404020":
         assert fold_fractions is None or fold_fractions == [0.4, 0.4, 0.2], "fold_fractions must be [0.4, 0.4, 0.2]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=[0.4, 0.4, 0.2]))
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.4, 0.4, 0.2]))
     elif name == "CPTAC_305020":
         assert fold_fractions is None or fold_fractions == [0.3, 0.5, 0.2], "fold_fractions must be [0.3, 0.5, 0.2]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=[0.3, 0.5, 0.2]))
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.3, 0.5, 0.2]))
     elif name == "CPTAC_206020":
         assert fold_fractions is None or fold_fractions == [0.2, 0.6, 0.2], "fold_fractions must be [0.2, 0.6, 0.2]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=[0.2, 0.6, 0.2]))
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.2, 0.6, 0.2]))
     elif name == "CPTAC_400159":
         assert fold_fractions is None or fold_fractions == [0.4, 0.01, 0.59], "fold_fractions must be [0.4, 0.01, 0.59]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=[0.4, 0.01, 0.59]))
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.4, 0.01, 0.59]))
     elif name == "CPTAC_200179":
         assert fold_fractions is None or fold_fractions == [0.2, 0.01, 0.79], "fold_fractions must be [0.2, 0.01, 0.79]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_bag_clip, 'CPTAC'), fold_fractions=[0.2, 0.01, 0.79]))
+        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.2, 0.01, 0.79]))
     else:
         raise ValueError(f"Unknown tile_partition: {name}")
 
@@ -182,12 +182,12 @@ def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: 
         """Resolve *name* to a :class:`PancanTileClip` or :class:`PancanTileFold`.
 
         Tries ``pancan_tile_fold(name)`` first; falls back to
-        ``pancan_tile_bag_clip(name)`` for bare clip names like ``'CPTAC'``.
+        ``pancan_tile_clip(name)`` for bare clip names like ``'CPTAC'``.
         """
         try:
             return pancan_tile_fold(name)
         except ValueError:
-            return pancan_tile_bag_clip(name)
+            return pancan_tile_clip(name)
     clip = _resolve_tile_clip(name)
     return clip.dataset(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
 

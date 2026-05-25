@@ -13,7 +13,7 @@ from autopath.pancan.clips import TileClipDatasetBuilder, TileClipDataLoaderBuil
 
 from autopath.pancan.pipelines import (
     pancan_tile_bag,
-    pancan_tile_bag_clip,
+    pancan_tile_clip,
     pancan_tile_fold,
 )
 
@@ -151,7 +151,7 @@ def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:s
         return FeatureBagClip
     extractor=quote_extractor('GIGAPATH_BASELINE_BACKBONE_EVALUATOR')
     if name == "GIGAPATH_BASELINE_CPTAC":
-        tilebagclip=dbx.quote(pancan_tile_bag_clip, 'CPTAC')
+        tilebagclip=dbx.quote(pancan_tile_clip, 'CPTAC')
     elif name == "GIGAPATH_BASELINE_CPTAC_9802_TEST":
         tilebagclip=dbx.quote(pancan_tile_fold, 'CPTAC_9802_TEST')
     elif name == "GIGAPATH_BASELINE_CPTAC_9802_TRAIN":
