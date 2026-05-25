@@ -12,10 +12,12 @@ import dbx
 from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTilePartition, PancanTileFold, TileClipDatasetBuilder
 from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RESOLUTION
 
-
-# git commit -am "gigaq: PancanTileBag: READ" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').valid()"
-# git commit -am "gigaq: PancanTileBag: READ" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('tiles')"
-# git commit -am "gigaq: PancanTileBag: READ" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('labels')"
+"""
+git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build()"
+git commit -am "gigaq: PancanTileBag: VALID" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').valid()"
+git commit -am "gigaq: PancanTileBag: READ TILES" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('tiles')"
+git commit -am "gigaq: PancanTileBag: READ LABELS" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('labels')"
+"""
 def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
         return PancanTileBag
@@ -156,18 +158,6 @@ def pancan_tile_fold(name=None) -> PancanTileFold:
         raise ValueError(f"Unknown tile_fold: {name}")
 
 
-def _resolve_tile_clip(name):
-    """Resolve *name* to a :class:`PancanTileClip` or :class:`PancanTileFold`.
-
-    Tries ``pancan_tile_fold(name)`` first; falls back to
-    ``pancan_tile_bag_clip(name)`` for bare clip names like ``'CPTAC'``.
-    """
-    try:
-        return pancan_tile_fold(name)
-    except ValueError:
-        return pancan_tile_bag_clip(name)
-
-
 # git commit -am "gigaq: pancan_tile_dataset: CPTAC" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC')[0]"
 # git commit -am "gigaq: pancan_tile_dataset: fold" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC_404020_TRAIN')[0]"
 def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: bool = False):
@@ -188,6 +178,16 @@ def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: 
         If ``True``, silently skip bags whose MDS shards have not
         been built yet.
     """
+    def _resolve_tile_clip(name):
+        """Resolve *name* to a :class:`PancanTileClip` or :class:`PancanTileFold`.
+
+        Tries ``pancan_tile_fold(name)`` first; falls back to
+        ``pancan_tile_bag_clip(name)`` for bare clip names like ``'CPTAC'``.
+        """
+        try:
+            return pancan_tile_fold(name)
+        except ValueError:
+            return pancan_tile_bag_clip(name)
     clip = _resolve_tile_clip(name)
     return clip.dataset(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
 
