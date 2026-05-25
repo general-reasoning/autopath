@@ -150,16 +150,14 @@ class PancanTileBag(TileBag):
 
 	Topics
 	------
-	dataset
+	shards
 		MDS shards directory.  ``dataset()`` returns a
 		:class:`StreamingDataset`.
 	"""
 
 	VERSION = 2
 
-	TOPICFILES = {
-		'dataset': 'shards',
-	}
+	TOPICS = ['shards']
 
 	@dataclass
 	class CONFIG(Datablock.CONFIG):
@@ -226,10 +224,10 @@ class PancanTileBag(TileBag):
 	# ── Validity ────────────────────────────────────────────────────
 
 	def validtopic(self, topic=None):
-		if topic == 'dataset':
+		if topic == 'shards':
 			# MDS directory is valid when index.json has been written.
 			return self.fs.exists(
-				os.path.join(self.path('dataset'), 'index.json')
+				os.path.join(self.path('shards'), 'index.json')
 			)
 		return super().validtopic(topic)
 
@@ -257,7 +255,7 @@ class PancanTileBag(TileBag):
 			'tile_index': 'int32',
 		}
 
-		shards_dir = self.path('dataset', ensure_dirpath=True)
+		shards_dir = self.path('shards', ensure_dirpath=True)
 
 		sample_bytes = tiles_np[0].nbytes + len(label) + len(name) + 4
 		byte_limit = max(n_tiles * sample_bytes, sample_bytes)
@@ -293,13 +291,13 @@ class PancanTileBag(TileBag):
 		(str), ``name`` (str), and ``tile_index`` (int32).
 		"""
 		if self._is_local_fs:
-			return StreamingDataset(local=self.path('dataset'), shuffle=shuffle)
+			return StreamingDataset(local=self.path('shards'), shuffle=shuffle)
 		else:
-			return StreamingDataset(remote=self.path('dataset'), shuffle=shuffle)
+			return StreamingDataset(remote=self.path('shards'), shuffle=shuffle)
 
 	def __read__(self, topic=None):
-		if topic == 'dataset':
-			return self.dataset()
+		if topic == 'shards':
+			return self.fs.ls(self.path('shards'))
 		raise ValueError(f"Unknown topic: {topic!r}")
 
 	def __len__(self):
@@ -457,9 +455,9 @@ class PancanTileClip(Clip):
 				n_skipped += 1
 				continue
 			if bag._is_local_fs:
-				streams.append(Stream(local=bag.path('dataset')))
+				streams.append(Stream(local=bag.path('shards')))
 			else:
-				streams.append(Stream(remote=bag.path('dataset')))
+				streams.append(Stream(remote=bag.path('shards')))
 			bag_labels.append(bag.label)
 			bag_lens_list.append(len(bag))
 
