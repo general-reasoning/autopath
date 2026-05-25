@@ -326,6 +326,7 @@ class PancanTileBag(TileBag):
 
 
 class PancanTileClip(Clip):
+	VERSION = 2
 	@dataclass
 	class CONFIG:
 		source: str
