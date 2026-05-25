@@ -27,15 +27,22 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
 
 """
 git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build().valid()"
+git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC', n_workers=8).build().valid()"
 """
-def pancan_tile_clip(name=None) -> PancanTileClip:
+def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | None = None) -> PancanTileClip:
+    if parallelization is None and n_workers > 1:
+        parallelization = "multiprocessing"
     if name is None:
         return PancanTileClip
     elif name == "CPTAC":     
-        return PancanTileClip(spec=dict(
-                                source=PANCAN_CPTAC_ROOT,
-                                resolution=PANCAN_CPTAC_RESOLUTION,
-        ))
+        return PancanTileClip(
+            spec=dict(
+                source=PANCAN_CPTAC_ROOT,
+                resolution=PANCAN_CPTAC_RESOLUTION,
+            ),
+            n_workers=n_workers,
+            parallelization=parallelization,
+        )
     else:
         raise ValueError(f"Unknown tile clip: {name}")
 
