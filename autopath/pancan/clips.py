@@ -483,3 +483,7 @@ class PancanTilePartition(Partition):
 class PancanTileFold(Fold):
 	VERSION = 2
 
+	def dataset(self, *, shuffle: bool = False, skip_invalid_bags: bool = False):
+		"""Delegate to :meth:`PancanTileClip.dataset` (same shard interface)."""
+		return PancanTileClip.dataset(self, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+
