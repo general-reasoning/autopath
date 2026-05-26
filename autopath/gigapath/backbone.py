@@ -33,6 +33,7 @@ from autopath.autobits import (
 )
 
 from autopath.gigapath.dinov2.backbone import (
+    GIGAPATH_BACKBONE_DEPTH,
     backbone_blocks,
     dino_tile_transform,
 )

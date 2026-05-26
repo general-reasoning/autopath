@@ -124,7 +124,6 @@ git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "aut
     gpu_batch_size=1024 \
     ).build().valid()"
 """
-"""
 def gigapath_deep_feature_bag(
     name: str,
     *,
