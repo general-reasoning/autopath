@@ -22,7 +22,7 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
         return PancanTileBag
     elif name == "CPTAC_SAMPLE":     
-        return PancanTileBag(spec=dict(source=PANCAN_CPTAC_SAMPLE))
+        return PancanTileBag(spec=dict(source=PANCAN_CPTAC_SAMPLE), keyby='version_hash')
     else:
         raise ValueError(f"Unknown tile_bag: {name}")
 
