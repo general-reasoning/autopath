@@ -3,11 +3,11 @@
 Provides :class:`GigapathDeepBackboneEvaluator` (runtime hook-based
 activation capture for the GigaPath ViT backbone) and
 :class:`GigapathDeepBackboneEvaluatorFactory` (a concrete
-:class:`~autopath.databits.DeepBackboneEvaluatorFactory` that persists
+:class:`~autopath.autobits.DeepBackboneEvaluatorFactory` that persists
 the resolved capture configuration so that downstream consumers know
 the tensor shapes).
 
-Inherits solely from :class:`~autopath.databits.DeepBackboneEvaluator`;
+Inherits solely from :class:`~autopath.autobits.DeepBackboneEvaluator`;
 the ``gigapath.dinov2`` package supplies only the raw model factory
 (:func:`~autopath.gigapath.dinov2.backbone.gigapath_tile_backbone`) and
 the tile transform
@@ -27,7 +27,7 @@ from dbx import (
     Datablock,
 )
 
-from autopath.databits import (
+from autopath.autobits import (
     DeepBackboneEvaluator,
     DeepBackboneEvaluatorFactory,
 )
@@ -76,7 +76,7 @@ def _resolve_sublayer(block, sublayer_path: str):
 class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
     """GigaPath-specific configurable activation-capturing backbone evaluator.
 
-    Concrete subclass of :class:`~autopath.databits.DeepBackboneEvaluator`
+    Concrete subclass of :class:`~autopath.autobits.DeepBackboneEvaluator`
     for the GigaPath ViT backbone.  Capture targets are specified via
     two parameters:
 

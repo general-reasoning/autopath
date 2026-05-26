@@ -86,10 +86,6 @@ def gigapath_deep_backbone_evaluator(
 #  Evaluator factory
 # ═══════════════════════════════════════════════════════════════════════
 
-"""
-git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_backbone_evaluator_factory()"
-git commit -am 'deep: evaluator_factory: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_backbone_evaluator_factory(cfg_capture_blocks=[0,19,38], cfg_cls_token_only=True)"
-"""
 def gigapath_deep_backbone_evaluator_factory(
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
@@ -128,7 +124,6 @@ def gigapath_deep_feature_bag(
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
     cfg_cls_token_only: bool = False,
-    cfg_capture_tiles: bool = True,
     cfg_shard_size: int = 1024,
     gpu_batch_size: int = 64,
     url: str | None = None,
@@ -142,8 +137,6 @@ def gigapath_deep_feature_bag(
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_capture_tiles : bool
-        When ``True`` (default), write raw tile images into MDS shards.
     cfg_shard_size : int
         Number of samples written per MDS shard file for streaming
         reads.
@@ -168,9 +161,9 @@ def gigapath_deep_feature_bag(
             tilebag=tilebag_quote,
             evaluator_factory=dbx.quote(factory),
             shard_size=cfg_shard_size,
-            capture_tiles=cfg_capture_tiles,
         ),
         gpu_batch_size=gpu_batch_size,
+        keyby='tag_version_hash',
     )
 
 
@@ -211,7 +204,6 @@ def gigapath_deep_feature_clip(
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
     cfg_cls_token_only: bool = False,
-    cfg_capture_tiles: bool = True,
     cfg_shard_size: int = 1024,
     url: str | None = None,
     n_devices: int | None = None,
@@ -230,8 +222,6 @@ def gigapath_deep_feature_clip(
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_capture_tiles : bool
-        When ``True`` (default), write raw tile images into MDS shards.
     cfg_shard_size : int
         Number of samples per MDS shard.
     url : str | None
@@ -278,12 +268,12 @@ def gigapath_deep_feature_clip(
             tilebagclip=tilebagclip,
             evaluator_factory=dbx.quote(factory),
             shard_size=cfg_shard_size,
-            capture_tiles=cfg_capture_tiles,
         ),
         gpu_batch_size=gpu_batch_size,
         devices=devices,
         n_workers=len(devices),
         parallelization=parallelization,
+        keyby='tag_version_hash',
     )
 
 
@@ -400,7 +390,6 @@ def gigapath_spherical_deep_feature_clip(
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
     cfg_cls_token_only: bool = False,
-    cfg_capture_tiles: bool = True,
     cfg_shard_size: int = 1024,
     url: str | None = None,
     n_devices: int | None = None,
@@ -423,7 +412,7 @@ def gigapath_spherical_deep_feature_clip(
         ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_capture_tiles, cfg_shard_size
+    cfg_shard_size
         Forwarded to the underlying :class:`DeepFeatureClip`.
     url : str | None
         Datablock URL (symbolic specline for relocatability).
@@ -439,7 +428,6 @@ def gigapath_spherical_deep_feature_clip(
         cfg_capture_layers=cfg_capture_layers,
         cfg_capture_outputs=cfg_capture_outputs,
         cfg_cls_token_only=cfg_cls_token_only,
-        cfg_capture_tiles=cfg_capture_tiles,
         cfg_shard_size=cfg_shard_size,
         url=url,
         n_devices=n_devices,
@@ -478,7 +466,6 @@ def gigapath_corner_deep_feature_clip(
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
     cfg_cls_token_only: bool = False,
-    cfg_capture_tiles: bool = True,
     cfg_shard_size: int = 1024,
     url: str | None = None,
     n_devices: int | None = None,
@@ -501,7 +488,7 @@ def gigapath_corner_deep_feature_clip(
         ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_capture_tiles, cfg_shard_size
+    cfg_shard_size
         Forwarded to the underlying :class:`DeepFeatureClip`.
     url : str | None
         Datablock URL (symbolic specline for relocatability).
@@ -517,7 +504,6 @@ def gigapath_corner_deep_feature_clip(
         cfg_capture_layers=cfg_capture_layers,
         cfg_capture_outputs=cfg_capture_outputs,
         cfg_cls_token_only=cfg_cls_token_only,
-        cfg_capture_tiles=cfg_capture_tiles,
         cfg_shard_size=cfg_shard_size,
         url=url,
         n_devices=n_devices,

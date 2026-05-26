@@ -19,7 +19,7 @@ from streaming import MDSWriter, Stream, StreamingDataset
 import dbx
 from dbx import Logger, Datablock
 
-from autopath.databits import Bag, TileBag, Clip, Partition, Fold
+from autopath.autobits import Bag, TileBag, Clip, Partition, Fold
 from autopath.pancan.annotations import extract_case_id, get_annotations
 from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
 
@@ -454,13 +454,13 @@ class PancanTileClip(Clip):
 	):
 		"""Return a unified dataset over all bags using MDS multi-stream API.
 
-		Each sample dict contains:
+		Each sample dict contains the fields written by
+		:meth:`PancanTileBag.__build__`:
 
 		* ``tile`` — uint8 tile image ndarray
-		* ``label`` — cancer type label string
 		* ``bag_name`` — bag/slide name string
 		* ``tile_index`` — index into the originating bag
-		* ``bag_index`` — index of the bag within this clip
+		* ``annotations`` — clinical/pathological metadata dict
 
 		Parameters
 		----------
@@ -470,11 +470,7 @@ class PancanTileClip(Clip):
 			If ``True``, silently skip bags whose MDS shards have not
 			been built yet.
 		"""
-		from autopath.deep.features import LabeledStreamDataset
-
 		streams = []
-		bag_labels = []
-		bag_lens_list = []
 		n_skipped = 0
 
 		for i in range(self.n_shards):
@@ -486,8 +482,6 @@ class PancanTileClip(Clip):
 				streams.append(Stream(local=bag.path('shards')))
 			else:
 				streams.append(Stream(remote=bag.path('shards')))
-			bag_labels.append(bag.label)
-			bag_lens_list.append(len(bag))
 
 		if n_skipped:
 			self.log.info(
@@ -495,9 +489,7 @@ class PancanTileClip(Clip):
 				f"unbuilt bags in {self.__class__.__name__}.dataset()"
 			)
 
-		base = StreamingDataset(streams=streams, shuffle=shuffle)
-		result = LabeledStreamDataset(base, bag_lens_list, bag_labels)
-		return result
+		return StreamingDataset(streams=streams, shuffle=shuffle)
 
 
 

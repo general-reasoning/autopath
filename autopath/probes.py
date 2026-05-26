@@ -35,7 +35,7 @@ from dbx import (
     RayDatablocksBuilder,
 )
 
-from autopath.databits import Bag, Clip
+from autopath.autobits import Bag, Clip
 
 from autopath import tools
 from autopath.features import FeatureBag, FeatureBagClip

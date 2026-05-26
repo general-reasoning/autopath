@@ -26,34 +26,39 @@ from dbx import (
 
 from streaming import MDSWriter, Stream, StreamingDataset
 
-from autopath.databits import Bag, Clip, DeepBackboneEvaluatorFactory, TileBag
+from autopath.autobits import Bag, Clip, DeepBackboneEvaluatorFactory, TileBag
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Dataset wrappers for label injection and tile pairing
+#  Dataset wrapper for tile–feature pairing
 # ═══════════════════════════════════════════════════════════════════════
 
-class LabeledStreamDataset(Dataset):
-    """Wraps a single merged :class:`StreamingDataset` built from multiple
-    :class:`Stream` sources and injects ``bag_index`` and ``label`` fields.
+class TileFeatureDataset(Dataset):
+    """Pairs deep-feature samples with their upstream tile-shard fields.
 
-    Bag membership is derived at access time from cumulative bag lengths:
-    the global sample index is binary-searched against the cumulative
-    boundary array to find the originating bag.
+    Wraps a multi-stream :class:`StreamingDataset` of feature shards and
+    enriches each sample with **all** fields from the corresponding
+    tile shard (``tile``, ``bag_name``, ``annotations``, etc.).
+
+    Bag membership is derived from cumulative bag lengths: a binary
+    search maps the flat sample index to ``bag_index``, which selects
+    the correct per-bag tile :class:`StreamingDataset`.  Within that
+    dataset, ``tile_index`` (written by :class:`DeepFeatureBag`) is
+    used to fetch the matching tile entry.
 
     Parameters
     ----------
     base : StreamingDataset
-        Merged streaming dataset (one :class:`Stream` per bag).
+        Merged feature streaming dataset (one :class:`Stream` per bag).
     bag_lens : list[int]
         Length of each bag, in stream order.
-    labels : list[str]
-        Per-bag label, in stream order.
+    tile_datasets : list[StreamingDataset]
+        Per-bag tile MDS datasets, in the same bag order.
     """
 
-    def __init__(self, base, bag_lens, labels):
+    def __init__(self, base, bag_lens, tile_datasets):
         self.base = base
-        self.labels = np.array(labels)
+        self.tile_datasets = tile_datasets
         # cumsum[i] = start index of bag i; cumsum[-1] = total length
         self._cumsum = np.cumsum([0] + list(bag_lens))
 
@@ -61,54 +66,22 @@ class LabeledStreamDataset(Dataset):
         return len(self.base)
 
     def __getitem__(self, idx):
-        sample = self.base[idx]
+        sample = dict(self.base[idx])
         bag_idx = int(np.searchsorted(self._cumsum[1:], idx, side='right'))
         sample['bag_index'] = bag_idx
-        sample['label'] = self.labels[bag_idx]
-        return sample
-
-
-class TilePairingDataset(Dataset):
-    """Wraps a feature dataset and lazily loads tiles from TileBags.
-
-    Uses ``bag_index`` and ``tile_index`` fields in each sample to
-    resolve the original tile from the correct :class:`TileBag`.
-
-    Parameters
-    ----------
-    base : Dataset
-        Underlying dataset (must contain ``bag_index`` and ``tile_index``).
-    tilebags : list[TileBag]
-        Ordered list of tile bags corresponding to bag indices.
-    """
-
-    def __init__(self, base, tilebags):
-        self.base = base
-        self.tilebags = tilebags
-
-    def __len__(self):
-        return len(self.base)
-
-    def __getitem__(self, idx):
-        sample = self.base[idx]
-        bag_idx = sample["bag_index"]
-        tile_idx = sample["tile_index"]
-        sample["tile"] = self.tilebags[bag_idx].tiles[tile_idx]
+        tile_idx = sample['tile_index']
+        tile_sample = self.tile_datasets[bag_idx][tile_idx]
+        # Inject all fields from the tile shard (tile, bag_name,
+        # annotations, etc.) without overwriting feature columns.
+        for k, v in tile_sample.items():
+            if k not in sample:
+                sample[k] = v
         return sample
 
 
 # ═══════════════════════════════════════════════════════════════════════
 #  Deep Feature Bags & Clips
 # ═══════════════════════════════════════════════════════════════════════
-
-class DeepFeatureBagMaker:
-    def __init__(self, clip, idx):
-        self.clip = clip
-        self.idx = idx
-    def __call__(self):
-        return dbx.eval(self.clip).bag(self.idx)
-    def __repr__(self):
-        return f"DeepFeatureBagMaker({dbx.quote(self.clip)}, {self.idx})"
 
 
 class DeepFeatureBag(Bag):
@@ -126,7 +99,7 @@ class DeepFeatureBag(Bag):
         ``fs.ls`` listing of the shards directory.
     """
 
-    VERSION = 5
+    VERSION = 6
 
     TOPICS = ['shards']
 
@@ -135,7 +108,6 @@ class DeepFeatureBag(Bag):
         tilebag: TileBag
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024    # samples per MDS shard
-        capture_tiles: bool = True
 
     def __init__(self, *args, gpu_batch_size: int = 64, device: str = "cuda", **kwargs):
         Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, device=device, **kwargs)
@@ -215,7 +187,6 @@ class DeepFeatureBag(Bag):
 
         # Accumulate per-layer feature lists.
         accumulated = {lyr: [] for lyr in feature_names}
-        tiles_list = [] if self.cfg.capture_tiles else None
 
         n_batches = math.ceil(n_tiles / self.gpu_batch_size)
         progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
@@ -236,36 +207,26 @@ class DeepFeatureBag(Bag):
                 if lyr in result:
                     accumulated[lyr].append(result[lyr].cpu().detach())
 
-            if tiles_list is not None:
-                tiles_list.append(tilebag.tiles[m:n].cpu())
-
             evaluator.clear()
             del batch, result
             gc.collect()
             torch.cuda.empty_cache()
 
+        # Write MDS shards (features + tile_index only).
+        self._write_mds_shards(accumulated, feature_names, n_tiles)
 
-        # Write MDS shards (features + tiles + tile_index).
-        tiles_cat = None
-        if tiles_list is not None:
-            tiles_cat = torch.cat(tiles_list, dim=0).numpy()
-            del tiles_list
-        self._write_mds_shards(accumulated, feature_names, n_tiles, tiles=tiles_cat)
-
-        del accumulated, tiles_cat
+        del accumulated
         gc.collect()
         self._len = n_tiles
         return self
 
-    def _write_mds_shards(self, accumulated, feature_names, n_tiles, *, tiles=None):
+    def _write_mds_shards(self, accumulated, feature_names, n_tiles):
         """Write accumulated features as MDS shards for streaming reads."""
         # Build column schema.
         columns = {}
         for lyr in feature_names:
             safe = lyr.replace(".", "_")
             columns[f"features_{safe}"] = "ndarray:float32"
-        if tiles is not None:
-            columns["tiles"] = "ndarray:uint8"
         columns["tile_index"] = "int32"
 
         # Concatenate once per layer for indexing.
@@ -283,8 +244,6 @@ class DeepFeatureBag(Bag):
         sample_bytes = sum(
             cat[lyr][0].nbytes for lyr in feature_names if lyr in cat
         ) + 4  # +4 for tile_index int32
-        if tiles is not None:
-            sample_bytes += tiles[0].nbytes
         byte_limit = size_limit * sample_bytes
 
         with MDSWriter(
@@ -303,8 +262,6 @@ class DeepFeatureBag(Bag):
                     else:
                         # Layer missing — should not happen in practice.
                         pass
-                if tiles is not None:
-                    sample["tiles"] = tiles[i].astype(np.uint8)
                 sample["tile_index"] = np.int32(i)
                 writer.write(sample)
 
@@ -377,16 +334,16 @@ class DeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 2
+    VERSION = 3
 
-    TOPICFILES = {"bag_lens": "bag_lens.npz"}
+    TOPICS = ['bag_lens']
+    _BAG_LENS_FILE = 'bag_lens.npz'
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
         tilebagclip: Clip
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024
-        capture_tiles: bool = True
 
     def __init__(self, *args, gpu_batch_size: int = 64,
                  devices: list = None, **kwargs):
@@ -453,7 +410,6 @@ class DeepFeatureClip(Clip):
                 tilebag=dbx.quote(tilebag),
                 evaluator_factory=self.spec['evaluator_factory'],
                 shard_size=self.cfg.shard_size,
-                capture_tiles=self.cfg.capture_tiles,
             ),
             gpu_batch_size=self.gpu_batch_size,
             device=device,
@@ -532,12 +488,26 @@ class DeepFeatureClip(Clip):
         )
         return makers, callable_kwargs
 
+    def __read__(self, topic=None):
+        if topic == 'bag_lens':
+            path = os.path.join(self.path('bag_lens'), self._BAG_LENS_FILE)
+            return dbx.read_npz(path, 'bag_lens')['bag_lens']
+        raise ValueError(f"Unknown topic: {topic!r}")
+
     def __stack__(self, results=None):
         """Persist bag_lens after parallel build."""
         self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
-        result = super().__stack__(results)
+        bag_lens = [len(self.shard(i)) for i in tqdm.tqdm(
+            range(self.n_shards), desc="Stacking bag lens"
+        )]
+        bag_lens_dir = self.path('bag_lens', ensure_dirpath=True)
+        dbx.write_npz(os.path.join(bag_lens_dir, self._BAG_LENS_FILE), bag_lens=bag_lens)
         self.log.info(f"Build complete: {self.__class__.__name__}")
-        return result
+        return self
+
+    @functools.cached_property
+    def bag_lens(self):
+        return self.read('bag_lens')
 
     def _ensure_precomputed_tilebags(self):
         """Precompute the tilebag list to avoid re-forming the source clip."""
@@ -590,8 +560,7 @@ class DeepFeatureClip(Clip):
             A :class:`torch.utils.data.Dataset` over all bags.
         """
         streams = []
-        tilebags = []
-        bag_labels = []
+        tile_datasets = []
         bag_lens_list = []
         n_skipped = 0
 
@@ -603,8 +572,8 @@ class DeepFeatureClip(Clip):
                 streams.append(Stream(local=bag.shards_path))
             else:
                 streams.append(Stream(remote=bag.shards_path))
-            tilebags.append(bag.tilebag)
-            bag_labels.append(bag.tilebag.label)
+            if include_tiles:
+                tile_datasets.append(bag.tilebag.dataset())
             bag_lens_list.append(len(bag))
 
         if n_skipped:
@@ -615,12 +584,11 @@ class DeepFeatureClip(Clip):
 
         # One StreamingDataset with N streams — one shared-memory segment.
         base = StreamingDataset(streams=streams, shuffle=shuffle)
-        result = LabeledStreamDataset(base, bag_lens_list, bag_labels)
 
         if include_tiles:
-            result = TilePairingDataset(result, tilebags)
+            return TileFeatureDataset(base, bag_lens_list, tile_datasets)
 
-        return result
+        return base
 
 
 # ═══════════════════════════════════════════════════════════════════════

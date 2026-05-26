@@ -170,11 +170,10 @@ def pancan_tile_fold(name=None) -> PancanTileFold:
 # git commit -am "gigaq: pancan_tile_dataset: CPTAC" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC')[0]"
 # git commit -am "gigaq: pancan_tile_dataset: fold" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC_404020_TRAIN')[0]"
 def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: bool = False):
-    """Return an MDS-backed :class:`LabeledStreamDataset`.
+    """Return an MDS-backed :class:`StreamingDataset` over tile shards.
 
-    Uses the new MDS multi-stream interface — each bag's shards are
-    combined into a single streaming dataset with per-sample label
-    resolution.
+    Uses the MDS multi-stream interface — each bag's shards are
+    combined into a single streaming dataset.
 
     Parameters
     ----------
