@@ -477,7 +477,7 @@ class PancanTileClip(Clip):
 
 
 class PancanTilePartition(Partition):
-	pass
+	VERSION = 2
 
 
 class PancanTileFold(Fold):
