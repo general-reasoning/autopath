@@ -123,7 +123,7 @@ git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "aut
     cfg_cls_token_only=False, \
     cfg_capture_blocks='all', \
     cfg_shard_size=8, \
-    gpu_batch_size=1024 \
+    gpu_batch_size=128 \
     ).build().valid()"
 """
 def gigapath_deep_feature_bag(
