@@ -144,8 +144,8 @@ class Partition(Datablock):
         return self
 
     def __build__(self):
-        self.log.info(f"Building partition out of {len(self.cfg.clip.bags)} bags using fold fractions {self.cfg.fold_fractions}")
-        N = len(self.cfg.clip.bags)
+        N = self.cfg.clip.n_bags
+        self.log.info(f"Building partition out of {N} bags using fold fractions {self.cfg.fold_fractions}")
         np.random.seed(self.cfg.seed) #TODO: localize in a generator
         perm = np.random.permutation(N)
 
@@ -167,7 +167,7 @@ class Partition(Datablock):
                 bag_itor = tqdm.tqdm(bag_indices[fold_key])
             else:
                 bag_itor = bag_indices[fold_key]
-            bag_lens[fold_key] = np.array([len(self.cfg.clip.bags[i]) for i in bag_itor])
+            bag_lens[fold_key] = np.array([len(self.cfg.clip.bag(i)) for i in bag_itor])
             self.log.verbose(f"Computing bag lens for fold {fold}: END")
             Klo = Khi
         self.log.verbose(f"Computing bag indices and lens for {len(self.cfg.fold_fractions)} folds: END")
