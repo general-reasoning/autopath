@@ -99,7 +99,7 @@ class DeepFeatureBag(Bag):
         ``fs.ls`` listing of the shards directory.
     """
 
-    VERSION = 6
+    VERSION = 7
 
     TOPICS = ['shards']
 
@@ -334,7 +334,7 @@ class DeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 3
+    VERSION = 4
 
     TOPICS = ['bag_lens']
     _BAG_LENS_FILE = 'bag_lens.npz'

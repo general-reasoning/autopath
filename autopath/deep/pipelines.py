@@ -113,9 +113,17 @@ def gigapath_deep_backbone_evaluator_factory(
 """
 git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=True, \
+    cfg_capture_blocks='all', \
     cfg_shard_size=1024, \
     gpu_batch_size=1024 \
     ).build().valid()"
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    cfg_cls_token_only=False, \
+    cfg_capture_blocks='all', \
+    cfg_shard_size=1024, \
+    gpu_batch_size=1024 \
+    ).build().valid()"
+"""
 """
 def gigapath_deep_feature_bag(
     name: str,
@@ -217,8 +225,8 @@ def gigapath_deep_feature_clip(
     ----------
     name : str
         Named configuration.  Supported:
-        ``"GIGAPATH_DEEP_CPTAC"`` — full CPTAC tile-bag clip.
-        ``"GIGAPATH_DEEP_CPTAC_<partition_fold>"`` — a specific fold
+        ``"GIGAPATH_DEEP_CPTAC"`` -- full CPTAC tile-bag clip.
+        ``"GIGAPATH_DEEP_CPTAC_<partition_fold>"`` -- a specific fold
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
@@ -400,13 +408,13 @@ def gigapath_spherical_deep_feature_clip(
     """Create a :class:`SphericalDeepFeatureClip` over a named deep feature clip.
 
     L2-normalises each layer's features onto the unit hypersphere.
-    Pure runtime transformation — delegates storage to the underlying
+    Pure runtime transformation -- delegates storage to the underlying
     :class:`DeepFeatureClip`.
 
     Parameters
     ----------
     name : str
-        Named configuration — same values accepted by
+        Named configuration -- same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC"``,
         ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).
@@ -476,13 +484,13 @@ def gigapath_corner_deep_feature_clip(
     """Create a :class:`CornerDeepFeatureClip` over a named deep feature clip.
 
     Maps each layer's features to bipolar ``{-1, +1}^d`` hypercube
-    vertices via ``sign(x)``.  Pure runtime transformation — delegates
+    vertices via ``sign(x)``.  Pure runtime transformation -- delegates
     storage to the underlying :class:`DeepFeatureClip`.
 
     Parameters
     ----------
     name : str
-        Named configuration — same values accepted by
+        Named configuration -- same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC"``,
         ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).

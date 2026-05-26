@@ -81,7 +81,8 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
     two parameters:
 
     * ``capture_blocks`` — a list of **int** transformer block indices
-      (e.g. ``[0, 19, 38]`` or ``[-1]``).  Hooks capture each block's
+      (e.g. ``[0, 19, 38]`` or ``[-1]``), or the string ``'all'`` to
+      capture every block.  Hooks capture each block's
       output activations (full sequence, shape ``(B, N, d)``).
     * ``capture_layers`` — a list of **str** top-level model attribute
       names (e.g. ``"patch_embed"``, ``"norm"``, ``"head"``) or
@@ -135,6 +136,8 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         self.transform = transform
         if self.transform is None:
             self.transform = dino_tile_transform()
+        if capture_blocks == 'all':
+            capture_blocks = list(range(GIGAPATH_BACKBONE_DEPTH))
         self.capture_blocks = list(capture_blocks or [])
         self.capture_layers = list(capture_layers or [])
         self.capture_outputs = capture_outputs
