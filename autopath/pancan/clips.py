@@ -481,5 +481,5 @@ class PancanTilePartition(Partition):
 
 
 class PancanTileFold(Fold):
-	pass
+	VERSION = 2
 
