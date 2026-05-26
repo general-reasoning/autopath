@@ -22,10 +22,6 @@ import dbx
 from tqdm import tqdm
 from dbx import (
     Datablock,
-    write_npz,
-    read_npz,
-    write_tensor,
-    read_tensor,
 )
 
 from streaming import MDSWriter, Stream, StreamingDataset
@@ -125,20 +121,14 @@ class DeepFeatureBag(Bag):
 
     Topics
     ------
-    feature_names
-        List of captured feature keys (e.g. ``['output']``,
-        ``['block.0', 'block.38', 'output']``).
-    dataset
-        MDS shards directory.  ``read('dataset')`` returns a
-        :class:`StreamingDataset`.
+    shards
+        MDS shards directory.  ``read('shards')`` returns an
+        ``fs.ls`` listing of the shards directory.
     """
 
-    VERSION = 4
+    VERSION = 5
 
-    TOPICFILES = {
-        'feature_names': 'feature_names.npz',
-        'dataset': 'shards',
-    }
+    TOPICS = ['shards']
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -181,9 +171,15 @@ class DeepFeatureBag(Bag):
         return list(self._feature_names)
 
     @property
+    def _is_local_fs(self):
+        """True when this bag's storage is on a local filesystem."""
+        protocol = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
+        return protocol in ('file', 'local', '')
+
+    @property
     def shards_path(self):
         """Directory containing MDS shards."""
-        return self.path('dataset')
+        return self.path('shards')
 
     def __len__(self):
         return len(self.cfg.tilebag.tiles)
@@ -191,10 +187,10 @@ class DeepFeatureBag(Bag):
     # ── Validity ────────────────────────────────────────────────────
 
     def validtopic(self, topic=None):
-        if topic == 'dataset':
+        if topic == 'shards':
             # MDS directory is valid when index.json has been written.
             return self.fs.exists(
-                os.path.join(self.path('dataset'), 'index.json')
+                os.path.join(self.path('shards'), 'index.json')
             )
         return super().validtopic(topic)
 
@@ -248,11 +244,6 @@ class DeepFeatureBag(Bag):
             gc.collect()
             torch.cuda.empty_cache()
 
-        # Write feature names.
-        write_npz(
-            self.path('feature_names', ensure_dirpath=True),
-            feature_names=feature_names,
-        )
 
         # Write MDS shards (features + tiles + tile_index).
         tiles_cat = None
@@ -283,8 +274,7 @@ class DeepFeatureBag(Bag):
             if accumulated[lyr]:
                 cat[lyr] = torch.cat(accumulated[lyr], dim=0).numpy()
 
-        shards_dir = self.shards_path
-        os.makedirs(shards_dir, exist_ok=True)
+        shards_dir = self.path('shards', ensure_dirpath=True)
 
         size_limit = self.cfg.shard_size  # samples per shard
 
@@ -329,12 +319,8 @@ class DeepFeatureBag(Bag):
     # ── Read ────────────────────────────────────────────────────────
 
     def __read__(self, topic):
-        if topic == 'feature_names':
-            return list(
-                read_npz(self.path('feature_names'), 'feature_names')['feature_names']
-            )
-        if topic == 'dataset':
-            return self.dataset()
+        if topic == 'shards':
+            return self.fs.ls(self.path('shards'))
         raise ValueError(f"Unknown topic: {topic!r}")
 
     def dataset(self, *, shuffle: bool = False) -> StreamingDataset:
@@ -343,10 +329,10 @@ class DeepFeatureBag(Bag):
         Each sample is a dict with keys ``features_{name}`` (ndarray),
         optionally ``tiles`` (ndarray), and ``tile_index`` (int32).
         """
-        return StreamingDataset(
-            local=self.shards_path,
-            shuffle=shuffle,
-        )
+        if self._is_local_fs:
+            return StreamingDataset(local=self.shards_path, shuffle=shuffle)
+        else:
+            return StreamingDataset(remote=self.shards_path, shuffle=shuffle)
 
     def layer_features(self, layer: str):
         """Read the full feature tensor for a single layer from MDS shards.
@@ -390,7 +376,10 @@ class DeepFeatureClip(Clip):
     attributes — so it survives serialisation across process boundaries.
     """
 
+    v2 = True
     VERSION = 2
+
+    TOPICFILES = {"bag_lens": "bag_lens.npz"}
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -402,7 +391,7 @@ class DeepFeatureClip(Clip):
     def __init__(self, *args, gpu_batch_size: int = 64,
                  devices: list = None, **kwargs):
         self._devices = devices or ["cuda"]
-        super().__init__(*args, gpu_batch_size=gpu_batch_size, v2=True, **kwargs)
+        super().__init__(*args, gpu_batch_size=gpu_batch_size, **kwargs)
 
     @property
     def n_shards(self) -> int:
@@ -472,7 +461,7 @@ class DeepFeatureClip(Clip):
             tag=tilebag.tag,
         )
 
-    def __split_v2__(self, *args, **kwargs):
+    def __split__(self, *args, **kwargs):
         """Precompute tilebags and evaluator; return device-assigned ShardMakers.
 
         All shared state is returned in ``callable_kwargs`` so it
@@ -543,7 +532,7 @@ class DeepFeatureClip(Clip):
         )
         return makers, callable_kwargs
 
-    def __stack_v2__(self, results):
+    def __stack__(self, results=None):
         """Persist bag_lens after parallel build."""
         self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
         result = super().__stack__(results)
@@ -610,7 +599,10 @@ class DeepFeatureClip(Clip):
             if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
                 continue
-            streams.append(Stream(local=bag.shards_path))
+            if bag._is_local_fs:
+                streams.append(Stream(local=bag.shards_path))
+            else:
+                streams.append(Stream(remote=bag.shards_path))
             tilebags.append(bag.tilebag)
             bag_labels.append(bag.tilebag.label)
             bag_lens_list.append(len(bag))
@@ -686,12 +678,14 @@ class SphericalDeepFeatureClip(Clip):
     clip.  No separate build step is required.
     """
 
+    v2 = True
+
     @dataclass
     class CONFIG(Datablock.CONFIG):
         deep_feature_clip: DeepFeatureClip
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, v2=True, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @property
     def n_shards(self):
@@ -708,11 +702,11 @@ class SphericalDeepFeatureClip(Clip):
     def valid(self):
         return self.cfg.deep_feature_clip.valid()
 
-    def __split_v2__(self, *args, **kwargs):
+    def __split__(self, *args, **kwargs):
         """No parallel work — delegates to underlying clip."""
         return [], dict()
 
-    def __stack_v2__(self, results):
+    def __stack__(self, results=None):
         """Persist bag_lens only."""
         return super().__stack__(results)
 
@@ -801,8 +795,10 @@ class CornerDeepFeatureClip(Clip):
     class CONFIG(Datablock.CONFIG):
         deep_feature_clip: DeepFeatureClip
 
+    v2 = True
+
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, v2=True, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @property
     def n_shards(self):
@@ -819,10 +815,10 @@ class CornerDeepFeatureClip(Clip):
     def valid(self):
         return self.cfg.deep_feature_clip.valid()
 
-    def __split_v2__(self, *args, **kwargs):
+    def __split__(self, *args, **kwargs):
         """No parallel work — delegates to underlying clip."""
         return [], dict()
 
-    def __stack_v2__(self, results):
+    def __stack__(self, results=None):
         """Persist bag_lens only."""
         return super().__stack__(results)
