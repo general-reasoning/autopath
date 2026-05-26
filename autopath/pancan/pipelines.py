@@ -14,6 +14,7 @@ from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RE
 
 """
 git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().valid()"
+git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().paths()"
 git commit -am "gigaq: PancanTileBag: READ SHARDS" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('shards')"
 git commit -am "gigaq: PancanTileBag: DATASET" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').dataset()[0]"
 """
@@ -40,6 +41,7 @@ def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | No
                 source=PANCAN_CPTAC_ROOT,
                 resolution=PANCAN_CPTAC_RESOLUTION,
             ),
+            keyby='version_hash',
             n_workers=n_workers,
             parallelization=parallelization,
         )

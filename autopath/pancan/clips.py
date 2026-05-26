@@ -20,6 +20,7 @@ import dbx
 from dbx import Logger, Datablock
 
 from autopath.databits import Bag, TileBag, Clip, Partition, Fold
+from autopath.pancan.annotations import extract_case_id, get_annotations
 from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
 
 
@@ -155,7 +156,7 @@ class PancanTileBag(TileBag):
 		:class:`StreamingDataset`.
 	"""
 
-	VERSION = 3
+	VERSION = 4
 
 	TOPICS = ['shards']
 
@@ -240,6 +241,17 @@ class PancanTileBag(TileBag):
 		protocol = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
 		return protocol in ('file', 'local', '')
 
+	def _clip_source_root(self):
+		"""Derive the clip source root from this bag's source path.
+
+		The bag source has the form
+		``{clip_root}/{cohort}/tfrecords/{resolution}/{slide}.tfrecords``.
+		Navigating up past ``/tfrecords/`` and then one more level gives
+		the clip source root.
+		"""
+		cohort_dir, _ = self.config.source.split('/tfrecords/')
+		return os.path.dirname(cohort_dir)
+
 	def __build__(self):
 		"""Read tiles from source TFRecord and repack as MDS shards."""
 		tiles_tensor = self._source_tensor()
@@ -249,11 +261,23 @@ class PancanTileBag(TileBag):
 		label = self._label
 		name = self._name
 
+		# ── Resolve annotations ───────────────────────────────────
+		case_id = extract_case_id(name)
+		if case_id is not None:
+			clip_root = self._clip_source_root()
+			annotations = get_annotations(clip_root, case_id, label)
+		else:
+			self.log.info(
+				f"Could not extract case ID from bag name {name!r}; "
+				f"annotations will be empty"
+			)
+			annotations = None
+
 		columns = {
 			'tile': 'ndarray:uint8',
-			'label': 'str',
 			'bag_name': 'str',
 			'tile_index': 'int32',
+			'annotations': 'json',
 		}
 
 		shards_dir = self.path('shards', ensure_dirpath=True)
@@ -270,14 +294,15 @@ class PancanTileBag(TileBag):
 			for i in range(n_tiles):
 				writer.write({
 					'tile': tiles_np[i],
-					'label': label,
 					'bag_name': name,
 					'tile_index': np.int32(i),
+					'annotations': annotations,
 				})
 
 		self.log.verbose(
 			f"Wrote MDS shards to {shards_dir}: "
-			f"{n_tiles} tiles, label={label!r}, name={name!r}"
+			f"{n_tiles} tiles, label={label!r}, name={name!r}, "
+			f"has_annotations={annotations is not None}"
 		)
 
 		del tiles_tensor, tiles_np
