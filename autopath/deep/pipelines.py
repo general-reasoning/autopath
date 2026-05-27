@@ -122,8 +122,8 @@ git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "aut
 git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=False, \
     cfg_capture_blocks='all', \
-    cfg_shard_size=16, \
-    gpu_batch_size=128 \
+    cfg_shard_size=256, \
+    gpu_batch_size=256 \
     ).build().valid()"
 """
 def gigapath_deep_feature_bag(
