@@ -13,7 +13,7 @@
         # alloc: GPU
         #salloc --nodelist rhubarb -N 1 -n 1 --mem=8G --tres-per-node=gres/gpu:1
         salloc --nodelist rhubarb --nodes 1 --ntasks 1 --cpus-per-task 1 --mem=64G --gpus=3
-        salloc --nodelist radish --nodes 1 --ntasks 1 --cpus-per-task 16 --mem=128G --gpus=1
+        salloc --nodelist radish --nodes 1 --ntasks 1 --cpus-per-task 4 --mem=128G --gpus=1
         # alloc: CPU
         salloc --nodelist rhubarb -N 1 -n 1 --mem=2G --gpus=0
         salloc --nodelist radish -N 1 -n 1 --mem=2G --gpus=0
