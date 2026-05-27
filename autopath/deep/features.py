@@ -355,7 +355,7 @@ class DeepFeatureClip(Clip):
     def __init__(self, *args, gpu_batch_size: int = 64,
                  devices: list = None, **kwargs):
         self._devices = devices or ["cuda"]
-        super().__init__(*args, gpu_batch_size=gpu_batch_size, **kwargs)
+        super().__init__(*args, gpu_batch_size=gpu_batch_size, v2=True, **kwargs)
 
     @property
     def n_shards(self) -> int:
