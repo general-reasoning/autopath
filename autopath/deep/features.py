@@ -186,11 +186,11 @@ class DeepFeatureBag(Bag):
         # built in sequence; fall back to in-memory tile loading.
         try:
             ds = tilebag.dataset()
-        except (OSError, RuntimeError):
+        except (OSError, RuntimeError) as exc:
             ds = None
-            self.log.info(
-                "StreamingDataset unavailable (shared memory exhaustion); "
-                "falling back to in-memory tile loading"
+            self.log.warning(
+                f"StreamingDataset unavailable ({exc}); "
+                "falling back to in-memory tile loading via tilebag.tiles"
             )
 
         shards_dir = self.path('shards', ensure_dirpath=True)
