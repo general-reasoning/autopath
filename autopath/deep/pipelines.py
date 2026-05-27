@@ -119,12 +119,22 @@ git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "au
     ).build().valid()"
 # [01:09<00:00, 34.52s/batch, VRAM 4.6/42GB (peak 23.6GB)]
 
-git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=False, \
     cfg_capture_blocks='all', \
     cfg_shard_size=64, \
     gpu_batch_size=1024 \
-    ).build().valid()"
+    ).build().valid()\
+    "
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    cfg_cls_token_only=False, \
+    cfg_capture_blocks=[0, 7, 14, 21, 27, 33, 39], \
+    cfg_shard_size=128, \
+    gpu_batch_size=1024 \
+    ).build().valid()\
+    "
 """
 def gigapath_deep_feature_bag(
     name: str,
@@ -182,7 +192,7 @@ def gigapath_deep_feature_bag(
 
 """
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC', \
+    'GIGAPATH_DEEP_CPTAC_206020_TRAIN', \
     cfg_cls_token_only=False, \
     cfg_capture_blocks='all', \
     cfg_shard_size=1024, \
