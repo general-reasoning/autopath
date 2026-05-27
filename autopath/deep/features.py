@@ -148,11 +148,6 @@ class DeepFeatureBag(Bag):
         protocol = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
         return protocol in ('file', 'local', '')
 
-    @property
-    def shards_path(self):
-        """Directory containing MDS shards."""
-        return self.path('shards')
-
     def __len__(self):
         return len(self.cfg.tilebag)
 
@@ -185,9 +180,18 @@ class DeepFeatureBag(Bag):
         feature_names = evaluator.layer_names
         self._feature_names = feature_names
 
-        # Stream tiles from the tilebag's MDS dataset instead of
-        # loading all tiles into RAM via tilebag.tiles.
-        ds = tilebag.dataset()
+        # Stream tiles from the tilebag's MDS dataset to avoid loading
+        # all tiles into RAM.  StreamingDataset allocates POSIX shared
+        # memory, which can exhaust file descriptors when many bags are
+        # built in sequence; fall back to in-memory tile loading.
+        try:
+            ds = tilebag.dataset()
+        except OSError:
+            ds = None
+            self.log.info(
+                "StreamingDataset unavailable (shared memory exhaustion); "
+                "falling back to in-memory tile loading"
+            )
 
         shards_dir = self.path('shards', ensure_dirpath=True)
 
@@ -207,10 +211,14 @@ class DeepFeatureBag(Bag):
             for k in progress:
                 m = k * self.gpu_batch_size
                 n = min((k + 1) * self.gpu_batch_size, n_tiles)
-                # Stream a batch of tiles from the dataset.
-                batch = torch.stack([
-                    torch.as_tensor(ds[i]['tile']) for i in range(m, n)
-                ]).to(self.device)
+                if ds is not None:
+                    # Stream a batch of tiles from the dataset.
+                    batch = torch.stack([
+                        torch.as_tensor(ds[i]['tile']) for i in range(m, n)
+                    ]).to(self.device)
+                else:
+                    # Fallback: slice from the full tile tensor.
+                    batch = tilebag.tiles[m:n].to(self.device)
 
                 result = evaluator(batch)
 
@@ -256,6 +264,11 @@ class DeepFeatureBag(Bag):
         finally:
             if writer is not None:
                 writer.finish()
+            # Release StreamingDataset shared memory segments so they
+            # don't accumulate across sequential bag builds.
+            if ds is not None:
+                del ds
+            gc.collect()
 
         n_shards = math.ceil(n_tiles / self.cfg.shard_size)
         self.log.verbose(
@@ -281,9 +294,9 @@ class DeepFeatureBag(Bag):
         optionally ``tiles`` (ndarray), and ``tile_index`` (int32).
         """
         if self._is_local_fs:
-            return StreamingDataset(local=self.shards_path, shuffle=shuffle)
+            return StreamingDataset(local=self.path('shards'), shuffle=shuffle)
         else:
-            return StreamingDataset(remote=self.shards_path, shuffle=shuffle)
+            return StreamingDataset(remote=self.path('shards'), shuffle=shuffle)
 
     def layer_features(self, layer: str):
         """Read the full feature tensor for a single layer from MDS shards.
@@ -563,9 +576,9 @@ class DeepFeatureClip(Clip):
                 n_skipped += 1
                 continue
             if bag._is_local_fs:
-                streams.append(Stream(local=bag.shards_path))
+                streams.append(Stream(local=bag.path('shards')))
             else:
-                streams.append(Stream(remote=bag.shards_path))
+                streams.append(Stream(remote=bag.path('shards')))
             if include_tiles:
                 tile_datasets.append(bag.tilebag.dataset())
             bag_lens_list.append(len(bag))
