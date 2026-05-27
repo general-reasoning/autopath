@@ -367,41 +367,28 @@ class DeepFeatureClip(Clip):
         Carries its assigned ``device`` so the assignment survives
         serialisation across process boundaries.
 
-        All shared resources (evaluator, tilebags, factory) are received
-        as keyword arguments from the executor's ``ctx_kwargs`` — the
-        same dict is shared by all ShardMakers within a worker's chunk.
-        A mutable ``evaluator_cache`` dict provides worker-local lazy
-        caching: the first ShardMaker creates the evaluator and stores
-        it; subsequent ShardMakers in the same worker reuse it.
+        The ``evaluator_factory`` is received via the executor's
+        ``ctx_kwargs``.  The executor ``dbx.eval()``s all ctx kwargs,
+        so a quoted factory spec is evaluated once per worker.  The
+        factory caches its evaluator, so all ShardMakers within a
+        worker share the same evaluator instance.
         """
         def __init__(self, idx: int, *, device: str = "cuda"):
             super().__init__(idx)
             self.device = device
 
         def __call__(self, stack, *, build=True,
-                     tilebags=None, evaluator=None,
-                     evaluator_cache=None, evaluator_factory=None):
+                     tilebags, evaluator_factory):
             shard = stack.__shard__(self.idx, device=self.device,
-                                    tilebag=tilebags[self.idx] if tilebags else None)
+                                    tilebag=tilebags[self.idx])
             shard.keyby = stack.keyby
             if build:
-                build_kwargs = {}
-                if evaluator is not None:
-                    # Inline mode: evaluator pre-created by __split_v2__.
-                    build_kwargs['evaluator'] = evaluator
-                elif evaluator_cache is not None:
-                    # Multiprocessing mode: lazily cache one evaluator
-                    # per worker.  All ShardMakers within a worker share
-                    # the same ctx_kwargs dict, so the cache dict is
-                    # worker-local mutable state.
-                    if 'evaluator' not in evaluator_cache:
-                        evaluator_cache['evaluator'] = evaluator_factory.evaluator(
-                            device=self.device, log=stack.log,
-                        )
-                    build_kwargs['evaluator'] = evaluator_cache['evaluator']
-                if tilebags is not None:
-                    build_kwargs['tilebag'] = tilebags[self.idx]
-                shard.build(**build_kwargs)
+                shard.build(
+                    evaluator=evaluator_factory.evaluator(
+                        device=self.device, log=stack.log,
+                    ),
+                    tilebag=tilebags[self.idx],
+                )
             del shard
             gc.collect()
 
@@ -425,16 +412,15 @@ class DeepFeatureClip(Clip):
         )
 
     def __split__(self, *args, **kwargs):
-        """Precompute tilebags and evaluator; return device-assigned ShardMakers.
+        """Precompute tilebags; return device-assigned ShardMakers.
 
         All shared state is returned in ``callable_kwargs`` so it
         flows through the executor's ``ctx_kwargs`` mechanism — no
         ``self``-attribute side effects.
 
-        In inline mode (single device), the evaluator is pre-created
-        and passed directly.  In multiprocessing mode, the factory
-        and an empty ``evaluator_cache`` dict are passed instead;
-        each worker lazily creates one evaluator via the cache.
+        The ``evaluator_factory`` is passed through ``callable_kwargs``.
+        The executor ``dbx.eval()``s it once per worker, and the
+        factory caches its evaluator, giving one evaluator per worker.
 
         Returns
         -------
@@ -442,8 +428,7 @@ class DeepFeatureClip(Clip):
             One ShardMaker per shard, each carrying its target device.
         callable_kwargs : dict
             Shared state forwarded to each ShardMaker.__call__:
-            ``build``, ``tilebags``, ``evaluator``,
-            ``evaluator_cache``, ``evaluator_factory``.
+            ``build``, ``tilebags``, ``evaluator_factory``.
         """
         devices = self._devices
         # Precompute flat tilebag list to avoid re-forming the fold.
@@ -453,27 +438,12 @@ class DeepFeatureClip(Clip):
         callable_kwargs = dict(
             build=True,
             tilebags=tilebags,
+            evaluator_factory=self.cfg.evaluator_factory,
         )
-        # Share a single evaluator only when running inline on one device.
-        inline = (self.parallelization in (None, 'inline')
-                  and len(devices) == 1)
-        if inline:
-            device = devices[0]
-            callable_kwargs['evaluator'] = self.cfg.evaluator_factory.evaluator(
-                device=device, log=self.log,
-            )
-            self.log.info(
-                f"Precomputed {self.n_shards} tile-bags and evaluator on {device}"
-            )
-        else:
-            # Pass factory + mutable cache for worker-local lazy creation.
-            callable_kwargs['evaluator'] = None
-            callable_kwargs['evaluator_cache'] = {}
-            callable_kwargs['evaluator_factory'] = self.cfg.evaluator_factory
-            self.log.info(
-                f"Precomputed {self.n_shards} tile-bags; "
-                f"workers will create evaluators on {devices}"
-            )
+        self.log.info(
+            f"Precomputed {self.n_shards} tile-bags; "
+            f"evaluator_factory passed to executor (devices={devices})"
+        )
         # Assign devices to ShardMakers based on executor chunking.
         # The executor splits callables into contiguous chunks via
         # np.array_split — worker w gets chunk w.  Assign the device

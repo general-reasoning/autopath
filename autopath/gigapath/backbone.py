@@ -279,17 +279,23 @@ class GigapathDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
     """
 
     def evaluator(self, *, device: str = "cuda", log: Logger = None) -> GigapathDeepBackboneEvaluator:
-        """Create a live :class:`GigapathDeepBackboneEvaluator`.
+        """Return a live :class:`GigapathDeepBackboneEvaluator`.
 
-        The backbone is lazy-loaded on first call to the evaluator.
+        The result is cached per device so that repeated calls with
+        the same device return the same instance.  The backbone inside
+        the evaluator is itself lazy-loaded on first forward pass.
         """
-        log = log or self.log
-        return GigapathDeepBackboneEvaluator(
-            backbone=None,  # lazy-loaded from default
-            capture_blocks=self.cfg.capture_blocks,
-            capture_layers=self.cfg.capture_layers,
-            capture_outputs=self.cfg.capture_outputs,
-            cls_token_only=self.cfg.cls_token_only,
-            device=device,
-            log=log,
-        )
+        if not hasattr(self, '_evaluators'):
+            self._evaluators = {}
+        if device not in self._evaluators:
+            log = log or self.log
+            self._evaluators[device] = GigapathDeepBackboneEvaluator(
+                backbone=None,  # lazy-loaded from default
+                capture_blocks=self.cfg.capture_blocks,
+                capture_layers=self.cfg.capture_layers,
+                capture_outputs=self.cfg.capture_outputs,
+                cls_token_only=self.cfg.cls_token_only,
+                device=device,
+                log=log,
+            )
+        return self._evaluators[device]
