@@ -440,9 +440,6 @@ class DeepFeatureClip(Clip):
         # Precompute flat tilebag list to avoid re-forming the fold.
         tilebagclip = self.cfg.tilebagclip
         tilebags = [tilebagclip.shard(idx) for idx in range(self.n_shards)]
-        # Propagate keyby so tilebags resolve paths consistently.
-        for tb in tilebags:
-            tb.keyby = self.keyby
 
         callable_kwargs = dict(
             build=True,

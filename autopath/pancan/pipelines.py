@@ -22,7 +22,7 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
         return PancanTileBag
     elif name == "CPTAC_SAMPLE":     
-        return PancanTileBag(spec=dict(source=PANCAN_CPTAC_SAMPLE), keyby='version_hash')
+        return PancanTileBag(spec=dict(source=PANCAN_CPTAC_SAMPLE), keyby='tag_version_hash')
     else:
         raise ValueError(f"Unknown tile_bag: {name}")
 
@@ -41,7 +41,7 @@ def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | No
                 source=PANCAN_CPTAC_ROOT,
                 resolution=PANCAN_CPTAC_RESOLUTION,
             ),
-            keyby='version_hash',
+            keyby='tag_version_hash',
             n_workers=n_workers,
             parallelization=parallelization,
         )
