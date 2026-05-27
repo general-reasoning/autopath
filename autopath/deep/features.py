@@ -234,6 +234,7 @@ class DeepFeatureBag(Bag):
                         out=shards_dir,
                         columns=columns,
                         size_limit=byte_limit,
+                        exist_ok=True,
                     )
 
                 # Write features for each sample directly to MDS.
