@@ -186,7 +186,7 @@ class DeepFeatureBag(Bag):
         # built in sequence; fall back to in-memory tile loading.
         try:
             ds = tilebag.dataset()
-        except OSError:
+        except (OSError, RuntimeError):
             ds = None
             self.log.info(
                 "StreamingDataset unavailable (shared memory exhaustion); "
