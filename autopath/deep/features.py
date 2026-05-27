@@ -154,7 +154,7 @@ class DeepFeatureBag(Bag):
         return self.path('shards')
 
     def __len__(self):
-        return len(self.cfg.tilebag.tiles)
+        return len(self.cfg.tilebag)
 
     # ── Validity ────────────────────────────────────────────────────
 
@@ -181,97 +181,91 @@ class DeepFeatureBag(Bag):
 
         if tilebag is None:
             tilebag = self.cfg.tilebag
-        n_tiles = len(tilebag.tiles)
+        n_tiles = len(tilebag)
         feature_names = evaluator.layer_names
         self._feature_names = feature_names
 
-        # Accumulate per-layer feature lists.
-        accumulated = {lyr: [] for lyr in feature_names}
+        # Stream tiles from the tilebag's MDS dataset instead of
+        # loading all tiles into RAM via tilebag.tiles.
+        ds = tilebag.dataset()
 
-        n_batches = math.ceil(n_tiles / self.gpu_batch_size)
-        progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
-        for k in progress:
-            m = k * self.gpu_batch_size
-            n = min((k + 1) * self.gpu_batch_size, n_tiles)
-            batch = tilebag.tiles[m:n].to(self.device)
+        shards_dir = self.path('shards', ensure_dirpath=True)
 
-            result = evaluator(batch)
-
-            progress.set_postfix_str(
-                f"VRAM {torch.cuda.memory_allocated(self.device)/1e9:.1f}/"
-                f"{torch.cuda.get_device_properties(self.device).total_memory/1e9:.0f}GB "
-                f"(peak {torch.cuda.max_memory_allocated(self.device)/1e9:.1f}GB)"
-            )
-
-            for lyr in feature_names:
-                if lyr in result:
-                    accumulated[lyr].append(result[lyr].cpu().detach())
-
-            evaluator.clear()
-            del batch, result
-            gc.collect()
-            torch.cuda.empty_cache()
-
-        # Write MDS shards (features + tile_index only).
-        self._write_mds_shards(accumulated, feature_names, n_tiles)
-
-        del accumulated
-        gc.collect()
-        self._len = n_tiles
-        return self
-
-    def _write_mds_shards(self, accumulated, feature_names, n_tiles):
-        """Write accumulated features as MDS shards for streaming reads."""
-        # Build column schema.
+        # Build MDS column schema.
         columns = {}
         for lyr in feature_names:
             safe = lyr.replace(".", "_")
             columns[f"features_{safe}"] = "ndarray:float32"
         columns["tile_index"] = "int32"
 
-        # Concatenate once per layer for indexing.
-        cat = {}
-        for lyr in feature_names:
-            if accumulated[lyr]:
-                cat[lyr] = torch.cat(accumulated[lyr], dim=0).numpy()
+        n_batches = math.ceil(n_tiles / self.gpu_batch_size)
+        progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
+        writer = None
+        tile_cursor = 0
 
-        shards_dir = self.path('shards', ensure_dirpath=True)
+        try:
+            for k in progress:
+                m = k * self.gpu_batch_size
+                n = min((k + 1) * self.gpu_batch_size, n_tiles)
+                # Stream a batch of tiles from the dataset.
+                batch = torch.stack([
+                    torch.as_tensor(ds[i]['tile']) for i in range(m, n)
+                ]).to(self.device)
 
-        size_limit = self.cfg.shard_size  # samples per shard
+                result = evaluator(batch)
 
-        # Estimate bytes per sample for size_limit conversion.
-        # MDSWriter.size_limit is in bytes; we convert from sample count.
-        sample_bytes = sum(
-            cat[lyr][0].nbytes for lyr in feature_names if lyr in cat
-        ) + 4  # +4 for tile_index int32
-        byte_limit = size_limit * sample_bytes
+                # Lazily initialise the writer on the first batch once
+                # per-sample byte sizes are known.
+                if writer is None:
+                    sample_bytes = sum(
+                        result[lyr][0].numpy().nbytes
+                        for lyr in feature_names if lyr in result
+                    ) + 4  # +4 for tile_index int32
+                    byte_limit = self.cfg.shard_size * sample_bytes
+                    writer = MDSWriter(
+                        out=shards_dir,
+                        columns=columns,
+                        size_limit=byte_limit,
+                    )
 
-        with MDSWriter(
-            out=shards_dir,
-            columns=columns,
-            size_limit=byte_limit,
-        ) as writer:
-            for i in range(n_tiles):
-                sample = {}
-                for lyr in feature_names:
-                    safe = lyr.replace(".", "_")
-                    if lyr in cat:
-                        sample[f"features_{safe}"] = cat[lyr][i].astype(
-                            np.float32
-                        )
-                    else:
-                        # Layer missing — should not happen in practice.
-                        pass
-                sample["tile_index"] = np.int32(i)
-                writer.write(sample)
+                # Write features for each sample directly to MDS.
+                batch_size = n - m
+                for i in range(batch_size):
+                    sample = {}
+                    for lyr in feature_names:
+                        safe = lyr.replace(".", "_")
+                        if lyr in result:
+                            sample[f"features_{safe}"] = result[lyr][i].numpy().astype(
+                                np.float32
+                            )
+                    sample["tile_index"] = np.int32(tile_cursor + i)
+                    writer.write(sample)
 
-        n_shards = math.ceil(n_tiles / size_limit)
+                tile_cursor += batch_size
+
+                progress.set_postfix_str(
+                    f"VRAM {torch.cuda.memory_allocated(self.device)/1e9:.1f}/"
+                    f"{torch.cuda.get_device_properties(self.device).total_memory/1e9:.0f}GB "
+                    f"(peak {torch.cuda.max_memory_allocated(self.device)/1e9:.1f}GB)"
+                )
+
+                evaluator.clear()
+                del batch, result
+                gc.collect()
+                torch.cuda.empty_cache()
+        finally:
+            if writer is not None:
+                writer.finish()
+
+        n_shards = math.ceil(n_tiles / self.cfg.shard_size)
         self.log.verbose(
             f"Wrote MDS shards to {shards_dir}: "
-            f"{n_shards} shards × ~{size_limit} samples/shard "
+            f"{n_shards} shards × ~{self.cfg.shard_size} samples/shard "
             f"({n_tiles} tiles total)"
         )
-        del cat
+
+        self._len = n_tiles
+        return self
 
     # ── Read ────────────────────────────────────────────────────────
 

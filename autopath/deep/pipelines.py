@@ -111,15 +111,15 @@ def gigapath_deep_backbone_evaluator_factory(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=True, \
     cfg_capture_blocks='all', \
     cfg_shard_size=128, \
-    gpu_batch_size=1024 \
+    gpu_batch_size=128 \
     ).build().valid()"
 # [01:09<00:00, 34.52s/batch, VRAM 4.6/42GB (peak 23.6GB)]
 
-git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=False, \
     cfg_capture_blocks='all', \
     cfg_shard_size=64, \
@@ -183,28 +183,11 @@ def gigapath_deep_feature_bag(
 """
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
-    cfg_cls_token_only=True, \
+    cfg_cls_token_only=False, \
+    cfg_capture_blocks='all', \
     cfg_shard_size=1024, \
     gpu_batch_size=1024, \
 ).build()"
-git commit -am 'deep: DeepFeatureClip: BUILD fold' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=1024, \
-    gpu_batch_size=1024, \
-).build()"
-git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
-    cfg_capture_blocks=[-1], \
-    cfg_cls_token_only=True, \
-    gpu_batch_size=1024, \
-).build()"
-git commit -am 'deep: DeepFeatureClip: BUILD final layer only' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
-    cfg_cls_token_only=True, \
-    gpu_batch_size=1024, \
-    n_devices=3, \
-).build().valid()"
 """
 def gigapath_deep_feature_clip(
     name: str = None,
