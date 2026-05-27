@@ -196,7 +196,7 @@ class DeepFeatureBag(Bag):
         shards_dir = self.path('shards', ensure_dirpath=True)
         # Clear stale files from a prior interrupted build.
         if self.fs.exists(shards_dir) and self.fs.ls(shards_dir):
-            self.log.info(f"Clearing stale shard directory: {shards_dir}")
+            self.log.warning(f"Clearing stale shard directory: {shards_dir}")
             self.fs.rm(shards_dir, recursive=True)
             self.fs.mkdirs(shards_dir, exist_ok=True)
 
