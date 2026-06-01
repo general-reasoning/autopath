@@ -201,7 +201,7 @@ def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: 
 
 
 """
-git commit -am 'gigaq: pancan_tile_dataset_samples: CPTAC' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC', n=8)"
+git commit -am 'gigaq: pancan_tile_dataset_samples: CPTAC' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC', n=8, batch_size=1)"
 
 git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_8020_TRAIN', n=8, batch_size=4)"
 git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_8020_TEST', n=8, batch_size=4)"

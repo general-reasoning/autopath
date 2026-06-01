@@ -111,6 +111,13 @@ def gigapath_deep_backbone_evaluator_factory(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
+### FINAL layer only
+git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    gpu_batch_size=1024 \
+    ).build().valid()"
+### DEEP layers
 git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=True, \
     cfg_capture_blocks='all', \
