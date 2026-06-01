@@ -205,7 +205,7 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    gpu_batch_size=2048, \
+    gpu_batch_size=1024, \
     n_devices=1,\
 ).build_tree()"
 ## 3 devices
@@ -214,7 +214,7 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    gpu_batch_size=2048, \
+    gpu_batch_size=1024, \
     n_devices=3,\
     parallelization='multiprocessing',\
 ).build_tree()"
