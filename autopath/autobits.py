@@ -146,22 +146,16 @@ class Partition(Datablock):
     def __build__(self):
         N = self.cfg.clip.n_bags
         self.log.info(f"Building partition out of {N} bags using fold fractions {self.cfg.fold_fractions}")
-        np.random.seed(self.cfg.seed) #TODO: localize in a generator
-        perm = np.random.permutation(N)
+        bag_indices = self._compute_fold_indices()
 
-        bag_indices = {}
         bag_lens = {}
-        Klo = 0
-        self.log.verbose(f"Computing bag indices and lens for {len(self.cfg.fold_fractions)} folds: BEGIN")
+        self.log.verbose(f"Computing bag lens for {len(self.cfg.fold_fractions)} folds: BEGIN")
         if self.verbose:
-            fold_fraction_itor = tqdm.tqdm(self.cfg.fold_fractions)
+            fold_itor = tqdm.tqdm(enumerate(self.cfg.fold_fractions), total=len(self.cfg.fold_fractions))
         else:
-            fold_fraction_itor = self.cfg.fold_fractions
-        for fold, fraction in enumerate(fold_fraction_itor):
-            k = int(math.ceil(N*fraction))
-            Khi = min(Klo + k, N)
+            fold_itor = enumerate(self.cfg.fold_fractions)
+        for fold, fraction in fold_itor:
             fold_key = str(fold)
-            bag_indices[fold_key] = perm[Klo:Khi]
             self.log.verbose(f"Computing bag lens for fold {fold}: BEGIN")
             if self.verbose:
                 bag_itor = tqdm.tqdm(bag_indices[fold_key])
@@ -169,8 +163,7 @@ class Partition(Datablock):
                 bag_itor = bag_indices[fold_key]
             bag_lens[fold_key] = np.array([len(self.cfg.clip.bag(i)) for i in bag_itor])
             self.log.verbose(f"Computing bag lens for fold {fold}: END")
-            Klo = Khi
-        self.log.verbose(f"Computing bag indices and lens for {len(self.cfg.fold_fractions)} folds: END")
+        self.log.verbose(f"Computing bag lens for {len(self.cfg.fold_fractions)} folds: END")
         self.log.verbose(f"Writing bag indices and lens: BEGIN")
         dbx.write_npz(self.path('bag_indices', ensure_dirpath=True), **bag_indices)
         dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), **bag_lens)
@@ -197,10 +190,38 @@ class Partition(Datablock):
         return self.read("bag_lens")[self._resolve_fold(fold)]
 
     def bag_indices(self, fold):
-        return self.read("bag_indices")[self._resolve_fold(fold)]
+        if self.validtopic("bag_indices"):
+            return self.read("bag_indices")[self._resolve_fold(fold)]
+        idx = int(self._resolve_fold(fold))
+        return self._compute_fold_indices()[idx]
 
     def bag(self, fold, idx: int):
         return self.cfg.clip.shard(self.bag_indices(fold)[idx])
+
+    def _compute_fold_indices(self):
+        """Recompute per-fold bag index arrays from config (same logic as __build__).
+
+        This is a pure function of ``clip.n_bags``, ``fold_fractions``,
+        and ``seed`` — it does **not** require the partition to have been
+        built or persisted.
+
+        Returns
+        -------
+        dict[str, ndarray]
+            Mapping from fold key (``"0"``, ``"1"``, …) to the array of
+            bag indices belonging to that fold.
+        """
+        N = self.cfg.clip.n_bags
+        rng = np.random.RandomState(self.cfg.seed)
+        perm = rng.permutation(N)
+        fold_indices = {}
+        Klo = 0
+        for fold, fraction in enumerate(self.cfg.fold_fractions):
+            k = int(math.ceil(N * fraction))
+            Khi = min(Klo + k, N)
+            fold_indices[str(fold)] = perm[Klo:Khi]
+            Klo = Khi
+        return fold_indices
 
     def n_bags(self, fold):
         return len(self.bag_indices(fold))
