@@ -311,16 +311,17 @@ class PancanTileBag(TileBag):
 
 	# ── Read / Dataset ──────────────────────────────────────────────
 
-	def dataset(self, *, shuffle: bool = False) -> StreamingDataset:
+	def dataset(self, *, shuffle: bool = False, batch_size: int = 1, **kwargs) -> StreamingDataset:
 		"""Return a :class:`StreamingDataset` over this bag's MDS shards.
 
 		Each sample is a dict with keys ``tile`` (ndarray), ``label``
 		(str), ``bag_name`` (str), and ``tile_index`` (int32).
 		"""
+		ds_kwargs = dict(shuffle=shuffle, batch_size=batch_size)
 		if self._is_local_fs:
-			return StreamingDataset(local=self.path('shards'), shuffle=shuffle)
+			return StreamingDataset(local=self.path('shards'), **ds_kwargs)
 		else:
-			return StreamingDataset(remote=self.path('shards'), shuffle=shuffle)
+			return StreamingDataset(remote=self.path('shards'), **ds_kwargs)
 
 	def __read__(self, topic=None):
 		if topic == 'shards':
@@ -451,6 +452,7 @@ class PancanTileClip(Clip):
 		*,
 		shuffle: bool = False,
 		skip_invalid_bags: bool = False,
+		batch_size: int = 1,
 	):
 		"""Return a unified dataset over all bags using MDS multi-stream API.
 
@@ -469,6 +471,8 @@ class PancanTileClip(Clip):
 		skip_invalid_bags : bool
 			If ``True``, silently skip bags whose MDS shards have not
 			been built yet.
+		batch_size : int | None
+			Per-device batch size passed to :class:`StreamingDataset`.
 		"""
 		streams = []
 		n_skipped = 0
@@ -489,7 +493,7 @@ class PancanTileClip(Clip):
 				f"unbuilt bags in {self.__class__.__name__}.dataset()"
 			)
 
-		return StreamingDataset(streams=streams, shuffle=shuffle)
+		return StreamingDataset(streams=streams, shuffle=shuffle, batch_size=batch_size)
 
 
 
@@ -500,7 +504,7 @@ class PancanTilePartition(Partition):
 class PancanTileFold(Fold):
 	VERSION = 2
 
-	def dataset(self, *, shuffle: bool = False, skip_invalid_bags: bool = False):
+	def dataset(self, *, shuffle: bool = False, skip_invalid_bags: bool = False, batch_size: int = 1):
 		"""Delegate to :meth:`PancanTileClip.dataset` (same shard interface)."""
-		return PancanTileClip.dataset(self, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+		return PancanTileClip.dataset(self, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size)
 

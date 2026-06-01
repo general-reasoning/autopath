@@ -169,7 +169,7 @@ def pancan_tile_fold(name=None) -> PancanTileFold:
 
 # git commit -am "gigaq: pancan_tile_dataset: CPTAC" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC')[0]"
 # git commit -am "gigaq: pancan_tile_dataset: fold" > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC_404020_TRAIN')[0]"
-def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: bool = False):
+def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: bool = False, batch_size: int = 1):
     """Return an MDS-backed :class:`StreamingDataset` over tile shards.
 
     Uses the MDS multi-stream interface — each bag's shards are
@@ -185,6 +185,10 @@ def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: 
     skip_invalid_bags : bool
         If ``True``, silently skip bags whose MDS shards have not
         been built yet.
+    batch_size : int | None
+        Per-device batch size passed to :class:`StreamingDataset`.
+        Required when the dataset will be consumed via a
+        :class:`DataLoader`.
     """
     def _resolve_tile_clip(name):
         """Resolve *name* to a :class:`PancanTileClip` or :class:`PancanTileFold`.
@@ -197,7 +201,7 @@ def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: 
         except ValueError:
             return pancan_tile_clip(name)
     clip = _resolve_tile_clip(name)
-    return clip.dataset(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+    return clip.dataset(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size)
 
 
 """
@@ -260,7 +264,7 @@ def pancan_tile_dataset_samples(
         Extra keyword arguments forwarded to
         :class:`torch.utils.data.DataLoader`.
     """
-    ds = pancan_tile_dataset(name, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+    ds = pancan_tile_dataset(name, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size)
     loader = torch.utils.data.DataLoader(ds, batch_size=batch_size, **dataloader_kwargs)
     progress = tqdm.tqdm(total=n)
     last = None
