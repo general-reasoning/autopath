@@ -183,18 +183,29 @@ class DeepFeatureBag(Bag):
         # Stream tiles from the tilebag's MDS dataset to avoid loading
         # all tiles into RAM.  StreamingDataset allocates POSIX shared
         # memory, which can exhaust file descriptors when many bags are
-        # built in sequence; fall back to in-memory tile loading.
+        # built in sequence.  To minimise FD lifetime, load all tiles
+        # eagerly and immediately close the dataset.
+        tiles_tensor = None
         try:
             ds = tilebag.dataset()
             # Use the actual MDS sample count — it may differ from
             # the source TFRecord length (len(tilebag)).
             n_tiles = len(ds)
+            tiles_tensor = torch.stack([
+                torch.as_tensor(ds[i]['tile']) for i in range(n_tiles)
+            ])
         except (OSError, RuntimeError) as exc:
-            ds = None
             self.log.warning(
                 f"StreamingDataset unavailable ({exc}); "
                 "falling back to in-memory tile loading via tilebag.tiles"
             )
+            tiles_tensor = tilebag.tiles
+            n_tiles = len(tiles_tensor)
+        finally:
+            # Close the dataset ASAP to release shared memory FDs.
+            if 'ds' in locals() and ds is not None:
+                del ds
+            gc.collect()
 
         shards_dir = self.path('shards', ensure_dirpath=True)
         # Clear stale files from a prior interrupted build.
@@ -219,14 +230,7 @@ class DeepFeatureBag(Bag):
             for k in progress:
                 m = k * self.gpu_batch_size
                 n = min((k + 1) * self.gpu_batch_size, n_tiles)
-                if ds is not None:
-                    # Stream a batch of tiles from the dataset.
-                    batch = torch.stack([
-                        torch.as_tensor(ds[i]['tile']) for i in range(m, n)
-                    ]).to(self.device)
-                else:
-                    # Fallback: slice from the full tile tensor.
-                    batch = tilebag.tiles[m:n].to(self.device)
+                batch = tiles_tensor[m:n].to(self.device)
 
                 result = evaluator(batch)
 
@@ -273,10 +277,8 @@ class DeepFeatureBag(Bag):
         finally:
             if writer is not None:
                 writer.finish()
-            # Release StreamingDataset shared memory segments so they
-            # don't accumulate across sequential bag builds.
-            if ds is not None:
-                del ds
+            # Release the eagerly-loaded tile tensor.
+            del tiles_tensor
             gc.collect()
 
         n_shards = math.ceil(n_tiles / self.cfg.shard_size)
