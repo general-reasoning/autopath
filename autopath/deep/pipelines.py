@@ -198,16 +198,17 @@ def gigapath_deep_feature_bag(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-### 1 device
+### CPTAC_602020_TRAIN
+## 1 device
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.print "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_206020_TRAIN', \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=False, \
     cfg_capture_blocks='all', \
     cfg_shard_size=64, \
-    gpu_batch_size=2048, \
+    gpu_batch_size=1024, \
     n_devices=1,\
-).build()"
+).build_tree()"
 """
 def gigapath_deep_feature_clip(
     name: str = None,
