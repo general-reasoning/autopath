@@ -192,8 +192,7 @@ class Partition(Datablock):
     def bag_indices(self, fold):
         if self.validtopic("bag_indices"):
             return self.read("bag_indices")[self._resolve_fold(fold)]
-        idx = int(self._resolve_fold(fold))
-        return self._compute_fold_indices()[idx]
+        return self._compute_fold_indices()[self._resolve_fold(fold)]
 
     def bag(self, fold, idx: int):
         return self.cfg.clip.shard(self.bag_indices(fold)[idx])
