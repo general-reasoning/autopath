@@ -643,6 +643,12 @@ class TFRecordIterator:
     def close(self):
         self.file.close()
 
+    def __del__(self):
+        try:
+            self.file.close()
+        except Exception:
+            pass
+
     @staticmethod
     def _read_data(file, length_bytes, crc_bytes, datum_bytes) -> memoryview:
         """Read the next record from the tfrecord file."""

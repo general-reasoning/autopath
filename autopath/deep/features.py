@@ -180,32 +180,13 @@ class DeepFeatureBag(Bag):
         feature_names = evaluator.layer_names
         self._feature_names = feature_names
 
-        # Stream tiles from the tilebag's MDS dataset to avoid loading
-        # all tiles into RAM.  StreamingDataset allocates POSIX shared
-        # memory, which can exhaust file descriptors when many bags are
-        # built in sequence.  To minimise FD lifetime, load all tiles
-        # eagerly and immediately close the dataset.
-        tiles_tensor = None
-        try:
-            ds = tilebag.dataset()
-            # Use the actual MDS sample count — it may differ from
-            # the source TFRecord length (len(tilebag)).
-            n_tiles = len(ds)
-            tiles_tensor = torch.stack([
-                torch.as_tensor(ds[i]['tile']) for i in range(n_tiles)
-            ])
-        except (OSError, RuntimeError) as exc:
-            self.log.warning(
-                f"StreamingDataset unavailable ({exc}); "
-                "falling back to in-memory tile loading via tilebag.tiles"
-            )
-            tiles_tensor = tilebag.tiles
-            n_tiles = len(tiles_tensor)
-        finally:
-            # Close the dataset ASAP to release shared memory FDs.
-            if 'ds' in locals() and ds is not None:
-                del ds
-            gc.collect()
+        # Load all tiles eagerly.  We avoid StreamingDataset here because
+        # it allocates /dev/shm shared memory whose cleanup depends on
+        # __del__ / GC — unreliable when building thousands of bags per
+        # worker, leading to EMFILE.  tilebag.tiles reads from the source
+        # TFRecord, which opens and closes a single file handle cleanly.
+        tiles_tensor = tilebag.tiles
+        n_tiles = len(tiles_tensor)
 
         shards_dir = self.path('shards', ensure_dirpath=True)
         # Clear stale files from a prior interrupted build.
