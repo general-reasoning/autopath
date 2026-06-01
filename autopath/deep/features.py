@@ -186,6 +186,9 @@ class DeepFeatureBag(Bag):
         # built in sequence; fall back to in-memory tile loading.
         try:
             ds = tilebag.dataset()
+            # Use the actual MDS sample count — it may differ from
+            # the source TFRecord length (len(tilebag)).
+            n_tiles = len(ds)
         except (OSError, RuntimeError) as exc:
             ds = None
             self.log.warning(
