@@ -265,7 +265,19 @@ def pancan_tile_dataset_samples(
         :class:`torch.utils.data.DataLoader`.
     """
     ds = pancan_tile_dataset(name, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size)
-    loader = torch.utils.data.DataLoader(ds, batch_size=batch_size, **dataloader_kwargs)
+
+    def _sanitize_collate(batch):
+        """Replace None values in sample dicts with {} so default_collate succeeds."""
+        from torch.utils.data._utils.collate import default_collate
+        sanitized = []
+        for sample in batch:
+            if isinstance(sample, dict):
+                sanitized.append({k: (v if v is not None else {}) for k, v in sample.items()})
+            else:
+                sanitized.append(sample)
+        return default_collate(sanitized)
+
+    loader = torch.utils.data.DataLoader(ds, batch_size=batch_size, collate_fn=_sanitize_collate, **dataloader_kwargs)
     progress = tqdm.tqdm(total=n)
     last = None
     for i, batch in enumerate(loader):
