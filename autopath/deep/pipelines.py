@@ -202,19 +202,19 @@ def gigapath_deep_feature_bag(
 ## 1 device
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.print "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    gpu_batch_size=1024, \
+    gpu_batch_size=512, \
     n_devices=1,\
 ).build_tree()"
 ## 3 devices
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.print "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    gpu_batch_size=1024, \
+    gpu_batch_size=512, \
     n_devices=3,\
     parallelization='multiprocessing',\
 ).build_tree()"
