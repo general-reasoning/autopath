@@ -466,7 +466,7 @@ class DeepFeatureClip(Clip):
     def __stack__(self, results=None):
         """Persist bag_lens after parallel build."""
         self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
-        bag_lens = [len(self.shard(i)) for i in tqdm.tqdm(
+        bag_lens = [len(self.shard(i)) for i in tqdm(
             range(self.n_shards), desc="Stacking bag lens"
         )]
         bag_lens_dir = self.path('bag_lens', ensure_dirpath=True)
