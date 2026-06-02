@@ -335,8 +335,11 @@ class DeepFeatureClip(Clip):
     v2 = True
     VERSION = 4
 
-    TOPICS = ['bag_lens']
-    _BAG_LENS_FILE = 'bag_lens.npz'
+    # Inherits TOPICFILES = {"bag_lens": "bag_lens.npz"} from Clip.
+    # Do NOT also declare TOPICS — the presence of both causes path()
+    # to take the TOPICFILES branch (appending the filename) while
+    # callers assumed the TOPICS branch (directory-only), resulting in
+    # a doubled "bag_lens.npz/bag_lens.npz" path.
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -459,8 +462,7 @@ class DeepFeatureClip(Clip):
 
     def __read__(self, topic=None):
         if topic == 'bag_lens':
-            path = os.path.join(self.path('bag_lens'), self._BAG_LENS_FILE)
-            return dbx.read_npz(path, 'bag_lens')['bag_lens']
+            return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
         raise ValueError(f"Unknown topic: {topic!r}")
 
     def __stack__(self, results=None):
@@ -469,8 +471,7 @@ class DeepFeatureClip(Clip):
         bag_lens = [len(self.shard(i)) for i in tqdm(
             range(self.n_shards), desc="Stacking bag lens"
         )]
-        bag_lens_dir = self.path('bag_lens', ensure_dirpath=True)
-        dbx.write_npz(os.path.join(bag_lens_dir, self._BAG_LENS_FILE), bag_lens=bag_lens)
+        dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         self.log.info(f"Build complete: {self.__class__.__name__}")
         return self
 
