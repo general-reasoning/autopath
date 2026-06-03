@@ -219,11 +219,23 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     n_devices=3,\
     parallelization='multiprocessing',\
 ).build_tree()"
-### CPTAC_602020_TRAIN: OUTPUT-ONLY|ALL_HEADS
+### CPTAC_602020_TRAIN|CALIBRATE|TEST: OUTPUT-ONLY|ALL_HEADS
 ## piggyback on CPTAC clip
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
+git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
+git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 ).build_tree()"
