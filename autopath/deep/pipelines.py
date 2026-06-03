@@ -199,7 +199,7 @@ def gigapath_deep_feature_bag(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-### CPTAC_602020_TRAIN: OUTPUT-ONLY|CLS-ONLY
+### CPTAC: OUTPUT-ONLY|CLS-ONLY
 ## 1 device
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
@@ -218,6 +218,14 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     gpu_batch_size=512, \
     n_devices=3,\
     parallelization='multiprocessing',\
+).build_tree()"
+### CPTAC_602020_TRAIN: OUTPUT-ONLY|ALL_HEADS
+## piggyback on CPTAC clip
+git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
 ).build_tree()"
 """
 def gigapath_deep_feature_clip(
