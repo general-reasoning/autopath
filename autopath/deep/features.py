@@ -46,31 +46,54 @@ class TileFeatureDataset(Dataset):
     dataset, ``tile_index`` (written by :class:`DeepFeatureBag`) is
     used to fetch the matching tile entry.
 
+    Tile datasets are opened **lazily** to avoid exhausting file
+    descriptors when a clip contains thousands of bags.  An LRU cache
+    (default 32 entries) bounds the number of simultaneously open
+    shared-memory segments.
+
     Parameters
     ----------
     base : StreamingDataset
         Merged feature streaming dataset (one :class:`Stream` per bag).
     bag_lens : list[int]
         Length of each bag, in stream order.
-    tile_datasets : list[StreamingDataset]
-        Per-bag tile MDS datasets, in the same bag order.
+    bags : list[DeepFeatureBag]
+        Per-bag bag objects, in the same stream order.  Their
+        ``.tilebag.dataset()`` is called lazily on first access.
+    cache_size : int
+        Maximum number of tile datasets kept open simultaneously.
     """
 
-    def __init__(self, base, bag_lens, tile_datasets):
+    def __init__(self, base, bag_lens, bags, *, cache_size: int = 32):
         self.base = base
-        self.tile_datasets = tile_datasets
+        self._bags = bags
         # cumsum[i] = start index of bag i; cumsum[-1] = total length
         self._cumsum = np.cumsum([0] + list(bag_lens))
+        self._tile_ds_cache = functools.OrderedDict()
+        self._cache_size = cache_size
 
     def __len__(self):
         return len(self.base)
+
+    def _get_tile_dataset(self, bag_idx):
+        """Return the tile dataset for *bag_idx*, opening lazily."""
+        if bag_idx in self._tile_ds_cache:
+            # Move to end (most-recently used).
+            self._tile_ds_cache.move_to_end(bag_idx)
+            return self._tile_ds_cache[bag_idx]
+        ds = self._bags[bag_idx].tilebag.dataset()
+        self._tile_ds_cache[bag_idx] = ds
+        # Evict oldest if over capacity.
+        while len(self._tile_ds_cache) > self._cache_size:
+            self._tile_ds_cache.popitem(last=False)
+        return ds
 
     def __getitem__(self, idx):
         sample = dict(self.base[idx])
         bag_idx = int(np.searchsorted(self._cumsum[1:], idx, side='right'))
         sample['bag_index'] = bag_idx
         tile_idx = sample['tile_index']
-        tile_sample = self.tile_datasets[bag_idx][tile_idx]
+        tile_sample = self._get_tile_dataset(bag_idx)[tile_idx]
         # Inject all fields from the tile shard (tile, bag_name,
         # annotations, etc.) without overwriting feature columns.
         for k, v in tile_sample.items():
@@ -534,10 +557,10 @@ class DeepFeatureClip(Clip):
             A :class:`torch.utils.data.Dataset` over all bags.
         """
         streams = []
-        tile_datasets = []
         bag_lens_list = []
         n_skipped = 0
 
+        valid_bags = []
         for i, bag in enumerate(self.bags):
             if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
@@ -546,8 +569,7 @@ class DeepFeatureClip(Clip):
                 streams.append(Stream(local=bag.path('shards')))
             else:
                 streams.append(Stream(remote=bag.path('shards')))
-            if include_tiles:
-                tile_datasets.append(bag.tilebag.dataset())
+            valid_bags.append(bag)
             bag_lens_list.append(len(bag))
 
         if n_skipped:
@@ -563,7 +585,7 @@ class DeepFeatureClip(Clip):
         base = StreamingDataset(**sd_kwargs)
 
         if include_tiles:
-            return TileFeatureDataset(base, bag_lens_list, tile_datasets)
+            return TileFeatureDataset(base, bag_lens_list, valid_bags)
 
         return base
 
