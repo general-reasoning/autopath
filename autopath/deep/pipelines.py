@@ -305,6 +305,11 @@ def gigapath_deep_feature_clip(
 
 """
 git commit -am 'deep: dataloader_samples: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC', \
+    cfg_cls_token_only=True, \
+    n=8,\
+)"
+git commit -am 'deep: dataloader_samples: TEST' > /dev/null || true; dbx.print "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
     cfg_cls_token_only=True, \
     n=8,\
