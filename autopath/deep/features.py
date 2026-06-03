@@ -69,7 +69,7 @@ class TileFeatureDataset(Dataset):
         self._bags = bags
         # cumsum[i] = start index of bag i; cumsum[-1] = total length
         self._cumsum = np.cumsum([0] + list(bag_lens))
-        self._tile_ds_cache = functools.OrderedDict()
+        self._tile_ds_cache = OrderedDict()
         self._cache_size = cache_size
 
     def __len__(self):
