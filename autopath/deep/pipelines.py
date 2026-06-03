@@ -39,6 +39,7 @@ from autopath.pancan.pipelines import (
     pancan_tile_clip,
     pancan_tile_fold,
 )
+from autopath.autobits import sanitize_collate
 
 
 log = Logger()
@@ -386,7 +387,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     )
     ds = clip.dataset(shuffle=shuffle, include_tiles=include_tiles, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size)
     loader = torch.utils.data.DataLoader(
-        ds, batch_size=batch_size, **dataloader_kwargs,
+        ds, batch_size=batch_size, collate_fn=sanitize_collate, **dataloader_kwargs,
     )
     progress = tqdm.tqdm(total=n)
     last = None

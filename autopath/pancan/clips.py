@@ -19,34 +19,12 @@ from streaming import MDSWriter, Stream, StreamingDataset
 import dbx
 from dbx import Logger, Datablock
 
-from autopath.autobits import Bag, TileBag, Clip, Partition, Fold
+from autopath.autobits import Bag, TileBag, Clip, Partition, Fold, sanitize_collate
 from autopath.pancan.annotations import extract_case_id, get_annotations
 from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
 
 
 logger = Logger()
-
-
-def _sanitize(obj):
-    """Recursively replace ``None`` with ``{}`` in nested dicts/lists."""
-    if obj is None:
-        return {}
-    if isinstance(obj, dict):
-        return {k: _sanitize(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_sanitize(v) for v in obj]
-    return obj
-
-
-def sanitize_collate(batch):
-    """Recursively replace ``None`` values in sample dicts so ``default_collate`` succeeds.
-
-    MDS JSON columns can deserialise to ``None`` (e.g. bags without a
-    valid case-id have no annotations).  PyTorch's ``default_collate``
-    rejects ``NoneType``, so we normalise before delegating.
-    """
-    from torch.utils.data._utils.collate import default_collate
-    return default_collate([_sanitize(sample) for sample in batch])
 
 
 
