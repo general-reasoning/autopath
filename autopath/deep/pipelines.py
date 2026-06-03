@@ -338,6 +338,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 1024,
     batch_size: int = 4,
     shuffle: bool = False,
     include_tiles: bool = False,
@@ -355,6 +356,9 @@ def gigapath_deep_feature_clip_dataloader_samples(
         Forwarded to :func:`gigapath_deep_feature_clip`.
     n : int
         Number of samples to iterate.
+    cfg_shard_size : int
+        Forwarded to :func:`gigapath_deep_feature_clip` so the config
+        hash matches the built clip.
     batch_size : int
         DataLoader batch size.
     shuffle, include_tiles, skip_invalid_bags
@@ -371,6 +375,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         cfg_capture_blocks=cfg_capture_blocks,
         cfg_capture_layers=cfg_capture_layers,
         cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
     )
     assert clip.valid(), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
