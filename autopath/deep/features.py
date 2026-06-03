@@ -97,8 +97,9 @@ class TileFeatureDataset(Dataset):
         tile_sample = self._get_tile_dataset(bag_idx)[tile_idx]
         # Inject all fields from the tile shard (tile, bag_name,
         # annotations, etc.) without overwriting feature columns.
+        # Skip None values — default_collate cannot handle them.
         for k, v in tile_sample.items():
-            if k not in sample:
+            if k not in sample and v is not None:
                 sample[k] = v
         return sample
 
