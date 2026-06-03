@@ -497,6 +497,7 @@ class DeepFeatureClip(Clip):
         shuffle: bool = False,
         include_tiles: bool = False,
         skip_invalid_bags: bool = False,
+        batch_size: int | None = None,
     ) -> Dataset:
         """Return a unified, labeled dataset over all bags.
 
@@ -523,6 +524,9 @@ class DeepFeatureClip(Clip):
             If ``True``, silently skip bags whose MDS shards have not
             been built yet instead of raising.  The number of skipped
             bags is reported at the end.
+        batch_size : int | None
+            Passed to :class:`StreamingDataset` for deterministic
+            resumption.  Should match the DataLoader batch size.
 
         Returns
         -------
@@ -553,7 +557,10 @@ class DeepFeatureClip(Clip):
             )
 
         # One StreamingDataset with N streams — one shared-memory segment.
-        base = StreamingDataset(streams=streams, shuffle=shuffle)
+        sd_kwargs = dict(streams=streams, shuffle=shuffle)
+        if batch_size is not None:
+            sd_kwargs['batch_size'] = batch_size
+        base = StreamingDataset(**sd_kwargs)
 
         if include_tiles:
             return TileFeatureDataset(base, bag_lens_list, tile_datasets)

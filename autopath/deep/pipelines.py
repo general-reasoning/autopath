@@ -383,7 +383,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         f"  validpaths = {clip.validpaths()}\n"
         f"  anchorkeypath = {clip.anchorkeypath}"
     )
-    ds = clip.dataset(shuffle=shuffle, include_tiles=include_tiles, skip_invalid_bags=skip_invalid_bags)
+    ds = clip.dataset(shuffle=shuffle, include_tiles=include_tiles, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size)
     loader = torch.utils.data.DataLoader(
         ds, batch_size=batch_size, **dataloader_kwargs,
     )
