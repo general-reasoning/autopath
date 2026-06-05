@@ -1,4 +1,55 @@
+import json
+import os
+
 import torch
+
+from streaming.base.format.mds.reader import MDSReader
+
+
+def mds_readers(shards_dir):
+    """Return a list of :class:`MDSReader` for MDS shards in *shards_dir*.
+
+    Each reader uses plain file I/O — no shared memory — making it
+    safe for iterating over thousands of bags without leaking file
+    descriptors.
+
+    Parameters
+    ----------
+    shards_dir : str
+        Path to the directory containing ``index.json`` and ``.mds``
+        shard files.
+
+    Returns
+    -------
+    list[MDSReader]
+    """
+    index_path = os.path.join(shards_dir, 'index.json')
+    with open(index_path) as f:
+        index = json.load(f)
+    return [MDSReader.from_json(shards_dir, split=None, obj=s)
+            for s in index['shards']]
+
+
+def read_mds_samples(shards_dir, *, column=None):
+    """Bulk-read samples from MDS shards using :class:`MDSReader`.
+
+    Parameters
+    ----------
+    shards_dir : str
+        Path to the MDS shards directory.
+    column : str | None
+        If given, yield only that column's value per sample.
+        Otherwise yield the full sample dict.
+
+    Yields
+    ------
+    value
+        Column value or full sample dict.
+    """
+    for reader in mds_readers(shards_dir):
+        for i in range(len(reader)):
+            sample = reader.get_item(i)
+            yield sample[column] if column else sample
 
 
 def tensors_to_device(tensors, device, *, detach: bool = False):

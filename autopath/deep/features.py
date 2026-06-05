@@ -11,7 +11,6 @@ for efficient streaming reads and row-level shuffling.
 import contextlib
 import functools
 import gc
-import json
 import math
 import os
 from collections import OrderedDict
@@ -28,9 +27,9 @@ from dbx import (
 )
 
 from streaming import MDSWriter, Stream, StreamingDataset
-from streaming.base.format.mds.reader import MDSReader
 
 from autopath.autobits import Bag, Clip, DeepBackboneEvaluatorFactory, TileBag
+from autopath.tools import mds_readers, read_mds_samples
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -318,7 +317,7 @@ class DeepFeatureBag(Bag):
         if topic == 'shards':
             return self.fs.ls(self.path('shards'))
         if topic == 'data':
-            return list(self._read_all_samples())
+            return list(read_mds_samples(self.path('shards')))
         raise ValueError(f"Unknown topic: {topic!r}")
 
     @contextlib.contextmanager
@@ -349,39 +348,6 @@ class DeepFeatureBag(Bag):
             del ds
             gc.collect()
 
-    def _mds_readers(self):
-        """Return a list of :class:`MDSReader` instances for this bag's shards.
-
-        Each reader uses plain file I/O — no shared memory —
-        making it safe for iterating over thousands of bags.
-        """
-        shards_dir = self.path('shards')
-        index_path = os.path.join(shards_dir, 'index.json')
-        with open(index_path) as f:
-            index = json.load(f)
-        readers = []
-        for shard_obj in index['shards']:
-            readers.append(MDSReader.from_json(shards_dir, split=None, obj=shard_obj))
-        return readers
-
-    def _read_all_samples(self, column: str | None = None):
-        """Bulk-read samples from MDS shards using :class:`MDSReader`.
-
-        Parameters
-        ----------
-        column : str | None
-            If given, yield only that column's value per sample.
-            Otherwise yield the full sample dict.
-
-        Yields
-        ------
-        value
-            Column value or sample dict per sample.
-        """
-        for reader in self._mds_readers():
-            for i in range(len(reader)):
-                sample = reader.get_item(i)
-                yield sample[column] if column else sample
 
     def layer_features(self, layer: str):
         """Read the full feature tensor for a single layer from MDS shards.
@@ -402,7 +368,7 @@ class DeepFeatureBag(Bag):
         """
         safe = layer.replace(".", "_")
         col = f"features_{safe}"
-        arrays = list(self._read_all_samples(column=col))
+        arrays = list(read_mds_samples(self.path('shards'), column=col))
         return torch.from_numpy(np.stack(arrays))
 
     def annotations(self, i=0) -> dict | None:
@@ -423,8 +389,7 @@ class DeepFeatureBag(Bag):
             column exists or the value is ``None``.
         """
         try:
-            # Find which shard contains sample i.
-            for reader in self._mds_readers():
+            for reader in mds_readers(self.path('shards')):
                 if i < len(reader):
                     sample = reader.get_item(i)
                     return sample.get('annotations')

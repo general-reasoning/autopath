@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import functools
 import gc
 import itertools
-import json
 import math
 import os
 from typing import Optional
@@ -17,7 +16,6 @@ import torch
 import torchvision
 
 from streaming import MDSWriter, Stream, StreamingDataset
-from streaming.base.format.mds.reader import MDSReader
 
 import dbx
 from dbx import Logger, Datablock
@@ -25,6 +23,7 @@ from dbx import Logger, Datablock
 from autopath.autobits import Bag, TileBag, Clip, Partition, Fold, sanitize_collate
 from autopath.pancan.annotations import extract_case_id, get_annotations
 from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
+from autopath.tools import read_mds_samples
 
 
 logger = Logger()
@@ -347,27 +346,11 @@ class PancanTileBag(TileBag):
 			del ds
 			gc.collect()
 
-	def _mds_readers(self):
-		"""Return a list of :class:`MDSReader` for this bag's shards."""
-		shards_dir = self.path('shards')
-		index_path = os.path.join(shards_dir, 'index.json')
-		with open(index_path) as f:
-			index = json.load(f)
-		return [MDSReader.from_json(shards_dir, split=None, obj=s)
-		        for s in index['shards']]
-
-	def _read_all_samples(self, column=None):
-		"""Bulk-read samples via :class:`MDSReader` (no shared memory)."""
-		for reader in self._mds_readers():
-			for i in range(len(reader)):
-				sample = reader.get_item(i)
-				yield sample[column] if column else sample
-
 	def __read__(self, topic=None):
 		if topic == 'shards':
 			return self.fs.ls(self.path('shards'))
 		if topic == 'data':
-			return list(self._read_all_samples())
+			return list(read_mds_samples(self.path('shards')))
 		raise ValueError(f"Unknown topic: {topic!r}")
 
 	def __len__(self):
