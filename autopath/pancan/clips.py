@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import functools
 import gc
 import itertools
+import json
 import math
 import os
 from typing import Optional
@@ -16,6 +17,7 @@ import torch
 import torchvision
 
 from streaming import MDSWriter, Stream, StreamingDataset
+from streaming.base.format.mds.reader import MDSReader
 
 import dbx
 from dbx import Logger, Datablock
@@ -155,11 +157,15 @@ class PancanTileBag(TileBag):
 	shards
 		MDS shards directory.  ``dataset()`` returns a
 		:class:`StreamingDataset`.
+	data
+		Virtual topic (no on-disk path).  ``read('data')`` returns
+		all MDS samples as a list of dicts via :class:`MDSReader`,
+		using plain file I/O with no shared-memory overhead.
 	"""
 
 	VERSION = 4
 
-	TOPICS = ['shards']
+	TOPICS = ['shards', 'data']
 
 	@dataclass
 	class CONFIG(Datablock.CONFIG):
@@ -226,9 +232,14 @@ class PancanTileBag(TileBag):
 
 	# ── Validity ────────────────────────────────────────────────────
 
+	def path(self, topic=None, *, ensure_dirpath: bool = False):
+		if topic == 'data':
+			return None
+		return super().path(topic, ensure_dirpath=ensure_dirpath)
+
 	def validtopic(self, topic=None):
-		if topic == 'shards':
-			# MDS directory is valid when index.json has been written.
+		if topic in ('shards', 'data'):
+			# 'data' is a virtual view of 'shards'.
 			return self.fs.exists(
 				os.path.join(self.path('shards'), 'index.json')
 			)
@@ -336,9 +347,27 @@ class PancanTileBag(TileBag):
 			del ds
 			gc.collect()
 
+	def _mds_readers(self):
+		"""Return a list of :class:`MDSReader` for this bag's shards."""
+		shards_dir = self.path('shards')
+		index_path = os.path.join(shards_dir, 'index.json')
+		with open(index_path) as f:
+			index = json.load(f)
+		return [MDSReader.from_json(shards_dir, split=None, obj=s)
+		        for s in index['shards']]
+
+	def _read_all_samples(self, column=None):
+		"""Bulk-read samples via :class:`MDSReader` (no shared memory)."""
+		for reader in self._mds_readers():
+			for i in range(len(reader)):
+				sample = reader.get_item(i)
+				yield sample[column] if column else sample
+
 	def __read__(self, topic=None):
 		if topic == 'shards':
 			return self.fs.ls(self.path('shards'))
+		if topic == 'data':
+			return list(self._read_all_samples())
 		raise ValueError(f"Unknown topic: {topic!r}")
 
 	def __len__(self):
