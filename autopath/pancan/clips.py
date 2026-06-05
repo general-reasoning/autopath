@@ -156,15 +156,11 @@ class PancanTileBag(TileBag):
 	shards
 		MDS shards directory.  ``dataset()`` returns a
 		:class:`StreamingDataset`.
-	data
-		Virtual topic (no on-disk path).  ``read('data')`` returns
-		all MDS samples as a list of dicts via :class:`MDSReader`,
-		using plain file I/O with no shared-memory overhead.
 	"""
 
 	VERSION = 4
 
-	TOPICS = ['shards', 'data']
+	TOPICS = ['shards']
 
 	@dataclass
 	class CONFIG(Datablock.CONFIG):
@@ -231,14 +227,9 @@ class PancanTileBag(TileBag):
 
 	# ── Validity ────────────────────────────────────────────────────
 
-	def path(self, topic=None, *, ensure_dirpath: bool = False):
-		if topic == 'data':
-			return None
-		return super().path(topic, ensure_dirpath=ensure_dirpath)
-
 	def validtopic(self, topic=None):
-		if topic in ('shards', 'data'):
-			# 'data' is a virtual view of 'shards'.
+		if topic == 'shards':
+			# MDS directory is valid when index.json has been written.
 			return self.fs.exists(
 				os.path.join(self.path('shards'), 'index.json')
 			)
@@ -349,9 +340,16 @@ class PancanTileBag(TileBag):
 	def __read__(self, topic=None):
 		if topic == 'shards':
 			return self.fs.ls(self.path('shards'))
-		if topic == 'data':
-			return list(read_mds_samples(self.path('shards')))
 		raise ValueError(f"Unknown topic: {topic!r}")
+
+	def data(self):
+		"""Bulk-read all MDS samples as a list of dicts.
+
+		Uses :class:`MDSReader` (plain file I/O) rather than
+		:class:`StreamingDataset` to avoid shared-memory leaks
+		when reading many bags.
+		"""
+		return list(read_mds_samples(self.path('shards')))
 
 	def __len__(self):
 		return self._source_len()
