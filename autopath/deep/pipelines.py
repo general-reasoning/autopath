@@ -578,67 +578,67 @@ def gigapath_corner_deep_feature_clip(
 
 """
 ### CPTAC 60/20/20 — raw features (no normalization)
-git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
+git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    layer='output', \
+    cfg_cls_token_only=True, \
 ).build()"
-git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
+git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    layer='output', \
+    cfg_cls_token_only=True, \
 ).build()"
-git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
+git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    layer='output', \
+    cfg_cls_token_only=True, \
 ).build()"
 ### CPTAC 60/20/20 — L2-normalised features
-git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
-    normalize='l2', \\
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    normalize='l2', \
 ).build()"
-git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
-    normalize='l2', \\
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    normalize='l2', \
 ).build()"
-git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
-    normalize='l2', \\
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    normalize='l2', \
 ).build()"
 ### CPTAC 60/20/20 — corner-linfty features
-git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
-    normalize='corner-linfty', \\
+git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    normalize='corner-linfty', \
 ).build()"
-git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
-    normalize='corner-linfty', \\
+git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    normalize='corner-linfty', \
 ).build()"
-git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \\
-    layer='output', \\
-    cfg_cls_token_only=True, \\
-    normalize='corner-linfty', \\
+git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    normalize='corner-linfty', \
 ).build()"
 """
 def deep_feature_affine_logistic_probe(
