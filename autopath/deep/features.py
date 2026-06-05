@@ -127,11 +127,15 @@ class DeepFeatureBag(Bag):
     shards
         MDS shards directory.  ``read('shards')`` returns an
         ``fs.ls`` listing of the shards directory.
+    data
+        Virtual topic (no on-disk path).  ``read('data')`` returns
+        all MDS samples as a list of dicts via :class:`MDSReader`,
+        using plain file I/O with no shared-memory overhead.
     """
 
     VERSION = 7
 
-    TOPICS = ['shards']
+    TOPICS = ['shards', 'data']
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -181,11 +185,16 @@ class DeepFeatureBag(Bag):
     def __len__(self):
         return len(self.cfg.tilebag)
 
-    # ── Validity ────────────────────────────────────────────────────
+    # ── Validity / Path ─────────────────────────────────────────────
+
+    def path(self, topic=None, *, ensure_dirpath: bool = False):
+        if topic == 'data':
+            return None
+        return super().path(topic, ensure_dirpath=ensure_dirpath)
 
     def validtopic(self, topic=None):
-        if topic == 'shards':
-            # MDS directory is valid when index.json has been written.
+        if topic in ('shards', 'data'):
+            # 'data' is a virtual view of 'shards'.
             return self.fs.exists(
                 os.path.join(self.path('shards'), 'index.json')
             )
@@ -195,6 +204,7 @@ class DeepFeatureBag(Bag):
         if topic is not None:
             return self.validtopic(topic)
         return self.validtopics(reduce=True)
+
 
     # ── Build ───────────────────────────────────────────────────────
 
@@ -307,6 +317,8 @@ class DeepFeatureBag(Bag):
     def __read__(self, topic):
         if topic == 'shards':
             return self.fs.ls(self.path('shards'))
+        if topic == 'data':
+            return list(self._read_all_samples())
         raise ValueError(f"Unknown topic: {topic!r}")
 
     @contextlib.contextmanager
