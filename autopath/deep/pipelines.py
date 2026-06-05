@@ -570,3 +570,179 @@ def gigapath_corner_deep_feature_clip(
         url=url,
         spec=dict(deep_feature_clip=dbx.quote(deep_clip)),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Affine logistic probe
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — raw features (no normalization)
+git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+).build()"
+git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+).build()"
+git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+).build()"
+### CPTAC 60/20/20 — L2-normalised features
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+    normalize='l2', \\
+).build()"
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+    normalize='l2', \\
+).build()"
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+    normalize='l2', \\
+).build()"
+### CPTAC 60/20/20 — corner-linfty features
+git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+    normalize='corner-linfty', \\
+).build()"
+git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+    normalize='corner-linfty', \\
+).build()"
+git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.deep.pipelines.deep_feature_affine_logistic_probe( \\
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \\
+    layer='output', \\
+    cfg_cls_token_only=True, \\
+    normalize='corner-linfty', \\
+).build()"
+"""
+def deep_feature_affine_logistic_probe(
+    name: str,
+    *,
+    layer: str = 'output',
+    annotation_key: str | None = None,
+    fit_intercept: bool = True,
+    evaluation_fraction: float = 0.8,
+    normalize: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 1024,
+    url: str | None = None,
+) -> 'DeepFeatureAffineLogisticProbe':
+    """Create a :class:`DeepFeatureAffineLogisticProbe` on a named clip.
+
+    Fits a logistic regression classifier on bag-level mean features
+    for the specified ``layer``, persisting the fitted model's
+    ``coef_``, ``intercept_``, and ``classes_`` arrays.
+
+    Parameters
+    ----------
+    name : str
+        Named configuration — same values accepted by
+        :func:`gigapath_deep_feature_clip` (e.g.
+        ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
+    layer : str
+        Which capture key to probe (e.g. ``"output"``,
+        ``"B_0_norm1"``).
+    annotation_key : str | None
+        Dotted path into the annotation dict for label extraction
+        (e.g. ``"cohort"``).  ``None`` falls back to
+        ``tilebag.label``.
+    fit_intercept : bool
+        Whether to fit an intercept term in the logistic regression.
+    evaluation_fraction : float
+        Fraction of bags used for training (rest for evaluation).
+    normalize : str | None
+        Feature normalization mode:
+        ``None`` — raw features,
+        ``'l2'`` — L2-normalise,
+        ``'corner-l1'`` / ``'corner-l2'`` — snap to {-1,+1}^d,
+        ``'corner-linfty'`` — axis-aligned vertex.
+    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+        Forwarded to :func:`gigapath_deep_feature_clip` to identify
+        the underlying clip.
+    cfg_shard_size : int
+        Forwarded to :func:`gigapath_deep_feature_clip`.
+    url : str | None
+        Datablock URL.
+
+    Examples
+    --------
+    Build on the CPTAC 60/20/20 train fold with no normalization::
+
+        probe = deep_feature_affine_logistic_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            layer='output',
+            cfg_cls_token_only=True,
+        )
+        probe.build()
+
+    With L2 normalization::
+
+        probe = deep_feature_affine_logistic_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            layer='output',
+            cfg_cls_token_only=True,
+            normalize='l2',
+        )
+        probe.build()
+
+    With corner-linfty normalization::
+
+        probe = deep_feature_affine_logistic_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            layer='output',
+            cfg_cls_token_only=True,
+            normalize='corner-linfty',
+        )
+        probe.build()
+    """
+    from autopath.deep.probes import DeepFeatureAffineLogisticProbe
+
+    clip = gigapath_deep_feature_clip(
+        name,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+        url=url,
+    )
+    return DeepFeatureAffineLogisticProbe(
+        url=url,
+        spec=dict(
+            clip=dbx.quote(clip),
+            layer=layer,
+            annotation_key=annotation_key,
+            fit_intercept=fit_intercept,
+            evaluation_fraction=evaluation_fraction,
+            normalize=normalize,
+        ),
+    )

@@ -9,7 +9,10 @@ features
     :class:`DeepFeatureBag`, :class:`DeepFeatureClip`, and their
     spherical/corner encoding variants.
 probes
-    :class:`LinearDeepFeatureClipProbe` and :class:`StatsDeepFeatureClipProbe`.
+    :class:`DeepFeatureAffineLogisticProbe`,
+    :class:`DeepFeatureStatsProbe`, :class:`DeepFeatureSpectralProber`,
+    :class:`DeepBackboneSpectralEvaluator`, and
+    :class:`DeepFeatureSpectralProbe`.
 pipelines
     Pipeline entrypoints for GigaPath deep feature extraction:
     :func:`gigapath_deep_backbone_evaluator`,
