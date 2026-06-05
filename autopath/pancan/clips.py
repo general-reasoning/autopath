@@ -1,3 +1,4 @@
+import contextlib
 from dataclasses import dataclass
 import functools
 import gc
@@ -311,17 +312,29 @@ class PancanTileBag(TileBag):
 
 	# ── Read / Dataset ──────────────────────────────────────────────
 
-	def dataset(self, *, shuffle: bool = False, batch_size: int = 1, **kwargs) -> StreamingDataset:
-		"""Return a :class:`StreamingDataset` over this bag's MDS shards.
+	@contextlib.contextmanager
+	def dataset(self, *, shuffle: bool = False, batch_size: int = 1, **kwargs):
+		"""Yield a :class:`StreamingDataset` over this bag's MDS shards.
+
+		Use as a context manager to ensure shared-memory file
+		descriptors are released promptly::
+
+		    with bag.dataset() as ds:
+		        tile = ds[0]['tile']
 
 		Each sample is a dict with keys ``tile`` (ndarray), ``label``
 		(str), ``bag_name`` (str), and ``tile_index`` (int32).
 		"""
 		ds_kwargs = dict(shuffle=shuffle, batch_size=batch_size)
 		if self._is_local_fs:
-			return StreamingDataset(local=self.path('shards'), **ds_kwargs)
+			ds = StreamingDataset(local=self.path('shards'), **ds_kwargs)
 		else:
-			return StreamingDataset(remote=self.path('shards'), **ds_kwargs)
+			ds = StreamingDataset(remote=self.path('shards'), **ds_kwargs)
+		try:
+			yield ds
+		finally:
+			del ds
+			gc.collect()
 
 	def __read__(self, topic=None):
 		if topic == 'shards':

@@ -64,8 +64,7 @@ def _extract_bag_label(bag, annotation_key: str | None) -> str:
     """
     if annotation_key is None:
         return bag.tilebag.label
-    ds = bag.tilebag.dataset()
-    annotations = ds[0]['annotations']
+    annotations = bag.annotations()
     if annotations is None:
         return bag.tilebag.label
     val = annotations
@@ -80,14 +79,13 @@ def _extract_bag_label(bag, annotation_key: str | None) -> str:
 def _extract_bag_annotations(bag) -> dict | None:
     """Read the bag-level annotation dict from the first MDS tile sample.
 
+    Delegates to :meth:`DeepFeatureBag.annotations`, which handles
+    dataset lifecycle (shared-memory cleanup).
+
     Returns ``None`` when the tilebag has no ``annotations`` column or
     the value is ``None``.
     """
-    try:
-        ds = bag.tilebag.dataset()
-        return ds[0].get('annotations')
-    except Exception:
-        return None
+    return bag.annotations()
 
 
 

@@ -8,6 +8,7 @@ Storage uses `MDS shards <https://docs.mosaicml.com/projects/streaming>`_
 for efficient streaming reads and row-level shuffling.
 """
 
+import contextlib
 import functools
 import gc
 import math
@@ -81,12 +82,14 @@ class TileFeatureDataset(Dataset):
         if bag_idx in self._tile_ds_cache:
             # Move to end (most-recently used).
             self._tile_ds_cache.move_to_end(bag_idx)
-            return self._tile_ds_cache[bag_idx]
-        ds = self._bags[bag_idx].tilebag.dataset()
-        self._tile_ds_cache[bag_idx] = ds
+            return self._tile_ds_cache[bag_idx][0]
+        cm = self._bags[bag_idx].tilebag.dataset()
+        ds = cm.__enter__()
+        self._tile_ds_cache[bag_idx] = (ds, cm)
         # Evict oldest if over capacity.
         while len(self._tile_ds_cache) > self._cache_size:
-            self._tile_ds_cache.popitem(last=False)
+            _, evicted_cm = self._tile_ds_cache.popitem(last=False)
+            evicted_cm.__exit__(None, None, None)
         return ds
 
     def __getitem__(self, idx):
@@ -304,16 +307,28 @@ class DeepFeatureBag(Bag):
             return self.fs.ls(self.path('shards'))
         raise ValueError(f"Unknown topic: {topic!r}")
 
-    def dataset(self, *, shuffle: bool = False) -> StreamingDataset:
-        """Return a :class:`StreamingDataset` over this bag's MDS shards.
+    @contextlib.contextmanager
+    def dataset(self, *, shuffle: bool = False):
+        """Yield a :class:`StreamingDataset` over this bag's MDS shards.
+
+        Use as a context manager to ensure shared-memory file
+        descriptors are released promptly::
+
+            with bag.dataset() as ds:
+                x = ds[0]['features_output']
 
         Each sample is a dict with keys ``features_{name}`` (ndarray),
         optionally ``tiles`` (ndarray), and ``tile_index`` (int32).
         """
         if self._is_local_fs:
-            return StreamingDataset(local=self.path('shards'), shuffle=shuffle)
+            ds = StreamingDataset(local=self.path('shards'), shuffle=shuffle)
         else:
-            return StreamingDataset(remote=self.path('shards'), shuffle=shuffle)
+            ds = StreamingDataset(remote=self.path('shards'), shuffle=shuffle)
+        try:
+            yield ds
+        finally:
+            del ds
+            gc.collect()
 
     def layer_features(self, layer: str):
         """Read the full feature tensor for a single layer from MDS shards.
@@ -326,14 +341,34 @@ class DeepFeatureBag(Bag):
         Returns
         -------
         Tensor
-            Shape ``(n_tiles, feature_dim)`` or ``(n_tiles, feature_dim)``
+            Shape ``(n_tiles, feature_dim)``
             depending on ``cls_token_only``.
         """
         safe = layer.replace(".", "_")
         col = f"features_{safe}"
-        ds = self.dataset()
-        arrays = [ds[i][col] for i in range(len(ds))]
+        with self.dataset() as ds:
+            arrays = [ds[i][col] for i in range(len(ds))]
         return torch.from_numpy(np.stack(arrays))
+
+    def annotations(self, i=0) -> dict | None:
+        """Read the annotation dict from MDS sample *i*.
+
+        Parameters
+        ----------
+        i : int
+            Sample index (default ``0``).
+
+        Returns
+        -------
+        dict | None
+            The annotations dict, or ``None`` when no annotations
+            column exists or the value is ``None``.
+        """
+        try:
+            with self.dataset() as ds:
+                return ds[i].get('annotations')
+        except Exception:
+            return None
 
     @functools.cached_property
     def features(self) -> dict:
