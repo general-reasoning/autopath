@@ -577,11 +577,6 @@ def gigapath_corner_deep_feature_clip(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-### CPTAC 60/20/20 — raw features (no normalization)
-git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    layer='output', \
 ### CPTAC 60/20/20 — no normalization
 git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
@@ -730,7 +725,7 @@ def deep_feature_affine_logistic_probe(
 git commit -am 'deep: DeepFeatureStatsProbe: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.deep_feature_stats_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    layer='output', \
+    cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 ).build_tree()"
@@ -817,7 +812,7 @@ def deep_feature_stats_probe(
 git commit -am 'deep: BipolarDeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.deep_feature_bipolar_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    layer='output', \
+    cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 ).build_tree()"
