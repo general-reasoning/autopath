@@ -1093,4 +1093,4 @@ class BipolarDeepFeatureClip(Clip):
         return self
 
     def valid(self):
-        return self.feature_clip.valid()
+        return self.validtopics(reduce=True)
