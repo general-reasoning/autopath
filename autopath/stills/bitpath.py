@@ -755,8 +755,8 @@ class BitPathStill(Datablock):
             name='',
         )
         logger.experiment.add_text(
-            'BitPathStill: anchorhashpath',
-            f'```python\n{self.anchorhashpath}\n```',
+            'BitPathStill: anchorkeypath',
+            f'```python\n{self.anchorkeypath}\n```',
             global_step=0,
         )
         logger.experiment.add_text(
