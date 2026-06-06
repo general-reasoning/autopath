@@ -1120,7 +1120,7 @@ class BipolarDeepFeatureClip(Clip):
             if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
                 continue
-            if bag._is_local_fs:
+            if bag.is_local_fs:
                 streams.append(Stream(local=bag.path('shards')))
             else:
                 streams.append(Stream(remote=bag.path('shards')))
