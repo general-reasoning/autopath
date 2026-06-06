@@ -853,3 +853,265 @@ class CornerDeepFeatureClip(Clip):
     def __stack__(self, results=None):
         """Persist bag_lens only."""
         return super().__stack__(results)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Bipolar (median-thresholded) Deep Feature Bags & Clips
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class BipolarDeepFeatureBag(Bag):
+    """Median-thresholded bipolar encoding of a :class:`DeepFeatureBag`.
+
+    For each tile, maps its feature vector to ``{-1, +1}^d`` via
+    ``sign(features - median)`` where the median is obtained from a
+    pre-built :class:`DeepFeatureStatsProbe`.
+
+    Also computes a bag-level bipolar feature by averaging the
+    tile-level bipolars and thresholding:
+
+    - ``abs(mean) >= bag_aggregation_threshold`` → ``sign(mean)``
+    - otherwise → ``0``
+
+    This yields a ``{-1, 0, +1}^d`` bag-level signature.
+
+    Topics
+    ------
+    shards
+        MDS shards with per-tile ``tile_bipolar_features`` (int8).
+    bag_bipolar_features
+        Single ``.npz`` with the aggregated bag-level bipolar vector.
+    """
+
+    VERSION = 1
+
+    TOPICFILES = {
+        'bag_bipolar_features': 'bag_bipolar_features.npz',
+    }
+    TOPICS = ['shards']
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        deep_feature_bag: DeepFeatureBag
+        layer: str = 'output'
+        bag_aggregation_threshold: float = 0.5
+
+    def __init__(self, *args, **kwargs):
+        Datablock.__init__(self, *args, **kwargs)
+
+    @property
+    def tilebag(self):
+        """The source TileBag (delegated through the underlying bag)."""
+        return self.cfg.deep_feature_bag.tilebag
+
+    def __len__(self):
+        return len(self.cfg.deep_feature_bag)
+
+    # ── Validity ────────────────────────────────────────────────────
+
+    def validtopic(self, topic=None):
+        if topic == 'shards':
+            return self.fs.exists(
+                os.path.join(self.path('shards'), 'index.json')
+            )
+        return super().validtopic(topic)
+
+    def valid(self, topic=None):
+        if topic is not None:
+            return self.validtopic(topic)
+        return self.validtopics(reduce=True)
+
+    # ── Build ───────────────────────────────────────────────────────
+
+    def __build__(self, median=None):
+        """Build bipolar features for this bag.
+
+        Parameters
+        ----------
+        median : ndarray, optional
+            Per-dimension median vector ``(d,)``.  When ``None``,
+            the median is read from the stats probe referenced
+            in the clip (passed via ``callable_kwargs``).
+        """
+        if median is None:
+            raise ValueError(
+                "median must be provided (via callable_kwargs from the clip)"
+            )
+
+        # 1. Read raw tile features for the target layer.
+        features = self.cfg.deep_feature_bag.layer_features(
+            self.cfg.layer
+        ).numpy()  # (n_tiles, d)
+        n_tiles = features.shape[0]
+
+        # 2. Tile bipolar: sign(features - median) → {-1, +1}^d
+        tile_bipolar = np.sign(features - median).astype(np.int8)
+        # Ensure no zeros from exact-median ties: map 0 → +1
+        tile_bipolar[tile_bipolar == 0] = 1
+
+        # 3. Write tile-level bipolar features as MDS shards.
+        shards_dir = self.path('shards', ensure_dirpath=True)
+        if self.fs.exists(shards_dir) and self.fs.ls(shards_dir):
+            self.fs.rm(shards_dir, recursive=True)
+            self.fs.mkdirs(shards_dir, exist_ok=True)
+
+        columns = {'tile_bipolar_features': 'ndarray:int8'}
+        writer = MDSWriter(
+            out=shards_dir,
+            columns=columns,
+            size_limit=1 << 23,  # 8 MB shard limit
+            exist_ok=True,
+        )
+        try:
+            for i in range(n_tiles):
+                writer.write({'tile_bipolar_features': tile_bipolar[i]})
+        finally:
+            writer.finish()
+
+        # 4. Bag-level bipolar: mean → threshold → {-1, 0, +1}^d
+        tile_bipolar_float = tile_bipolar.astype(np.float32)
+        bag_mean = tile_bipolar_float.mean(axis=0)  # (d,)
+        threshold = self.cfg.bag_aggregation_threshold
+        bag_bipolar = np.where(
+            np.abs(bag_mean) >= threshold,
+            np.sign(bag_mean),
+            0.0,
+        ).astype(np.int8)
+
+        dbx.write_npz(
+            self.path('bag_bipolar_features', ensure_dirpath=True),
+            bag_bipolar_features=bag_bipolar,
+        )
+
+        self.log.verbose(
+            f"Built bipolar features: {n_tiles} tiles, "
+            f"bag bipolar nonzeros: {np.count_nonzero(bag_bipolar)}/{len(bag_bipolar)}"
+        )
+        return self
+
+    # ── Read ────────────────────────────────────────────────────────
+
+    def __read__(self, topic):
+        if topic == 'shards':
+            return self.fs.ls(self.path('shards'))
+        if topic == 'bag_bipolar_features':
+            return dbx.read_npz(
+                self.path('bag_bipolar_features'), 'bag_bipolar_features'
+            )['bag_bipolar_features']
+        raise ValueError(f"Unknown topic: {topic!r}")
+
+    @functools.cached_property
+    def tile_bipolar_features(self):
+        """Tile-level bipolar features ``{-1, +1}^d``, shape ``(n_tiles, d)``."""
+        arrays = list(read_mds_samples(
+            self.path('shards'), column='tile_bipolar_features'
+        ))
+        return np.stack(arrays)
+
+    @functools.cached_property
+    def bag_bipolar_features(self):
+        """Bag-level bipolar features ``{-1, 0, +1}^d``, shape ``(d,)``."""
+        return self.read('bag_bipolar_features')
+
+    def data(self):
+        """Bulk-read all MDS samples as a list of dicts."""
+        return list(read_mds_samples(self.path('shards')))
+
+
+class BipolarDeepFeatureClip(Clip):
+    """Clip of :class:`BipolarDeepFeatureBag` shards built in parallel.
+
+    Takes a :class:`DeepFeatureStatsProbe` as its single CONFIG param,
+    which gives indirect access to the underlying
+    :class:`DeepFeatureClip` (via ``stats_probe.cfg.clip``) and
+    provides the per-dimension median for thresholding.
+
+    Each bag builds its own tile-level and bag-level bipolar features
+    independently, enabling parallel construction via Datastack.
+    """
+
+    v2 = True
+    VERSION = 1
+
+    @dataclass
+    class CONFIG(Datablock.CONFIG):
+        stats_probe: object   # DeepFeatureStatsProbe
+        layer: str = 'output'
+        bag_aggregation_threshold: float = 0.5
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop('v2', None)
+        super().__init__(*args, v2=True, **kwargs)
+
+    @property
+    def feature_clip(self):
+        """The underlying :class:`DeepFeatureClip`."""
+        return self.cfg.stats_probe.cfg.clip
+
+    @property
+    def n_shards(self) -> int:
+        return self.feature_clip.n_shards
+
+    def __shard__(self, idx: int, deep_feature_bag=None):
+        if deep_feature_bag is None:
+            deep_feature_bag = self.feature_clip.bag(idx)
+        return BipolarDeepFeatureBag(
+            url=self.url,
+            spec=dict(
+                deep_feature_bag=dbx.quote(deep_feature_bag),
+                layer=self.cfg.layer,
+                bag_aggregation_threshold=self.cfg.bag_aggregation_threshold,
+            ),
+            tag=deep_feature_bag.tag,
+        )
+
+    class ShardMaker(Clip.ShardMaker):
+        """Build a single bipolar bag shard."""
+        def __call__(self, stack, *, build=True,
+                     deep_feature_bags, median):
+            shard = stack.__shard__(self.idx,
+                                    deep_feature_bag=deep_feature_bags[self.idx])
+            shard.keyby = stack.keyby
+            if build:
+                shard.build(median=median)
+            del shard
+            gc.collect()
+
+    def __split__(self, *args, **kwargs):
+        """Precompute bag list and median; return ShardMakers."""
+        feature_clip = self.feature_clip
+        deep_feature_bags = [
+            feature_clip.bag(idx) for idx in range(self.n_shards)
+        ]
+        # Read the median from the stats probe.
+        median = self.cfg.stats_probe.tile_feature_median
+
+        callable_kwargs = dict(
+            build=True,
+            deep_feature_bags=deep_feature_bags,
+            median=median,
+        )
+        self.log.info(
+            f"Precomputed {self.n_shards} deep feature bags + median; "
+            f"ready for parallel bipolar build"
+        )
+        makers = [self.ShardMaker(idx) for idx in range(self.n_shards)]
+        return makers, callable_kwargs
+
+    def __read__(self, topic=None):
+        if topic == 'bag_lens':
+            return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
+        raise ValueError(f"Unknown topic: {topic!r}")
+
+    def __stack__(self, results=None):
+        """Persist bag_lens after parallel build."""
+        self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
+        bag_lens = [len(self.shard(i)) for i in tqdm(
+            range(self.n_shards), desc="Stacking bipolar bag lens"
+        )]
+        dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
+        self.log.info(f"Build complete: {self.__class__.__name__}")
+        return self
+
+    def valid(self):
+        return self.feature_clip.valid()
