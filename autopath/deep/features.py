@@ -883,7 +883,7 @@ class BipolarDeepFeatureBag(Bag):
         Computed on-the-fly from tile bipolars via mean + threshold.
     """
 
-    VERSION = 2
+    VERSION = 3
 
     TOPICS = ['shards']
 
@@ -892,6 +892,7 @@ class BipolarDeepFeatureBag(Bag):
         deep_feature_bag: DeepFeatureBag
         layer: str = 'output'
         bag_aggregation_threshold: float = 0.5
+        ternarize_tiles: bool = False
 
     def __init__(self, *args, **kwargs):
         Datablock.__init__(self, *args, **kwargs)
@@ -941,7 +942,19 @@ class BipolarDeepFeatureBag(Bag):
         # Ensure no zeros from exact-median ties: map 0 → +1
         tile_bipolar[tile_bipolar == 0] = 1
 
-        # 3. Write tile-level bipolar features as MDS shards.
+        # 3. Optional ternarization: zero out tile dimensions where
+        #    the bag's tiles disagree (bag mean rounds to 0).
+        if self.cfg.ternarize_tiles:
+            bag_mean = tile_bipolar.astype(np.float32).mean(axis=0)  # (d,)
+            uncertain_mask = (np.round(bag_mean).astype(np.int8) == 0)  # (d,)
+            n_uncertain = int(uncertain_mask.sum())
+            tile_bipolar[:, uncertain_mask] = 0
+            self.log.verbose(
+                f"Ternarized tiles: zeroed {n_uncertain}/{tile_bipolar.shape[1]} "
+                f"uncertain dimensions (bag mean ≈ 0)"
+            )
+
+        # 4. Write tile-level bipolar features as MDS shards.
         shards_dir = self.path('shards', ensure_dirpath=True)
         if self.fs.exists(shards_dir) and self.fs.ls(shards_dir):
             self.fs.rm(shards_dir, recursive=True)
@@ -1063,7 +1076,7 @@ class BipolarDeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 3
+    VERSION = 4
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -1071,6 +1084,7 @@ class BipolarDeepFeatureClip(Clip):
         stats_probe: object       # DeepFeatureStatsProbe
         layer: str = 'output'
         bag_aggregation_threshold: float = 0.5
+        ternarize_tiles: bool = False
 
     def __init__(self, *args, **kwargs):
         kwargs.pop('v2', None)
@@ -1094,6 +1108,7 @@ class BipolarDeepFeatureClip(Clip):
                 deep_feature_bag=dbx.quote(deep_feature_bag),
                 layer=self.cfg.layer,
                 bag_aggregation_threshold=self.cfg.bag_aggregation_threshold,
+                ternarize_tiles=self.cfg.ternarize_tiles,
             ),
             tag=deep_feature_bag.tag,
         )
