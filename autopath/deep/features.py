@@ -1092,5 +1092,49 @@ class BipolarDeepFeatureClip(Clip):
         self.log.info(f"Build complete: {self.__class__.__name__}")
         return self
 
+    def dataset(
+        self,
+        *,
+        shuffle: bool = False,
+        skip_invalid_bags: bool = False,
+        batch_size: int | None = None,
+    ) -> Dataset:
+        """Return a unified streaming dataset over all bipolar bags.
+
+        Each sample dict contains ``tile_bipolar_features`` (int8 ndarray).
+
+        Parameters
+        ----------
+        shuffle : bool
+            Whether to shuffle within the streaming dataset.
+        skip_invalid_bags : bool
+            If ``True``, silently skip bags whose MDS shards have not
+            been built yet instead of raising.
+        batch_size : int | None
+            Passed to :class:`StreamingDataset` for deterministic
+            resumption.
+        """
+        streams = []
+        n_skipped = 0
+        for bag in self.bags:
+            if skip_invalid_bags and not bag.valid():
+                n_skipped += 1
+                continue
+            if bag._is_local_fs:
+                streams.append(Stream(local=bag.path('shards')))
+            else:
+                streams.append(Stream(remote=bag.path('shards')))
+
+        if n_skipped:
+            self.log.info(
+                f"Skipped {n_skipped}/{n_skipped + len(streams)} "
+                f"unbuilt bags in {self.__class__.__name__}.dataset()"
+            )
+
+        sd_kwargs = dict(streams=streams, shuffle=shuffle)
+        if batch_size is not None:
+            sd_kwargs['batch_size'] = batch_size
+        return StreamingDataset(**sd_kwargs)
+
     def valid(self):
         return self.validtopics(reduce=True)
