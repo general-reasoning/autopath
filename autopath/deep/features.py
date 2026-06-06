@@ -992,6 +992,26 @@ class BipolarDeepFeatureBag(Bag):
             0.0,
         ).astype(np.int8)
 
+    @contextlib.contextmanager
+    def dataset(self, *, shuffle: bool = False):
+        """Yield a :class:`StreamingDataset` over this bag's MDS shards.
+
+        Use as a context manager to ensure shared-memory file
+        descriptors are released promptly::
+
+            with bag.dataset() as ds:
+                x = ds[0]['tile_bipolar_features']
+        """
+        if self.is_local_fs:
+            ds = StreamingDataset(local=self.path('shards'), shuffle=shuffle)
+        else:
+            ds = StreamingDataset(remote=self.path('shards'), shuffle=shuffle)
+        try:
+            yield ds
+        finally:
+            del ds
+            gc.collect()
+
     def data(self):
         """Bulk-read all MDS samples as a list of dicts."""
         return list(read_mds_samples(self.path('shards')))
@@ -1096,6 +1116,7 @@ class BipolarDeepFeatureClip(Clip):
         self,
         *,
         shuffle: bool = False,
+        include_tiles: bool = False,
         skip_invalid_bags: bool = False,
         batch_size: int | None = None,
     ) -> Dataset:
@@ -1107,6 +1128,9 @@ class BipolarDeepFeatureClip(Clip):
         ----------
         shuffle : bool
             Whether to shuffle within the streaming dataset.
+        include_tiles : bool
+            If ``True``, each sample also contains a ``tile`` field
+            loaded lazily from the source TileBag.
         skip_invalid_bags : bool
             If ``True``, silently skip bags whose MDS shards have not
             been built yet instead of raising.
@@ -1115,7 +1139,10 @@ class BipolarDeepFeatureClip(Clip):
             resumption.
         """
         streams = []
+        bag_lens_list = []
         n_skipped = 0
+        valid_bags = []
+
         for bag in self.bags:
             if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
@@ -1124,6 +1151,8 @@ class BipolarDeepFeatureClip(Clip):
                 streams.append(Stream(local=bag.path('shards')))
             else:
                 streams.append(Stream(remote=bag.path('shards')))
+            valid_bags.append(bag)
+            bag_lens_list.append(len(bag))
 
         if n_skipped:
             self.log.info(
@@ -1134,7 +1163,12 @@ class BipolarDeepFeatureClip(Clip):
         sd_kwargs = dict(streams=streams, shuffle=shuffle)
         if batch_size is not None:
             sd_kwargs['batch_size'] = batch_size
-        return StreamingDataset(**sd_kwargs)
+        base = StreamingDataset(**sd_kwargs)
+
+        if include_tiles:
+            return TileFeatureDataset(base, bag_lens_list, valid_bags)
+
+        return base
 
     def valid(self):
         return self.validtopics(reduce=True)
