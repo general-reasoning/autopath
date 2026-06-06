@@ -1202,7 +1202,7 @@ def bitpath_still(
     n_workers: int = 1,
     parallelization: str | None = None,
     url: str | None = None,
-    logsroot: str | None = os.path.join(os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard'),
+    logsroot: str | None = None,
 ) -> 'BitPathStill':
     """Create a :class:`BitPathStill` for BitNet1.58b distillation.
 
@@ -1279,11 +1279,17 @@ def bitpath_still(
         )
         still.build_tree()
     """
+    import os as _os
     from autopath.stills.bitpath import (
         BitPathDataloaderBuilder,
         BitPathLightning,
         BitPathStill,
     )
+
+    if logsroot is None:
+        logsroot = _os.path.join(
+            _os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard',
+        )
 
     # 1. Build the bipolar clip
     clip = bipolar_deep_feature_clip(
