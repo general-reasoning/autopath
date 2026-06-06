@@ -8,8 +8,10 @@ See ``~/autopath/BITPATH.md`` for architecture documentation.
 """
 import atexit
 from dataclasses import dataclass
+from datetime import datetime
 import functools
 import os
+import re
 
 import torch
 import torch.nn as nn
@@ -503,7 +505,7 @@ class BitPathDataModule(L.LightningDataModule):
 
     def setup(self, stage=None):
         if stage in ('fit', None) and self._train_dl is None:
-            from streaming.base.util import clean_stale_shared_memory
+            from streaming.base.util import clean_stale_shared_memory  # noqa: deferred (heavy torch dep)
             clean_stale_shared_memory()
             self._train_dl = self._builder.dataloader()
             atexit.register(self._cleanup_shm)
@@ -512,7 +514,7 @@ class BitPathDataModule(L.LightningDataModule):
     def _cleanup_shm():
         """Best-effort shared memory cleanup at exit."""
         try:
-            from streaming.base.util import clean_stale_shared_memory
+            from streaming.base.util import clean_stale_shared_memory  # noqa: deferred (heavy torch dep)
             clean_stale_shared_memory()
         except Exception:
             pass
@@ -710,7 +712,7 @@ class BitPathStill(Datablock):
     @staticmethod
     def _ckpt_step(name):
         """Extract the numeric step from a checkpoint filename."""
-        import re
+
         m = re.search(r'step=(?:step=)?(\d+)', name)
         return int(m.group(1)) if m else -1
 
@@ -793,6 +795,7 @@ class BitPathStill(Datablock):
             save_dir=logs_dir,
             default_hp_metric=False,
             name='',
+            version=f"run_{datetime.now().strftime('%Y-%m-%d_%H.%M.%S')}",
         )
         logger.experiment.add_text(
             'BitPathStill: anchorkeypath',
@@ -900,7 +903,6 @@ class BitPathStill(Datablock):
             # Mark training as complete
             marker_path = os.path.join(ckpts_dir, '_COMPLETE')
             with open(marker_path, 'w') as f:
-                from datetime import datetime
                 f.write(datetime.now().isoformat() + '\n')
 
             # Sync to remote storage
