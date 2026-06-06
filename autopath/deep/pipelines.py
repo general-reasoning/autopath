@@ -1153,6 +1153,16 @@ def bipolar_deep_feature_stats_probe(
 ### CPTAC 60/20/20 — BitPath distillation (3 GPUs)
 git commit -am 'deep: BitPathStill: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.bitpath_still( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    max_steps=10000, \
+    ckpt_every_n_steps=1000, \
+    n_devices=3, \
+).build_tree()"
+git commit -am 'deep: BitPathStill: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.bitpath_still( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \

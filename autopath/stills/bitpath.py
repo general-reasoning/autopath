@@ -6,6 +6,7 @@ heavyweight Gigapath ViT backbone at inference time.
 
 See ``~/autopath/BITPATH.md`` for architecture documentation.
 """
+import atexit
 from dataclasses import dataclass
 import functools
 import os
@@ -481,14 +482,43 @@ class BitPathLightning(Datablock):
 
 
 class BitPathDataModule(L.LightningDataModule):
-    """Thin wrapper so the StreamingDataset is created per-DDP-process."""
+    """LightningDataModule for BitPath training.
+
+    Creates the ``StreamingDataset``-backed dataloader lazily in
+    ``setup()`` — called **once per rank** after the DDP process group
+    is already initialised — and caches the result so that repeated
+    calls to ``train_dataloader()`` (e.g. from
+    ``configure_optimizers → estimated_stepping_batches``) never
+    re-create shared-memory segments.
+
+    Stale shared memory from prior crashed runs is cleaned up on entry
+    (via ``streaming.base.util.clean_stale_shared_memory``) and an
+    ``atexit`` handler is registered to clean up on exit.
+    """
 
     def __init__(self, dataloader_builder):
         super().__init__()
         self._builder = dataloader_builder
+        self._train_dl = None
+
+    def setup(self, stage=None):
+        if stage in ('fit', None) and self._train_dl is None:
+            from streaming.base.util import clean_stale_shared_memory
+            clean_stale_shared_memory()
+            self._train_dl = self._builder.dataloader()
+            atexit.register(self._cleanup_shm)
+
+    @staticmethod
+    def _cleanup_shm():
+        """Best-effort shared memory cleanup at exit."""
+        try:
+            from streaming.base.util import clean_stale_shared_memory
+            clean_stale_shared_memory()
+        except Exception:
+            pass
 
     def train_dataloader(self):
-        return self._builder.dataloader()
+        return self._train_dl
 
 
 class BitPathStill(Datablock):
@@ -734,7 +764,6 @@ class BitPathStill(Datablock):
 
     def __build__(self):
         """Run the training loop."""
-        import atexit
 
         logs_dir = self._local_logs_dir
         ckpts_dir = self._local_ckpts_dir
@@ -853,9 +882,6 @@ class BitPathStill(Datablock):
             torch.set_float32_matmul_precision(self.cfg.precision)
 
         try:
-            # Use a LightningDataModule so the StreamingDataset is created
-            # per-DDP-process (inside train_dataloader()), avoiding a
-            # double init_process_group conflict.
             datamodule = BitPathDataModule(self.cfg.dataloader)
 
             model = self.cfg.lightning.lightning_module
