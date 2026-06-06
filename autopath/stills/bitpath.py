@@ -526,20 +526,8 @@ class BitPathStill(Datablock):
         )
         self.save_remote_logs = save_remote_logs
 
-        # Build the dataloader eagerly so we can resolve max_steps %
-        self.dataloader_obj = self.cfg.dataloader.dataloader()
         if isinstance(self.cfg.max_steps, str):
-            if self.cfg.max_steps.endswith('%'):
-                total_n = len(self.dataloader_obj)
-                self.max_steps = int(
-                    total_n * float(self.cfg.max_steps.strip('%')) / 100
-                )
-                self.log.info(
-                    f'Computed max_steps={self.max_steps} '
-                    f'from {self.cfg.max_steps} of {total_n}'
-                )
-            else:
-                self.max_steps = int(self.cfg.max_steps)
+            self.max_steps = int(self.cfg.max_steps.strip('%'))  # resolved in __build__
         else:
             self.max_steps = self.cfg.max_steps
 
@@ -854,6 +842,20 @@ class BitPathStill(Datablock):
             torch.set_float32_matmul_precision(self.cfg.precision)
 
         try:
+            # Build dataloader now (after build_tree has built the clip)
+            dataloader_obj = self.cfg.dataloader.dataloader()
+
+            # Resolve percentage-based max_steps
+            if isinstance(self.cfg.max_steps, str) and self.cfg.max_steps.endswith('%'):
+                total_n = len(dataloader_obj)
+                self.max_steps = int(
+                    total_n * float(self.cfg.max_steps.strip('%')) / 100
+                )
+                self.log.info(
+                    f'Computed max_steps={self.max_steps} '
+                    f'from {self.cfg.max_steps} of {total_n}'
+                )
+
             model = self.cfg.lightning.lightning_module
             ckpt = self.ckpt()
             fit_kwargs = {}
@@ -863,7 +865,7 @@ class BitPathStill(Datablock):
 
             trainer.fit(
                 model=model,
-                train_dataloaders=self.dataloader_obj,
+                train_dataloaders=dataloader_obj,
                 **fit_kwargs,
             )
 
