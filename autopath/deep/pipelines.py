@@ -839,6 +839,8 @@ def bipolar_deep_feature_clip(
     cfg_cls_token_only: bool = False,
     cfg_shard_size: int = 64,
     url: str | None = None,
+    n_workers: int = 1,
+    parallelization: str | None = None,
 ) -> 'BipolarDeepFeatureClip':
     """Create a :class:`BipolarDeepFeatureClip` on a named clip.
 
@@ -873,6 +875,12 @@ def bipolar_deep_feature_clip(
         Forwarded to :func:`gigapath_deep_feature_clip`.
     url : str | None
         Datablock URL.
+    n_workers : int
+        Number of parallel workers for building bipolar bags.
+    parallelization : str | None
+        Parallelization strategy (``'inline'``, ``'multithreading'``,
+        ``'multiprocessing'``).  Defaults to ``'multiprocessing'``
+        when ``n_workers > 1``.
 
     Examples
     --------
@@ -886,6 +894,9 @@ def bipolar_deep_feature_clip(
         bipolar.build_tree()
     """
     from autopath.deep.features import BipolarDeepFeatureClip
+
+    if parallelization is None and n_workers > 1:
+        parallelization = 'multiprocessing'
 
     # The clip whose bags are bipolarized.
     clip = gigapath_deep_feature_clip(
@@ -925,5 +936,8 @@ def bipolar_deep_feature_clip(
             layer=cfg_layer,
             bag_aggregation_threshold=cfg_bag_aggregation_threshold,
         ),
+        n_workers=n_workers,
+        parallelization=parallelization,
     )
+
 
