@@ -880,14 +880,11 @@ class BipolarDeepFeatureBag(Bag):
     shards
         MDS shards with per-tile ``tile_bipolar_features`` (int8).
     bag_bipolar_features
-        Single ``.npz`` with the aggregated bag-level bipolar vector.
+        Computed on-the-fly from tile bipolars via mean + threshold.
     """
 
     VERSION = 1
 
-    TOPICFILES = {
-        'bag_bipolar_features': 'bag_bipolar_features.npz',
-    }
     TOPICS = ['shards']
 
     @dataclass
@@ -928,10 +925,9 @@ class BipolarDeepFeatureBag(Bag):
 
         Parameters
         ----------
-        median : ndarray, optional
-            Per-dimension median vector ``(d,)``.  When ``None``,
-            the median is read from the stats probe referenced
-            in the clip (passed via ``callable_kwargs``).
+        median : ndarray
+            Per-dimension median vector ``(d,)``.  Passed via
+            ``callable_kwargs`` from the clip.
         """
         if median is None:
             raise ValueError(
@@ -968,24 +964,8 @@ class BipolarDeepFeatureBag(Bag):
         finally:
             writer.finish()
 
-        # 4. Bag-level bipolar: mean → threshold → {-1, 0, +1}^d
-        tile_bipolar_float = tile_bipolar.astype(np.float32)
-        bag_mean = tile_bipolar_float.mean(axis=0)  # (d,)
-        threshold = self.cfg.bag_aggregation_threshold
-        bag_bipolar = np.where(
-            np.abs(bag_mean) >= threshold,
-            np.sign(bag_mean),
-            0.0,
-        ).astype(np.int8)
-
-        dbx.write_npz(
-            self.path('bag_bipolar_features', ensure_dirpath=True),
-            bag_bipolar_features=bag_bipolar,
-        )
-
         self.log.verbose(
-            f"Built bipolar features: {n_tiles} tiles, "
-            f"bag bipolar nonzeros: {np.count_nonzero(bag_bipolar)}/{len(bag_bipolar)}"
+            f"Built bipolar features: {n_tiles} tiles, d={tile_bipolar.shape[1]}"
         )
         return self
 
@@ -994,10 +974,6 @@ class BipolarDeepFeatureBag(Bag):
     def __read__(self, topic):
         if topic == 'shards':
             return self.fs.ls(self.path('shards'))
-        if topic == 'bag_bipolar_features':
-            return dbx.read_npz(
-                self.path('bag_bipolar_features'), 'bag_bipolar_features'
-            )['bag_bipolar_features']
         raise ValueError(f"Unknown topic: {topic!r}")
 
     @functools.cached_property
@@ -1011,7 +987,14 @@ class BipolarDeepFeatureBag(Bag):
     @functools.cached_property
     def bag_bipolar_features(self):
         """Bag-level bipolar features ``{-1, 0, +1}^d``, shape ``(d,)``."""
-        return self.read('bag_bipolar_features')
+        tiles = self.tile_bipolar_features.astype(np.float32)
+        bag_mean = tiles.mean(axis=0)
+        threshold = self.cfg.bag_aggregation_threshold
+        return np.where(
+            np.abs(bag_mean) >= threshold,
+            np.sign(bag_mean),
+            0.0,
+        ).astype(np.int8)
 
     def data(self):
         """Bulk-read all MDS samples as a list of dicts."""
