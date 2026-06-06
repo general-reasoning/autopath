@@ -845,3 +845,88 @@ def deep_feature_stats_probe(
             normalize=normalize,
         ),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Bipolar Deep Feature Clip pipeline
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — bipolar features
+git commit -am 'deep: BipolarDeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_bipolar_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
+"""
+def deep_feature_bipolar_clip(
+    name: str,
+    *,
+    layer: str = 'output',
+    bag_aggregation_threshold: float = 0.5,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 64,
+    url: str | None = None,
+) -> 'BipolarDeepFeatureClip':
+    """Create a :class:`BipolarDeepFeatureClip` on a named clip.
+
+    Builds median-thresholded bipolar features (``{-1, +1}^d`` per tile,
+    ``{-1, 0, +1}^d`` per bag) for the specified capture ``layer``.
+    Uses a :class:`DeepFeatureStatsProbe` to obtain the per-dimension
+    median threshold.
+
+    Parameters
+    ----------
+    name : str
+        Named configuration — same values accepted by
+        :func:`gigapath_deep_feature_clip` (e.g.
+        ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
+    layer : str
+        Which capture key to bipolarize (e.g. ``"output"``).
+    bag_aggregation_threshold : float
+        Threshold for bag-level bipolar aggregation.
+        ``abs(mean) >= threshold → sign(mean)``, else ``0``.
+    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+        Forwarded to :func:`gigapath_deep_feature_clip` to identify
+        the underlying clip.
+    cfg_shard_size : int
+        Forwarded to :func:`gigapath_deep_feature_clip`.
+    url : str | None
+        Datablock URL.
+
+    Examples
+    --------
+    ::
+
+        bipolar = deep_feature_bipolar_clip(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            layer='output',
+            cfg_cls_token_only=True,
+        )
+        bipolar.build_tree()
+    """
+    from autopath.deep.features import BipolarDeepFeatureClip
+
+    stats_probe = deep_feature_stats_probe(
+        name,
+        layer=layer,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+        url=url,
+    )
+    return BipolarDeepFeatureClip(
+        url=url,
+        spec=dict(
+            stats_probe=dbx.quote(stats_probe),
+            layer=layer,
+            bag_aggregation_threshold=bag_aggregation_threshold,
+        ),
+    )
