@@ -1076,10 +1076,8 @@ class BipolarDeepFeatureClip(Clip):
 
     class ShardMaker(Clip.ShardMaker):
         """Build a single bipolar bag shard."""
-        def __call__(self, stack, *, build=True,
-                     deep_feature_bags, median):
-            shard = stack.__shard__(self.idx,
-                                    deep_feature_bag=deep_feature_bags[self.idx])
+        def __call__(self, stack, *, build=True, median):
+            shard = stack.__shard__(self.idx)
             shard.keyby = stack.keyby
             if build:
                 shard.build(median=median)
@@ -1087,21 +1085,16 @@ class BipolarDeepFeatureClip(Clip):
             gc.collect()
 
     def __split__(self, *args, **kwargs):
-        """Precompute bag list and median; return ShardMakers."""
-        feature_clip = self.feature_clip
-        deep_feature_bags = [
-            feature_clip.bag(idx) for idx in range(self.n_shards)
-        ]
+        """Precompute median; return ShardMakers."""
         # Read the median from the stats probe.
         median = self.cfg.stats_probe.tile_feature_median
 
         callable_kwargs = dict(
             build=True,
-            deep_feature_bags=deep_feature_bags,
             median=median,
         )
         self.log.info(
-            f"Precomputed {self.n_shards} deep feature bags + median; "
+            f"Precomputed median for {self.n_shards} shards; "
             f"ready for parallel bipolar build"
         )
         makers = [self.ShardMaker(idx) for idx in range(self.n_shards)]
