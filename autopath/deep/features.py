@@ -883,7 +883,7 @@ class BipolarDeepFeatureBag(Bag):
         Computed on-the-fly from tile bipolars via mean + threshold.
     """
 
-    VERSION = 1
+    VERSION = 2
 
     TOPICS = ['shards']
 
@@ -947,7 +947,10 @@ class BipolarDeepFeatureBag(Bag):
             self.fs.rm(shards_dir, recursive=True)
             self.fs.mkdirs(shards_dir, exist_ok=True)
 
-        columns = {'tile_bipolar_features': 'ndarray:int8'}
+        columns = {
+            'tile_bipolar_features': 'ndarray:int8',
+            'tile_index': 'int32',
+        }
         writer = MDSWriter(
             out=shards_dir,
             columns=columns,
@@ -956,7 +959,10 @@ class BipolarDeepFeatureBag(Bag):
         )
         try:
             for i in range(n_tiles):
-                writer.write({'tile_bipolar_features': tile_bipolar[i]})
+                writer.write({
+                    'tile_bipolar_features': tile_bipolar[i],
+                    'tile_index': np.int32(i),
+                })
         finally:
             writer.finish()
 
@@ -1030,7 +1036,7 @@ class BipolarDeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 1
+    VERSION = 2
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
