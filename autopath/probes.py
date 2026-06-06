@@ -289,7 +289,7 @@ class LogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
 
     def __read__(self, topic):
         if topic == 'bag_labels':
-            result = read_npz(self.path('bag_labels'), 'labels')
+            result = read_npz(self.path('bag_labels'), 'labels')['labels']
         elif topic == 'bag_features':
             result = read_tensor(self.path('bag_features'))
         elif topic == 'discretized_bag_features':
@@ -401,7 +401,7 @@ class AffineLogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
 
     def __read__(self, topic):
         if topic == 'bag_labels':
-            result = read_npz(self.path('bag_labels'), 'labels')
+            result = read_npz(self.path('bag_labels'), 'labels')['labels']
         elif topic == 'bag_features':
             result = read_tensor(self.path('bag_features'))
         elif topic == 'evaluation_report':
@@ -411,7 +411,7 @@ class AffineLogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
         elif topic == 'intercept':
             result = read_tensor(self.path('intercept'))
         elif topic == 'classes':
-            result = read_npz(self.path('classes'), 'classes')
+            result = read_npz(self.path('classes'), 'classes')['classes']
         else:
             raise ValueError(f"Unknown topic: {topic}")
         return result

@@ -367,7 +367,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
 
     def __read__(self, topic):
         if topic == 'bag_labels':
-            result = read_npz(self.path('bag_labels'), 'bag_labels')
+            result = read_npz(self.path('bag_labels'), 'bag_labels')['bag_labels']
         elif topic == 'bag_annotations':
             result = read_pickle(self.path('bag_annotations'))
         elif topic == 'bag_features':
@@ -379,7 +379,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
         elif topic == 'intercept':
             result = read_tensor(self.path('intercept'))
         elif topic == 'classes':
-            result = read_npz(self.path('classes'), 'classes')
+            result = read_npz(self.path('classes'), 'classes')['classes']
         else:
             raise ValueError(f"Unknown topic: {topic}")
         return result
@@ -504,35 +504,35 @@ class DeepFeatureStatsProbe(Datablock):
         return self
 
     def __read__(self, topic):
-        return read_npz(self.path(topic), topic)
+        return read_npz(self.path(topic), topic)[topic]
 
     @functools.cached_property
     def tile_count(self):
-        return self.read('tile_count')['tile_count']
+        return self.read('tile_count')
 
     @functools.cached_property
     def tile_feature_mean(self):
-        return self.read('tile_feature_mean')['tile_feature_mean']
+        return self.read('tile_feature_mean')
 
     @functools.cached_property
     def tile_feature_std(self):
-        return self.read('tile_feature_std')['tile_feature_std']
+        return self.read('tile_feature_std')
 
     @functools.cached_property
     def tile_feature_median(self):
-        return self.read('tile_feature_median')['tile_feature_median']
+        return self.read('tile_feature_median')
 
     @functools.cached_property
     def tile_feature_min(self):
-        return self.read('tile_feature_min')['tile_feature_min']
+        return self.read('tile_feature_min')
 
     @functools.cached_property
     def tile_feature_max(self):
-        return self.read('tile_feature_max')['tile_feature_max']
+        return self.read('tile_feature_max')
 
     @functools.cached_property
     def tile_feature_norms(self):
-        return self.read('tile_feature_norms')['tile_feature_norms']
+        return self.read('tile_feature_norms')
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1121,7 +1121,7 @@ class DeepFeatureSpectralProbe(Datablock):
 
     def __read__(self, topic):
         if topic == 'bag_labels':
-            return read_npz(self.path('bag_labels'), 'bag_labels')
+            return read_npz(self.path('bag_labels'), 'bag_labels')['bag_labels']
         elif topic == 'bag_annotations':
             return read_pickle(self.path('bag_annotations'))
         elif topic == 'spectral_results':
