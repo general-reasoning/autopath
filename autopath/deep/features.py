@@ -1026,21 +1026,25 @@ class BipolarDeepFeatureBag(Bag):
 class BipolarDeepFeatureClip(Clip):
     """Clip of :class:`BipolarDeepFeatureBag` shards built in parallel.
 
-    Takes a :class:`DeepFeatureStatsProbe` as its single CONFIG param,
-    which gives indirect access to the underlying
-    :class:`DeepFeatureClip` (via ``stats_probe.cfg.clip``) and
-    provides the per-dimension median for thresholding.
+    CONFIG has two main params:
 
-    Each bag builds its own tile-level and bag-level bipolar features
-    independently, enabling parallel construction via Datastack.
+    * ``clip`` — the :class:`DeepFeatureClip` whose bags are bipolarized.
+    * ``stats_probe`` — a :class:`DeepFeatureStatsProbe` that provides
+      the per-dimension median for thresholding.  This can (and often
+      should) come from a *different* fold (e.g. CALIBRATE) to avoid
+      data leakage.
+
+    Each bag builds its own tile-level bipolar features independently,
+    enabling parallel construction via Datastack.
     """
 
     v2 = True
-    VERSION = 2
+    VERSION = 3
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
-        stats_probe: object   # DeepFeatureStatsProbe
+        clip: object              # DeepFeatureClip
+        stats_probe: object       # DeepFeatureStatsProbe
         layer: str = 'output'
         bag_aggregation_threshold: float = 0.5
 
@@ -1051,7 +1055,7 @@ class BipolarDeepFeatureClip(Clip):
     @property
     def feature_clip(self):
         """The underlying :class:`DeepFeatureClip`."""
-        return self.cfg.stats_probe.cfg.clip
+        return self.cfg.clip
 
     @property
     def n_shards(self) -> int:

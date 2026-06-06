@@ -716,6 +716,7 @@ def deep_feature_affine_logistic_probe(
     )
 
 
+
 # ═══════════════════════════════════════════════════════════════════════
 #  Deep Feature Stats Probe pipeline
 # ═══════════════════════════════════════════════════════════════════════
@@ -724,7 +725,7 @@ def deep_feature_affine_logistic_probe(
 ### CPTAC 60/20/20 — raw features
 git commit -am 'deep: DeepFeatureStatsProbe: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.deep_feature_stats_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
@@ -753,7 +754,7 @@ def deep_feature_stats_probe(
     name : str
         Named configuration — same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
-        ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
+        ``"GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"``).
     cfg_layer : str
         Which capture key to probe (e.g. ``"output"``).
     cfg_normalize : str | None
@@ -775,7 +776,7 @@ def deep_feature_stats_probe(
     ::
 
         stats = deep_feature_stats_probe(
-            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE',
             cfg_layer='output',
             cfg_cls_token_only=True,
         )
@@ -804,24 +805,34 @@ def deep_feature_stats_probe(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Bipolar Deep Feature Clip pipeline
+#  Bipolar deep feature clip
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-### CPTAC 60/20/20 — bipolar features
+### CPTAC 60/20/20 — bipolar features (TRAIN, stats from CALIBRATE)
 git commit -am 'deep: BipolarDeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.deep_feature_bipolar_clip( \
+autopath.deep.pipelines.bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 ).build_tree()"
+
+### CPTAC 60/20/20 — bipolar features (TEST, stats from CALIBRATE)
+git commit -am 'deep: BipolarDeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.bipolar_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
 """
-def deep_feature_bipolar_clip(
+def bipolar_deep_feature_clip(
     name: str,
     *,
     cfg_layer: str = 'output',
     cfg_bag_aggregation_threshold: float = 0.5,
+    cfg_stats_probe_name: str | None = None,
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
@@ -833,8 +844,11 @@ def deep_feature_bipolar_clip(
 
     Builds median-thresholded bipolar features (``{-1, +1}^d`` per tile,
     ``{-1, 0, +1}^d`` per bag) for the specified capture ``layer``.
-    Uses a :class:`DeepFeatureStatsProbe` to obtain the per-dimension
-    median threshold.
+
+    The ``clip`` (which bags to bipolarize) comes from ``name``.
+    The ``stats_probe`` (which provides the median threshold) defaults
+    to the CALIBRATE fold of the same partition to avoid data leakage.
+    Override with ``cfg_stats_probe_name``.
 
     Parameters
     ----------
@@ -847,6 +861,11 @@ def deep_feature_bipolar_clip(
     cfg_bag_aggregation_threshold : float
         Threshold for bag-level bipolar aggregation.
         ``abs(mean) >= threshold → sign(mean)``, else ``0``.
+    cfg_stats_probe_name : str | None
+        Name for the stats probe clip.  Defaults to the CALIBRATE
+        fold of the same partition (e.g.
+        ``"GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"`` for a
+        ``602020`` partition).
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
         Forwarded to :func:`gigapath_deep_feature_clip` to identify
         the underlying clip.
@@ -859,7 +878,7 @@ def deep_feature_bipolar_clip(
     --------
     ::
 
-        bipolar = deep_feature_bipolar_clip(
+        bipolar = bipolar_deep_feature_clip(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
             cfg_layer='output',
             cfg_cls_token_only=True,
@@ -868,8 +887,28 @@ def deep_feature_bipolar_clip(
     """
     from autopath.deep.features import BipolarDeepFeatureClip
 
-    stats_probe = deep_feature_stats_probe(
+    # The clip whose bags are bipolarized.
+    clip = gigapath_deep_feature_clip(
         name,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+        url=url,
+    )
+
+    # Stats probe — default to CALIBRATE fold.
+    if cfg_stats_probe_name is None:
+        # "GIGAPATH_DEEP_CPTAC_602020_TRAIN" → "GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"
+        parts = name.rsplit('_', 1)
+        if len(parts) == 2 and parts[1] in ('TRAIN', 'TEST', 'CALIBRATE'):
+            cfg_stats_probe_name = parts[0] + '_CALIBRATE'
+        else:
+            cfg_stats_probe_name = name
+
+    stats_probe = deep_feature_stats_probe(
+        cfg_stats_probe_name,
         cfg_layer=cfg_layer,
         cfg_capture_blocks=cfg_capture_blocks,
         cfg_capture_layers=cfg_capture_layers,
@@ -881,8 +920,10 @@ def deep_feature_bipolar_clip(
     return BipolarDeepFeatureClip(
         url=url,
         spec=dict(
+            clip=dbx.quote(clip),
             stats_probe=dbx.quote(stats_probe),
             layer=cfg_layer,
             bag_aggregation_threshold=cfg_bag_aggregation_threshold,
         ),
     )
+
