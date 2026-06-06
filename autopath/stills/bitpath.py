@@ -480,6 +480,17 @@ class BitPathLightning(Datablock):
 # ═══════════════════════════════════════════════════════════════════════
 
 
+class BitPathDataModule(L.LightningDataModule):
+    """Thin wrapper so the StreamingDataset is created per-DDP-process."""
+
+    def __init__(self, dataloader_builder):
+        super().__init__()
+        self._builder = dataloader_builder
+
+    def train_dataloader(self):
+        return self._builder.dataloader()
+
+
 class BitPathStill(Datablock):
     """Full training pipeline for BitPath distillation.
 
@@ -842,19 +853,10 @@ class BitPathStill(Datablock):
             torch.set_float32_matmul_precision(self.cfg.precision)
 
         try:
-            # Build dataloader now (after build_tree has built the clip)
-            dataloader_obj = self.cfg.dataloader.dataloader()
-
-            # Resolve percentage-based max_steps
-            if isinstance(self.cfg.max_steps, str) and self.cfg.max_steps.endswith('%'):
-                total_n = len(dataloader_obj)
-                self.max_steps = int(
-                    total_n * float(self.cfg.max_steps.strip('%')) / 100
-                )
-                self.log.info(
-                    f'Computed max_steps={self.max_steps} '
-                    f'from {self.cfg.max_steps} of {total_n}'
-                )
+            # Use a LightningDataModule so the StreamingDataset is created
+            # per-DDP-process (inside train_dataloader()), avoiding a
+            # double init_process_group conflict.
+            datamodule = BitPathDataModule(self.cfg.dataloader)
 
             model = self.cfg.lightning.lightning_module
             ckpt = self.ckpt()
@@ -865,7 +867,7 @@ class BitPathStill(Datablock):
 
             trainer.fit(
                 model=model,
-                train_dataloaders=dataloader_obj,
+                datamodule=datamodule,
                 **fit_kwargs,
             )
 
