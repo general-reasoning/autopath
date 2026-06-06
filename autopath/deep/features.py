@@ -998,6 +998,30 @@ class BipolarDeepFeatureBag(Bag):
             0.0,
         ).astype(np.int8)
 
+    def layer_features(self, layer: str = None):
+        """Read tile-level bipolar features as a float32 tensor.
+
+        Implements the same API as :meth:`DeepFeatureBag.layer_features`
+        so that bipolar bags can be used with
+        :class:`DeepFeatureAffineLogisticProbe` and
+        :class:`DeepFeatureStatsProbe`.
+
+        The ``layer`` argument is accepted for API compatibility but
+        ignored — bipolar bags contain only one feature set.
+
+        Returns
+        -------
+        Tensor
+            Shape ``(n_tiles, d)``, dtype ``float32``.
+        """
+        return torch.from_numpy(
+            self.tile_bipolar_features.astype(np.float32)
+        )
+
+    def annotations(self, i=0) -> dict | None:
+        """Delegate annotations to the underlying :class:`DeepFeatureBag`."""
+        return self.cfg.deep_feature_bag.annotations(i=i)
+
     @contextlib.contextmanager
     def dataset(self, *, shuffle: bool = False):
         """Yield a :class:`StreamingDataset` over this bag's MDS shards.

@@ -943,3 +943,189 @@ def bipolar_deep_feature_clip(
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+#  Bipolar deep feature logistic probe
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — bipolar logistic probe
+git commit -am 'deep: bipolar logistic probe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.bipolar_deep_feature_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
+"""
+def bipolar_deep_feature_logistic_probe(
+    name: str,
+    *,
+    cfg_layer: str = 'output',
+    cfg_annotation_key: str | None = None,
+    cfg_fit_intercept: bool = True,
+    cfg_evaluation_fraction: float = 0.8,
+    cfg_normalize: str | None = None,
+    cfg_bag_aggregation_threshold: float = 0.5,
+    cfg_stats_probe_name: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 64,
+    url: str | None = None,
+) -> 'DeepFeatureAffineLogisticProbe':
+    """Create a :class:`DeepFeatureAffineLogisticProbe` on a bipolar clip.
+
+    Fits a logistic regression classifier on bag-level mean bipolar
+    features for the specified ``layer``.
+
+    Parameters
+    ----------
+    name : str
+        Named configuration (e.g.
+        ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
+    cfg_layer : str
+        Which capture key to bipolarize and probe.
+    cfg_annotation_key : str | None
+        Dotted path into annotations for label extraction.
+    cfg_fit_intercept : bool
+        Whether to fit an intercept in the logistic regression.
+    cfg_evaluation_fraction : float
+        Fraction of bags used for training.
+    cfg_normalize : str | None
+        Feature normalization mode.
+    cfg_bag_aggregation_threshold : float
+        Threshold for bag-level bipolar aggregation.
+    cfg_stats_probe_name : str | None
+        Name for the stats probe clip (defaults to CALIBRATE fold).
+    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+        Forwarded to :func:`bipolar_deep_feature_clip`.
+    cfg_shard_size : int
+        Forwarded to :func:`bipolar_deep_feature_clip`.
+    url : str | None
+        Datablock URL.
+
+    Examples
+    --------
+    ::
+
+        probe = bipolar_deep_feature_logistic_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            cfg_layer='output',
+            cfg_cls_token_only=True,
+        )
+        probe.build_tree()
+    """
+    from autopath.deep.probes import DeepFeatureAffineLogisticProbe
+
+    clip = bipolar_deep_feature_clip(
+        name,
+        cfg_layer=cfg_layer,
+        cfg_bag_aggregation_threshold=cfg_bag_aggregation_threshold,
+        cfg_stats_probe_name=cfg_stats_probe_name,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+        url=url,
+    )
+    return DeepFeatureAffineLogisticProbe(
+        url=url,
+        spec=dict(
+            clip=dbx.quote(clip),
+            layer=cfg_layer,
+            annotation_key=cfg_annotation_key,
+            fit_intercept=cfg_fit_intercept,
+            evaluation_fraction=cfg_evaluation_fraction,
+            normalize=cfg_normalize,
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Bipolar deep feature stats probe
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — bipolar stats probe (TRAIN bags, stats from CALIBRATE)
+git commit -am 'deep: bipolar stats probe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.bipolar_deep_feature_stats_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
+"""
+def bipolar_deep_feature_stats_probe(
+    name: str,
+    *,
+    cfg_layer: str = 'output',
+    cfg_normalize: str | None = None,
+    cfg_bag_aggregation_threshold: float = 0.5,
+    cfg_stats_probe_name: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 64,
+    url: str | None = None,
+) -> 'DeepFeatureStatsProbe':
+    """Create a :class:`DeepFeatureStatsProbe` on a bipolar clip.
+
+    Computes per-dimension tile-level and bag-level statistics on the
+    bipolar features.
+
+    Parameters
+    ----------
+    name : str
+        Named configuration (e.g.
+        ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
+    cfg_layer : str
+        Which capture key was bipolarized.
+    cfg_normalize : str | None
+        Feature normalization mode.
+    cfg_bag_aggregation_threshold : float
+        Threshold for bag-level bipolar aggregation.
+    cfg_stats_probe_name : str | None
+        Name for the stats probe clip (defaults to CALIBRATE fold).
+    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+        Forwarded to :func:`bipolar_deep_feature_clip`.
+    cfg_shard_size : int
+        Forwarded to :func:`bipolar_deep_feature_clip`.
+    url : str | None
+        Datablock URL.
+
+    Examples
+    --------
+    ::
+
+        stats = bipolar_deep_feature_stats_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            cfg_layer='output',
+            cfg_cls_token_only=True,
+        )
+        stats.build_tree()
+    """
+    from autopath.deep.probes import DeepFeatureStatsProbe
+
+    clip = bipolar_deep_feature_clip(
+        name,
+        cfg_layer=cfg_layer,
+        cfg_bag_aggregation_threshold=cfg_bag_aggregation_threshold,
+        cfg_stats_probe_name=cfg_stats_probe_name,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+        url=url,
+    )
+    return DeepFeatureStatsProbe(
+        url=url,
+        spec=dict(
+            clip=dbx.quote(clip),
+            layer=cfg_layer,
+            normalize=cfg_normalize,
+        ),
+    )
