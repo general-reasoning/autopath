@@ -1,0 +1,894 @@
+"""BitPath: BitNet1.58b distillation of Gigapath backbone.
+
+Trains a ternary convolutional network to predict bipolar features
+``{-1, 0, +1}`` directly from raw pathology tiles, bypassing the
+heavyweight Gigapath ViT backbone at inference time.
+
+See ``~/autopath/BITPATH.md`` for architecture documentation.
+"""
+from dataclasses import dataclass
+import functools
+import os
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+import lightning as L
+import lightning.pytorch.loggers
+
+import dbx
+from dbx import Datablock
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitNet 1.58b primitives
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _ste_round(x: torch.Tensor) -> torch.Tensor:
+    """Round with Straight-Through Estimator gradient."""
+    return x + (x.round() - x).detach()
+
+
+def _weight_quant_absmean(w: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    """Absmean ternary quantization of weights → {-1, 0, +1} × α.
+
+    α = mean(|W|)
+    W̃ = round(clip(W / α, -1, +1)) × α
+    """
+    alpha = w.abs().mean() + eps
+    w_scaled = (w / alpha).clamp(-1, 1)
+    w_quant = _ste_round(w_scaled) * alpha
+    return w_quant
+
+
+def _activation_quant_absmax(
+    x: torch.Tensor, bits: int = 8
+) -> torch.Tensor:
+    """Absmax symmetric activation quantization.
+
+    γ = max(|x|)
+    Q_b = 2^(b−1)
+    x̃ = clip(round(x × Q_b / γ), −Q_b+1, Q_b−1)
+    """
+    Qb = 2 ** (bits - 1)
+    gamma = x.abs().max() + 1e-8
+    x_scaled = x * Qb / gamma
+    x_quant = x_scaled.round().clamp(-Qb + 1, Qb - 1)
+    # STE: forward uses quantized, backward flows through
+    return x + (x_quant * gamma / Qb - x).detach()
+
+
+class RMSNorm2d(nn.Module):
+    """RMSNorm for 4-D tensors (B, C, H, W)."""
+
+    def __init__(self, channels: int, eps: float = 1e-8):
+        super().__init__()
+        self.eps = eps
+        self.scale = nn.Parameter(torch.ones(channels))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (B, C, H, W) — normalize over C dimension
+        rms = x.pow(2).mean(dim=1, keepdim=True).add(self.eps).sqrt()
+        return x / rms * self.scale.view(1, -1, 1, 1)
+
+
+class RMSNorm1d(nn.Module):
+    """RMSNorm for 2-D tensors (B, D)."""
+
+    def __init__(self, dim: int, eps: float = 1e-8):
+        super().__init__()
+        self.eps = eps
+        self.scale = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        rms = x.pow(2).mean(dim=-1, keepdim=True).add(self.eps).sqrt()
+        return x / rms * self.scale
+
+
+class BitLinear158(nn.Module):
+    """Linear layer with BitNet 1.58b ternary weight quantization.
+
+    Weights are stored in full precision but quantized to ``{-1, 0, +1}``
+    on every forward pass using *absmean* quantization.  Gradients flow
+    through via the Straight-Through Estimator.
+
+    Activations are optionally quantized to ``activation_bits``-bit
+    symmetric range after RMSNorm.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = False,
+        activation_bits: int = 8,
+    ):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.activation_bits = activation_bits
+        self.weight = nn.Parameter(
+            torch.empty(out_features, in_features)
+        )
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(out_features))
+        else:
+            self.register_parameter('bias', None)
+        self.norm = RMSNorm1d(in_features)
+        nn.init.kaiming_normal_(self.weight)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Normalize and quantize activations
+        x = self.norm(x)
+        x = _activation_quant_absmax(x, self.activation_bits)
+        # Quantize weights
+        w = _weight_quant_absmean(self.weight)
+        return F.linear(x, w, self.bias)
+
+
+class BitConv2d158(nn.Module):
+    """Conv2d with BitNet 1.58b ternary weight quantization.
+
+    A drop-in replacement for ``nn.Conv2d`` where weights are quantized
+    to ``{-1, 0, +1}`` on every forward pass via absmean quantization
+    with STE gradients.
+
+    Activations are normalized with RMSNorm and quantized to
+    ``activation_bits``-bit symmetric range before the convolution.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        padding: int = 1,
+        bias: bool = False,
+        activation_bits: int = 8,
+    ):
+        super().__init__()
+        self.stride = stride
+        self.padding = padding
+        self.activation_bits = activation_bits
+        self.weight = nn.Parameter(
+            torch.empty(out_channels, in_channels, kernel_size, kernel_size)
+        )
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(out_channels))
+        else:
+            self.register_parameter('bias', None)
+        self.norm = RMSNorm2d(in_channels)
+        nn.init.kaiming_normal_(self.weight)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Normalize and quantize activations
+        x = self.norm(x)
+        x = _activation_quant_absmax(x, self.activation_bits)
+        # Quantize weights
+        w = _weight_quant_absmean(self.weight)
+        return F.conv2d(x, w, self.bias, self.stride, self.padding)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitBlock: residual block built from BitConv2d158
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class BitBlock(nn.Module):
+    """Residual block of two BitConv2d158 layers with batch norm + ReLU.
+
+    When ``stride > 1``, the first conv downsamples spatially and
+    a 1×1 projection adapts the shortcut.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        stride: int = 1,
+        activation_bits: int = 8,
+    ):
+        super().__init__()
+        self.conv1 = BitConv2d158(
+            in_channels, out_channels,
+            kernel_size=3, stride=stride, padding=1,
+            activation_bits=activation_bits,
+        )
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = BitConv2d158(
+            out_channels, out_channels,
+            kernel_size=3, stride=1, padding=1,
+            activation_bits=activation_bits,
+        )
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        # Shortcut projection when dimensions change
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels),
+            )
+        else:
+            self.shortcut = nn.Identity()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        identity = self.shortcut(x)
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        return F.relu(out + identity)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitPathNet: full distillation network
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class BitPathNet(nn.Module):
+    """BitNet1.58b convolutional network for Gigapath distillation.
+
+    Input: ``(B, 3, 256, 256)`` RGB tiles.
+    Output: ``(B, n_classes, output_dim)`` logits — ``n_classes`` logits
+    per feature dimension (default 3 × 1536).
+
+    Architecture:
+        Full-precision stem → N BitBlocks (ternary) → GAP → BitLinear158 head
+    """
+
+    def __init__(
+        self,
+        *,
+        n_blocks: int = 6,
+        hidden_channels: int = 128,
+        output_dim: int = 1536,
+        n_classes: int = 3,
+        activation_bits: int = 8,
+    ):
+        super().__init__()
+        self.output_dim = output_dim
+        self.n_classes = n_classes
+
+        # Stem: full-precision conv to lift 3-channel RGB
+        self.stem = nn.Sequential(
+            nn.Conv2d(3, hidden_channels, kernel_size=7, stride=2, padding=3, bias=False),
+            nn.BatchNorm2d(hidden_channels),
+            nn.ReLU(),
+        )
+
+        # BitBlocks with progressive channel doubling
+        blocks = []
+        in_ch = hidden_channels
+        for i in range(n_blocks):
+            # Double channels every 2 blocks, downsample at the same time
+            if i > 0 and i % 2 == 0:
+                out_ch = min(in_ch * 2, 1024)
+                stride = 2
+            else:
+                out_ch = in_ch
+                stride = 1
+            blocks.append(BitBlock(
+                in_ch, out_ch, stride=stride,
+                activation_bits=activation_bits,
+            ))
+            in_ch = out_ch
+        self.blocks = nn.Sequential(*blocks)
+
+        # Head: global average pool → ternary linear
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.head = BitLinear158(
+            in_ch, n_classes * output_dim,
+            activation_bits=activation_bits,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Parameters
+        ----------
+        x : Tensor
+            ``(B, 3, H, W)`` RGB tile images, float32, [0, 255] range.
+
+        Returns
+        -------
+        Tensor
+            ``(B, n_classes, output_dim)`` raw logits.
+        """
+        x = self.stem(x)
+        x = self.blocks(x)
+        x = self.gap(x).flatten(1)       # (B, C_final)
+        x = self.head(x)                  # (B, n_classes * output_dim)
+        return x.view(x.size(0), self.n_classes, self.output_dim)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitPathDataloaderBuilder (Datablock)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class BitPathDataloaderBuilder(Datablock):
+    """Factory that builds a DataLoader from a BipolarDeepFeatureClip.
+
+    CONFIG contains only parameters that affect the training output:
+    batch_size, shuffle, seed, num_workers.
+    """
+
+    @dataclass
+    class CONFIG:
+        clip: object  # BipolarDeepFeatureClip (quoted)
+        batch_size: int = 64
+        shuffle: bool = True
+        seed: int | None = None
+        num_workers: int = 4
+
+    def dataloader(self):
+        """Build and return a DataLoader over the clip's tile+feature dataset."""
+        ds = self.cfg.clip.dataset(
+            include_tiles=True,
+            shuffle=self.cfg.shuffle,
+            batch_size=self.cfg.batch_size,
+        )
+        generator = None
+        if self.cfg.seed is not None:
+            generator = torch.Generator()
+            generator.manual_seed(self.cfg.seed)
+
+        return torch.utils.data.DataLoader(
+            dataset=ds,
+            batch_size=self.cfg.batch_size,
+            num_workers=self.cfg.num_workers,
+            pin_memory=True,
+            generator=generator,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitPathLightning (Datablock)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class BitPathLightning(Datablock):
+    """Lightning module factory for BitPath distillation.
+
+    CONFIG contains only parameters that affect the training output:
+    model architecture, optimizer, and scheduler parameters.
+    """
+
+    @dataclass
+    class CONFIG:
+        # Model architecture
+        n_blocks: int = 6
+        hidden_channels: int = 128
+        output_dim: int = 1536
+        n_classes: int = 3
+        activation_bits: int = 8
+        # Optimizer
+        learning_rate: float = 1e-3
+        weight_decay: float = 0.01
+        # Scheduler
+        scheduler: str = 'cosine'
+
+    class Lightning(L.LightningModule):
+
+        def __init__(
+            self,
+            model: nn.Module,
+            learning_rate: float = 1e-3,
+            weight_decay: float = 0.01,
+            scheduler: str = 'cosine',
+            log: dbx.Logger = None,
+        ):
+            super().__init__()
+            self.model = model
+            self.learning_rate = learning_rate
+            self.weight_decay = weight_decay
+            self.scheduler_name = scheduler
+            self.save_hyperparameters(ignore=['model'])
+            self.log_ = log or dbx.Logger(name='BitPathLightning')
+
+        def training_step(self, batch, batch_idx):
+            # batch is a dict from StreamingDataset
+            tiles = batch['tile']             # (B, H, W, 3) uint8 ndarray
+            targets = batch['tile_bipolar_features']  # (B, D) int8
+
+            # Prepare tiles: (B, H, W, 3) → (B, 3, H, W) float32
+            if tiles.ndim == 4 and tiles.shape[-1] == 3:
+                tiles = tiles.permute(0, 3, 1, 2)
+            tiles = tiles.float()
+
+            # Prepare targets: {-1, 0, +1} → class indices {0, 1, 2}
+            targets = (targets.long() + 1)  # -1→0, 0→1, +1→2
+
+            # Forward: (B, 3, output_dim) logits
+            logits = self.model(tiles)        # (B, n_classes, D)
+
+            # Cross-entropy: reshape to (B*D, n_classes) vs (B*D,)
+            B, C, D = logits.shape
+            loss = F.cross_entropy(
+                logits.permute(0, 2, 1).reshape(-1, C),  # (B*D, C)
+                targets.reshape(-1),                       # (B*D,)
+            )
+
+            # Logging
+            self.logger.experiment.add_scalar('Loss/train', loss, self.global_step)
+
+            with torch.no_grad():
+                preds = logits.argmax(dim=1) - 1  # back to {-1, 0, +1}
+                actual = targets - 1
+                acc = (preds == actual).float().mean()
+                self.logger.experiment.add_scalar('Accuracy/train', acc, self.global_step)
+
+            if torch.isnan(loss) or torch.isinf(loss):
+                self.log_.warning(f'[step {self.global_step}] Loss is {loss.item()}!')
+
+            scheduler = self.lr_schedulers()
+            if scheduler is not None:
+                lr = scheduler.get_last_lr()[0]
+                self.logger.experiment.add_scalar('Learning Rate', lr, self.global_step)
+
+            return loss
+
+        def configure_optimizers(self):
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.learning_rate,
+                weight_decay=self.weight_decay,
+            )
+            stepping_batches = self.trainer.estimated_stepping_batches
+
+            if self.scheduler_name == 'cosine':
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer,
+                    T_max=stepping_batches,
+                    eta_min=1e-6,
+                )
+            elif self.scheduler_name == 'onecyclelr':
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                    optimizer,
+                    max_lr=self.learning_rate,
+                    total_steps=stepping_batches,
+                )
+            else:
+                raise ValueError(f'Unknown scheduler: {self.scheduler_name}')
+
+            return {
+                'optimizer': optimizer,
+                'lr_scheduler': {'scheduler': scheduler, 'interval': 'step'},
+            }
+
+    @functools.cached_property
+    def lightning_module(self):
+        model = BitPathNet(
+            n_blocks=self.cfg.n_blocks,
+            hidden_channels=self.cfg.hidden_channels,
+            output_dim=self.cfg.output_dim,
+            n_classes=self.cfg.n_classes,
+            activation_bits=self.cfg.activation_bits,
+        )
+        return self.Lightning(
+            model=model,
+            learning_rate=self.cfg.learning_rate,
+            weight_decay=self.cfg.weight_decay,
+            scheduler=self.cfg.scheduler,
+            log=self.log,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitPathStill (Datablock)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class BitPathStill(Datablock):
+    """Full training pipeline for BitPath distillation.
+
+    Uses Lightning for training with TensorBoard logging, checkpoint
+    management, and log-directory symlinks for TensorBoard discovery.
+    Follows the ``SteamrollerStill`` pattern from soundworld.
+
+    Logs and checkpoints are written locally first, then synced to
+    remote storage (if the Datablock URL is remote) at the end of
+    training and via an ``atexit`` handler for crash resilience.
+    """
+
+    VERSION = 1
+    TOPICS = ['ckpts', 'logs']
+
+    @dataclass
+    class CONFIG:
+        lightning: BitPathLightning
+        dataloader: BitPathDataloaderBuilder
+        max_epochs: int = 1
+        max_steps: int = 10000
+        log_interval: int = 10
+        gradient_clip_val: float = 1.0
+        gradient_clip_algorithm: str = 'norm'
+        ckpt_every_n_steps: int | None = None
+        precision: str | None = None
+
+    def __init__(
+        self,
+        *args,
+        n_devices: int = 1,
+        devices=None,
+        logsroot: str = None,
+        save_remote_logs: bool = True,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            n_devices=n_devices,
+            devices=devices,
+            logsroot=logsroot,
+            save_remote_logs=save_remote_logs,
+            **kwargs,
+        )
+        self.save_remote_logs = save_remote_logs
+
+        # Build the dataloader eagerly so we can resolve max_steps %
+        self.dataloader_obj = self.cfg.dataloader.dataloader()
+        if isinstance(self.cfg.max_steps, str):
+            if self.cfg.max_steps.endswith('%'):
+                total_n = len(self.dataloader_obj)
+                self.max_steps = int(
+                    total_n * float(self.cfg.max_steps.strip('%')) / 100
+                )
+                self.log.info(
+                    f'Computed max_steps={self.max_steps} '
+                    f'from {self.cfg.max_steps} of {total_n}'
+                )
+            else:
+                self.max_steps = int(self.cfg.max_steps)
+        else:
+            self.max_steps = self.cfg.max_steps
+
+    # -- local working directory -------------------------------------------
+
+    @property
+    def _local_workdir(self):
+        """Local directory for training artifacts (logs, ckpts).
+
+        Uses ``~/autopath/tensorboard/<anchorkey>`` so that TensorBoard
+        can discover the logs locally even when the Datablock URL is
+        remote.
+        """
+        base = os.path.join(
+            os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard',
+        )
+        os.makedirs(base, exist_ok=True)
+        return os.path.join(base, self.anchorkey)
+
+    @property
+    def _local_logs_dir(self):
+        return os.path.join(self._local_workdir, 'logs')
+
+    @property
+    def _local_ckpts_dir(self):
+        return os.path.join(self._local_workdir, 'ckpts')
+
+    # -- remote helpers ----------------------------------------------------
+
+    def _is_remote(self):
+        protocol = (
+            self.fs.protocol
+            if isinstance(self.fs.protocol, str)
+            else self.fs.protocol[0]
+        )
+        return protocol not in ('file', 'local', '')
+
+    def _sync_ckpts_to_remote(self, ckpts_dir):
+        """Upload local checkpoints to remote Datablock storage."""
+        if not self._is_remote():
+            return
+        remote_ckpts = self.dirpath('ckpts', ensure=True)
+        self.log.info(f'Syncing ckpts {ckpts_dir} -> {remote_ckpts}')
+        self.fs.put(ckpts_dir, remote_ckpts, recursive=True)
+
+    def _sync_logs_to_remote(self, logs_dir):
+        """Upload local logs to remote Datablock storage."""
+        if not self._is_remote():
+            return
+        remote_logs = self.dirpath('logs', ensure=True)
+        self.log.info(f'Syncing logs {logs_dir} -> {remote_logs}')
+        self.fs.put(logs_dir, remote_logs, recursive=True)
+
+    def upload(self, topic='logs'):
+        """Upload a local-only topic to remote storage.
+
+        ``'logs'`` and ``'ckpts'`` are written locally first and need
+        explicit upload.  Other topics are a no-op.
+        """
+        if topic == 'logs':
+            self._sync_logs_to_remote(self._local_logs_dir)
+        elif topic == 'ckpts':
+            self._sync_ckpts_to_remote(self._local_ckpts_dir)
+        else:
+            self.log.verbose("upload(%r): no-op (already remote)", topic)
+        return self
+
+    # -- log symlinking ----------------------------------------------------
+
+    @property
+    def _logslink(self):
+        """Symlink target for TensorBoard discovery (or ``None``)."""
+        if self.logsroot is None:
+            return None
+        return os.path.join(self.logsroot, self.tag)
+
+    def linklogs(self):
+        """Create a symlink so TensorBoard discovers the logs directory.
+
+        If the Datablock storage is local, the symlink points directly
+        to ``self.dirpath('logs')``.  If remote, it points to the local
+        proxy directory.
+        """
+        logslink = self._logslink
+        if logslink is None:
+            return self
+
+        if self._is_remote():
+            logs_dir = self._local_logs_dir
+            os.makedirs(logs_dir, exist_ok=True)
+        else:
+            logs_dir = self.dirpath('logs', ensure=True)
+
+        os.makedirs(os.path.dirname(logslink), exist_ok=True)
+
+        if os.path.lexists(logslink):
+            if (
+                os.path.islink(logslink)
+                and os.readlink(logslink) == logs_dir
+            ):
+                return self
+            try:
+                os.remove(logslink)
+            except Exception as e:
+                self.log.warning(
+                    f'Could not remove existing path at {logslink}: {e}'
+                )
+                return self
+        try:
+            os.symlink(logs_dir, logslink)
+            self.log.verbose(f'Linked logs: {logs_dir} -> {logslink}')
+        except Exception as e:
+            self.log.warning(
+                f'Failed to create symlink {logslink} -> {logs_dir}: {e}'
+            )
+        return self
+
+    # -- validity ----------------------------------------------------------
+
+    def valid(self):
+        """Return True when a ``_COMPLETE`` marker is present."""
+        local_marker = os.path.join(self._local_ckpts_dir, '_COMPLETE')
+        if os.path.exists(local_marker):
+            return True
+        # Fall back to remote check
+        try:
+            remote_ckpts = self.dirpath('ckpts')
+            return self.fs.exists(os.path.join(remote_ckpts, '_COMPLETE'))
+        except Exception:
+            return False
+
+    def __pre_build__(self):
+        super().__pre_build__()
+        self.linklogs()
+        return self
+
+    # -- checkpoint helpers ------------------------------------------------
+
+    @staticmethod
+    def _ckpt_step(name):
+        """Extract the numeric step from a checkpoint filename."""
+        import re
+        m = re.search(r'step=(?:step=)?(\d+)', name)
+        return int(m.group(1)) if m else -1
+
+    def ckpt(self):
+        """Return the path to the most recent checkpoint, or None.
+
+        Checks remote storage first (downloads to local if found),
+        then scans local.
+        """
+        ckpts_dir = self._local_ckpts_dir
+        os.makedirs(ckpts_dir, exist_ok=True)
+
+        # 1) Try remote — download the latest ckpt if not already local
+        try:
+            remote_ckpts_dir = self.dirpath('ckpts')
+            remote_files = [
+                f for f in (self.fs.ls(remote_ckpts_dir, detail=False)
+                            if self.fs.exists(remote_ckpts_dir) else [])
+                if f.endswith('.ckpt')
+            ]
+            if remote_files:
+                remote_files.sort(
+                    key=lambda f: self._ckpt_step(os.path.basename(f))
+                )
+                remote_ckpt = remote_files[-1]
+                name = os.path.basename(remote_ckpt)
+                local_path = os.path.join(ckpts_dir, name)
+                if not os.path.exists(local_path):
+                    self.log.info(
+                        'ckpt: downloading %s from remote...', name,
+                    )
+                    self.fs.get(remote_ckpt, local_path)
+        except Exception as e:
+            self.log.verbose(f'ckpt: remote check failed: {e}')
+
+        # 2) Scan local directory for the latest valid checkpoint
+        if not os.path.isdir(ckpts_dir):
+            return None
+
+        candidates = [
+            os.path.join(ckpts_dir, f)
+            for f in os.listdir(ckpts_dir)
+            if f.endswith('.ckpt')
+        ]
+        candidates.sort(
+            key=lambda p: self._ckpt_step(os.path.basename(p))
+        )
+        return candidates[-1] if candidates else None
+
+    # -- build (training) --------------------------------------------------
+
+    def __build__(self):
+        """Run the training loop."""
+        import atexit
+
+        logs_dir = self._local_logs_dir
+        ckpts_dir = self._local_ckpts_dir
+        os.makedirs(logs_dir, exist_ok=True)
+        os.makedirs(ckpts_dir, exist_ok=True)
+
+        # Ensure ckpts AND logs are synced even on interrupt/crash
+        def _atexit_sync():
+            self.log.info('atexit: syncing checkpoints to remote...')
+            try:
+                self._sync_ckpts_to_remote(ckpts_dir)
+            except Exception as e:
+                self.log.warning('atexit: ckpt sync failed: %s', e)
+            if self.save_remote_logs:
+                self.log.info('atexit: syncing logs to remote...')
+                try:
+                    self._sync_logs_to_remote(logs_dir)
+                except Exception as e:
+                    self.log.warning('atexit: log sync failed: %s', e)
+
+        atexit.register(_atexit_sync)
+
+        # Symlink for TensorBoard discovery
+        self.linklogs()
+
+        logger = L.pytorch.loggers.TensorBoardLogger(
+            save_dir=logs_dir,
+            default_hp_metric=False,
+            name='',
+        )
+        logger.experiment.add_text(
+            'BitPathStill: anchorhashpath',
+            f'```python\n{self.anchorhashpath}\n```',
+            global_step=0,
+        )
+        logger.experiment.add_text(
+            'BitPathStill: dfn',
+            f'```python\n{self.dfn}\n```',
+            global_step=0,
+        )
+        logger.experiment.add_text(
+            'path/ckpts', self.dirpath('ckpts'), global_step=0,
+        )
+        logger.experiment.add_text(
+            'path/logs', self.dirpath('logs'), global_step=0,
+        )
+
+        self.log.verbose(f'Building trainer for {self.max_steps} steps')
+
+        kwargs = {}
+        if self.cfg.gradient_clip_val > 0.0:
+            kwargs['gradient_clip_val'] = self.cfg.gradient_clip_val
+            kwargs['gradient_clip_algorithm'] = self.cfg.gradient_clip_algorithm
+
+        # Custom step checkpoint callback with upload-and-free
+        callbacks = []
+        _still = self
+        _ckpts_dir = ckpts_dir
+
+        def _upload_and_free(local_path, filename):
+            """Upload a checkpoint to remote storage and delete local copy."""
+            if not _still._is_remote():
+                return
+            try:
+                remote_ckpts = _still.dirpath('ckpts', ensure=True)
+                remote_path = remote_ckpts.rstrip('/') + '/' + filename
+                _still.fs.put(local_path, remote_path)
+                os.remove(local_path)
+                _still.log.info('Uploaded %s and freed local copy', filename)
+            except Exception as e:
+                _still.log.warning(
+                    'Ckpt upload failed (keeping local): %s', e,
+                )
+
+        if self.cfg.ckpt_every_n_steps is not None:
+            _every_n_steps = self.cfg.ckpt_every_n_steps
+
+            class _StepCheckpoint(L.pytorch.callbacks.Callback):
+                def on_train_batch_end(
+                    self, trainer, pl_module, outputs, batch, batch_idx,
+                ):
+                    step = trainer.global_step
+                    if step == 0 or step % _every_n_steps != 0:
+                        return
+                    epoch = trainer.current_epoch
+                    filename = f'epoch={epoch:03d}-step={step:07d}.ckpt'
+                    local_path = os.path.join(_ckpts_dir, filename)
+                    trainer.save_checkpoint(local_path)
+                    _still.log.info('Saved step checkpoint: %s', filename)
+                    _upload_and_free(local_path, filename)
+
+            callbacks.append(_StepCheckpoint())
+
+        trainer_kwargs = dict(
+            default_root_dir=ckpts_dir,
+            max_epochs=self.cfg.max_epochs,
+            limit_train_batches=self.max_steps,
+            log_every_n_steps=self.cfg.log_interval,
+            callbacks=callbacks,
+            logger=logger,
+            **kwargs,
+        )
+
+        # Multi-GPU support
+        if hasattr(self, 'devices') and self.devices is not None:
+            trainer_kwargs['devices'] = self.devices
+        elif hasattr(self, 'n_devices') and self.n_devices > 1:
+            trainer_kwargs['devices'] = self.n_devices
+            trainer_kwargs['strategy'] = 'ddp'
+
+        trainer = L.pytorch.Trainer(**trainer_kwargs)
+
+        original_precision = torch.get_float32_matmul_precision()
+        if self.cfg.precision is not None:
+            self.log.info(f'Setting precision to {repr(self.cfg.precision)}')
+            torch.set_float32_matmul_precision(self.cfg.precision)
+
+        try:
+            model = self.cfg.lightning.lightning_module
+            ckpt = self.ckpt()
+            fit_kwargs = {}
+            if ckpt is not None:
+                self.log.info(f'Resuming from checkpoint {ckpt}')
+                fit_kwargs['ckpt_path'] = ckpt
+
+            trainer.fit(
+                model=model,
+                train_dataloaders=self.dataloader_obj,
+                **fit_kwargs,
+            )
+
+            # Mark training as complete
+            marker_path = os.path.join(ckpts_dir, '_COMPLETE')
+            with open(marker_path, 'w') as f:
+                from datetime import datetime
+                f.write(datetime.now().isoformat() + '\n')
+
+            # Sync to remote storage
+            self._sync_ckpts_to_remote(ckpts_dir)
+            if self.save_remote_logs:
+                self._sync_logs_to_remote(logs_dir)
+        finally:
+            atexit.unregister(_atexit_sync)
+            try:
+                self._sync_ckpts_to_remote(ckpts_dir)
+            except Exception as e:
+                self.log.warning('finally: ckpt sync failed: %s', e)
+            if self.save_remote_logs:
+                try:
+                    self._sync_logs_to_remote(logs_dir)
+                except Exception as e:
+                    self.log.warning('finally: log sync failed: %s', e)
+            torch.set_float32_matmul_precision(original_precision)
+
+        return self
+

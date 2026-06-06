@@ -26,6 +26,7 @@ setuptools.setup(
     ],
     entry_points={'console_scripts': [
         'autopath.builddocs=autopath.builddocs:main',
+        'autopath.tensorboard=autopath.tensorboard:main',
     ]},
     python_requires='>=3.12',
     install_requires=get_requirements(),
