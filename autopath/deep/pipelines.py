@@ -944,20 +944,20 @@ def bipolar_deep_feature_clip(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Bipolar deep feature logistic probe
+#  Bipolar deep feature affine logistic probe
 # ═══════════════════════════════════════════════════════════════════════
 
 """
 ### CPTAC 60/20/20 — bipolar logistic probe
 git commit -am 'deep: bipolar logistic probe: BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.bipolar_deep_feature_logistic_probe( \
+autopath.deep.pipelines.bipolar_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 ).build_tree()"
 git commit -am 'deep: bipolar logistic probe: BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.bipolar_deep_feature_logistic_probe( \
+autopath.deep.pipelines.bipolar_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
@@ -965,7 +965,7 @@ autopath.deep.pipelines.bipolar_deep_feature_logistic_probe( \
     cfg_normalize='l2', \
 ).build_tree()"
 """
-def bipolar_deep_feature_logistic_probe(
+def bipolar_deep_feature_affine_logistic_probe(
     name: str,
     *,
     cfg_layer: str = 'output',
@@ -1017,7 +1017,7 @@ def bipolar_deep_feature_logistic_probe(
     --------
     ::
 
-        probe = bipolar_deep_feature_logistic_probe(
+        probe = bipolar_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
             cfg_layer='output',
             cfg_cls_token_only=True,
