@@ -344,7 +344,26 @@ class BitPathDataloaderBuilder(Datablock):
             num_workers=self.cfg.num_workers,
             pin_memory=True,
             generator=generator,
+            worker_init_fn=self._worker_init,
         )
+
+    @staticmethod
+    def _worker_init(_worker_id):
+        """Tear down inherited NCCL state in DataLoader workers.
+
+        Workers are forked subprocesses that inherit the parent's
+        ``torch.distributed`` process-group handle.  Per-tile
+        ``StreamingDataset`` instances call ``dist.barrier()`` inside
+        ``get_shm_prefix``, which fails because NCCL cannot be used
+        from the fork.  Destroying the group and hiding the DDP env
+        vars makes streaming treat the worker as a single-rank job.
+        """
+        import torch.distributed as _dist
+        if _dist.is_available() and _dist.is_initialized():
+            _dist.destroy_process_group()
+        for k in ('RANK', 'WORLD_SIZE', 'LOCAL_RANK', 'LOCAL_WORLD_SIZE',
+                  'MASTER_ADDR', 'MASTER_PORT'):
+            os.environ.pop(k, None)
 
 
 # ═══════════════════════════════════════════════════════════════════════
