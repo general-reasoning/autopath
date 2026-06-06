@@ -826,6 +826,7 @@ autopath.deep.pipelines.bipolar_deep_feature_clip( \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
+    n_workers=8,\
 ).build_tree()"
 """
 def bipolar_deep_feature_clip(
