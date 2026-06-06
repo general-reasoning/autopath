@@ -758,3 +758,90 @@ def deep_feature_affine_logistic_probe(
             normalize=normalize,
         ),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Deep Feature Stats Probe pipeline
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — raw features
+git commit -am 'deep: DeepFeatureStatsProbe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.deep_feature_stats_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
+"""
+def deep_feature_stats_probe(
+    name: str,
+    *,
+    layer: str = 'output',
+    normalize: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 64,
+    url: str | None = None,
+) -> 'DeepFeatureStatsProbe':
+    """Create a :class:`DeepFeatureStatsProbe` on a named clip.
+
+    Computes per-dimension tile-level and bag-level statistics
+    (mean, std, median, min, max, L2 norms, distinct counts) for
+    the specified capture ``layer``.
+
+    Parameters
+    ----------
+    name : str
+        Named configuration — same values accepted by
+        :func:`gigapath_deep_feature_clip` (e.g.
+        ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
+    layer : str
+        Which capture key to probe (e.g. ``"output"``).
+    normalize : str | None
+        Feature normalization mode:
+        ``None`` — raw features,
+        ``'l2'`` — L2-normalise,
+        ``'corner-l1'`` / ``'corner-l2'`` — snap to {-1,+1}^d,
+        ``'corner-linfty'`` — axis-aligned vertex.
+    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+        Forwarded to :func:`gigapath_deep_feature_clip` to identify
+        the underlying clip.
+    cfg_shard_size : int
+        Forwarded to :func:`gigapath_deep_feature_clip`.
+    url : str | None
+        Datablock URL.
+
+    Examples
+    --------
+    ::
+
+        stats = deep_feature_stats_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            layer='output',
+            cfg_cls_token_only=True,
+        )
+        stats.build()
+        print(stats.tile_feature_mean)
+    """
+    from autopath.deep.probes import DeepFeatureStatsProbe
+
+    clip = gigapath_deep_feature_clip(
+        name,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+        url=url,
+    )
+    return DeepFeatureStatsProbe(
+        url=url,
+        spec=dict(
+            clip=dbx.quote(clip),
+            layer=layer,
+            normalize=normalize,
+        ),
+    )
