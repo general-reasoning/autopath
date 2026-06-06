@@ -10,6 +10,7 @@ import atexit
 from dataclasses import dataclass
 from datetime import datetime
 import functools
+import glob
 import os
 import re
 
@@ -493,9 +494,12 @@ class BitPathDataModule(L.LightningDataModule):
     ``configure_optimizers → estimated_stepping_batches``) never
     re-create shared-memory segments.
 
-    Stale shared memory from prior crashed runs is cleaned up on entry
-    (via ``streaming.base.util.clean_stale_shared_memory``) and an
-    ``atexit`` handler is registered to clean up on exit.
+    Lightning's ``SubprocessScriptLauncher`` sets ``LOCAL_RANK`` and
+    ``WORLD_SIZE`` but omits ``RANK`` and ``LOCAL_WORLD_SIZE``.
+    MosaicML streaming reads those from env vars, so without the
+    patch every rank computes ``is_local_leader=True`` and they race
+    to create the shared-memory segment (mosaicml/streaming#717).
+    ``setup()`` fills in the missing vars from the trainer.
     """
 
     def __init__(self, dataloader_builder):
@@ -505,19 +509,32 @@ class BitPathDataModule(L.LightningDataModule):
 
     def setup(self, stage=None):
         if stage in ('fit', None) and self._train_dl is None:
-            from streaming.base.util import clean_stale_shared_memory  # noqa: deferred (heavy torch dep)
-            clean_stale_shared_memory()
+            # MosaicML streaming reads rank topology from env vars
+            # (RANK, LOCAL_WORLD_SIZE) — not torch.distributed.  Lightning's
+            # SubprocessScriptLauncher sets LOCAL_RANK and WORLD_SIZE but
+            # omits RANK and LOCAL_WORLD_SIZE, so every rank computes
+            # is_local_leader=True and they all race to create the shared
+            # memory segment (mosaicml/streaming#717).  Patch env from the
+            # trainer, which *does* know the correct topology.
+            if self.trainer is not None:
+                os.environ.setdefault('RANK', str(self.trainer.global_rank))
+                os.environ.setdefault('LOCAL_WORLD_SIZE',
+                                      str(self.trainer.num_devices))
+            self._purge_shm()
             self._train_dl = self._builder.dataloader()
-            atexit.register(self._cleanup_shm)
+            atexit.register(self._purge_shm)
 
     @staticmethod
-    def _cleanup_shm():
-        """Best-effort shared memory cleanup at exit."""
-        try:
-            from streaming.base.util import clean_stale_shared_memory  # noqa: deferred (heavy torch dep)
-            clean_stale_shared_memory()
-        except Exception:
-            pass
+    def _purge_shm():
+        """Remove MosaicML streaming shared-memory files from /dev/shm.
+
+        Best-effort cleanup of segments left by crashed runs.
+        """
+        for f in glob.glob('/dev/shm/[0-9][0-9][0-9][0-9][0-9][0-9]_*'):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
 
     def train_dataloader(self):
         return self._train_dl
