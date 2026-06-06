@@ -920,7 +920,7 @@ class BipolarDeepFeatureBag(Bag):
 
     # ── Build ───────────────────────────────────────────────────────
 
-    def __build__(self, median=None):
+    def __build__(self, median):
         """Build bipolar features for this bag.
 
         Parameters
@@ -929,10 +929,6 @@ class BipolarDeepFeatureBag(Bag):
             Per-dimension median vector ``(d,)``.  Passed via
             ``callable_kwargs`` from the clip.
         """
-        if median is None:
-            raise ValueError(
-                "median must be provided (via callable_kwargs from the clip)"
-            )
 
         # 1. Read raw tile features for the target layer.
         features = self.cfg.deep_feature_bag.layer_features(

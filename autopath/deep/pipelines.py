@@ -582,82 +582,43 @@ git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprin
 autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-).build_tree()"
+### CPTAC 60/20/20 — no normalization
 git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
-    layer='output', \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 ).build_tree()"
-git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-).build_tree()"
+
 ### CPTAC 60/20/20 — L2-normalised features
 git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    layer='output', \
+    cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    normalize='l2', \
+    cfg_normalize='l2', \
 ).build_tree()"
-git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
-    layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    normalize='l2', \
-).build_tree()"
-git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    normalize='l2', \
-).build_tree()"
+
 ### CPTAC 60/20/20 — corner-linfty features
 git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    layer='output', \
+    cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    normalize='corner-linfty', \
-).build_tree()"
-git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
-    layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    normalize='corner-linfty', \
-).build_tree()"
-git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    normalize='corner-linfty', \
+    cfg_normalize='corner-linfty', \
 ).build_tree()"
 """
 def deep_feature_affine_logistic_probe(
     name: str,
     *,
-    layer: str = 'output',
-    annotation_key: str | None = None,
-    fit_intercept: bool = True,
-    evaluation_fraction: float = 0.8,
-    normalize: str | None = None,
+    cfg_layer: str = 'output',
+    cfg_annotation_key: str | None = None,
+    cfg_fit_intercept: bool = True,
+    cfg_evaluation_fraction: float = 0.8,
+    cfg_normalize: str | None = None,
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
@@ -677,18 +638,18 @@ def deep_feature_affine_logistic_probe(
         Named configuration — same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
-    layer : str
+    cfg_layer : str
         Which capture key to probe (e.g. ``"output"``,
         ``"B_0_norm1"``).
-    annotation_key : str | None
+    cfg_annotation_key : str | None
         Dotted path into the annotation dict for label extraction
         (e.g. ``"cohort"``).  ``None`` falls back to
         ``tilebag.label``.
-    fit_intercept : bool
+    cfg_fit_intercept : bool
         Whether to fit an intercept term in the logistic regression.
-    evaluation_fraction : float
+    cfg_evaluation_fraction : float
         Fraction of bags used for training (rest for evaluation).
-    normalize : str | None
+    cfg_normalize : str | None
         Feature normalization mode:
         ``None`` — raw features,
         ``'l2'`` — L2-normalise,
@@ -708,7 +669,7 @@ def deep_feature_affine_logistic_probe(
 
         probe = deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            layer='output',
+            cfg_layer='output',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
         )
@@ -718,10 +679,10 @@ def deep_feature_affine_logistic_probe(
 
         probe = deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            layer='output',
+            cfg_layer='output',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
-            normalize='l2',
+            cfg_normalize='l2',
         )
         probe.build()
 
@@ -729,10 +690,10 @@ def deep_feature_affine_logistic_probe(
 
         probe = deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            layer='output',
+            cfg_layer='output',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
-            normalize='corner-linfty',
+            cfg_normalize='corner-linfty',
         )
         probe.build()
     """
@@ -751,11 +712,11 @@ def deep_feature_affine_logistic_probe(
         url=url,
         spec=dict(
             clip=dbx.quote(clip),
-            layer=layer,
-            annotation_key=annotation_key,
-            fit_intercept=fit_intercept,
-            evaluation_fraction=evaluation_fraction,
-            normalize=normalize,
+            layer=cfg_layer,
+            annotation_key=cfg_annotation_key,
+            fit_intercept=cfg_fit_intercept,
+            evaluation_fraction=cfg_evaluation_fraction,
+            normalize=cfg_normalize,
         ),
     )
 
@@ -777,8 +738,8 @@ autopath.deep.pipelines.deep_feature_stats_probe( \
 def deep_feature_stats_probe(
     name: str,
     *,
-    layer: str = 'output',
-    normalize: str | None = None,
+    cfg_layer: str = 'output',
+    cfg_normalize: str | None = None,
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
@@ -798,9 +759,9 @@ def deep_feature_stats_probe(
         Named configuration — same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
-    layer : str
+    cfg_layer : str
         Which capture key to probe (e.g. ``"output"``).
-    normalize : str | None
+    cfg_normalize : str | None
         Feature normalization mode:
         ``None`` — raw features,
         ``'l2'`` — L2-normalise,
@@ -820,7 +781,7 @@ def deep_feature_stats_probe(
 
         stats = deep_feature_stats_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            layer='output',
+            cfg_layer='output',
             cfg_cls_token_only=True,
         )
         stats.build()
@@ -841,8 +802,8 @@ def deep_feature_stats_probe(
         url=url,
         spec=dict(
             clip=dbx.quote(clip),
-            layer=layer,
-            normalize=normalize,
+            layer=cfg_layer,
+            normalize=cfg_normalize,
         ),
     )
 
@@ -864,8 +825,8 @@ autopath.deep.pipelines.deep_feature_bipolar_clip( \
 def deep_feature_bipolar_clip(
     name: str,
     *,
-    layer: str = 'output',
-    bag_aggregation_threshold: float = 0.5,
+    cfg_layer: str = 'output',
+    cfg_bag_aggregation_threshold: float = 0.5,
     cfg_capture_blocks: list | None = None,
     cfg_capture_layers: list | None = None,
     cfg_capture_outputs: bool = True,
@@ -886,9 +847,9 @@ def deep_feature_bipolar_clip(
         Named configuration — same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
-    layer : str
+    cfg_layer : str
         Which capture key to bipolarize (e.g. ``"output"``).
-    bag_aggregation_threshold : float
+    cfg_bag_aggregation_threshold : float
         Threshold for bag-level bipolar aggregation.
         ``abs(mean) >= threshold → sign(mean)``, else ``0``.
     cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
@@ -905,7 +866,7 @@ def deep_feature_bipolar_clip(
 
         bipolar = deep_feature_bipolar_clip(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            layer='output',
+            cfg_layer='output',
             cfg_cls_token_only=True,
         )
         bipolar.build_tree()
@@ -914,7 +875,7 @@ def deep_feature_bipolar_clip(
 
     stats_probe = deep_feature_stats_probe(
         name,
-        layer=layer,
+        cfg_layer=cfg_layer,
         cfg_capture_blocks=cfg_capture_blocks,
         cfg_capture_layers=cfg_capture_layers,
         cfg_capture_outputs=cfg_capture_outputs,
@@ -926,7 +887,7 @@ def deep_feature_bipolar_clip(
         url=url,
         spec=dict(
             stats_probe=dbx.quote(stats_probe),
-            layer=layer,
-            bag_aggregation_threshold=bag_aggregation_threshold,
+            layer=cfg_layer,
+            bag_aggregation_threshold=cfg_bag_aggregation_threshold,
         ),
     )
