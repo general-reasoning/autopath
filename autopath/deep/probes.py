@@ -384,6 +384,24 @@ class DeepFeatureAffineLogisticProbe(Datablock):
             raise ValueError(f"Unknown topic: {topic}")
         return result
 
+    def asphericity(self):
+        """Per-class ratio ``‖intercept‖ / ‖coef‖``.
+
+        A small ratio means the linear decision boundary nearly passes
+        through the origin, indicating the feature cloud is roughly
+        centred — consistent with an isotropic latent space.
+
+        Returns
+        -------
+        dict
+            ``{class_label: ratio}`` for each class.
+        """
+        coef = self.read('coef')            # (n_classes, n_features)
+        intercept = self.read('intercept')  # (n_classes,)
+        classes = self.read('classes')      # (n_classes,)
+        coef_norms = coef.norm(dim=1)       # (n_classes,)
+        ratios = intercept.abs() / coef_norms
+        return {str(c): float(r) for c, r in zip(classes, ratios)}
 
 # ═══════════════════════════════════════════════════════════════════════
 #  Deep Feature Stats Probe
