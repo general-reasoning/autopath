@@ -298,10 +298,10 @@ class DeepFeatureBag(Bag):
         return torch.from_numpy(np.stack(arrays))
 
     def annotations(self, i=0) -> dict | None:
-        """Read the annotation dict from MDS sample *i*.
+        """Read the annotation dict from the source tilebag's MDS sample *i*.
 
-        Uses :class:`MDSReader` (plain file I/O) rather than
-        :class:`StreamingDataset`.
+        Annotations are stored in the tile dataset, not the feature
+        dataset.  This method delegates to the tilebag's MDS shards.
 
         Parameters
         ----------
@@ -315,7 +315,7 @@ class DeepFeatureBag(Bag):
             column exists or the value is ``None``.
         """
         try:
-            for reader in mds_readers(self.path('shards')):
+            for reader in mds_readers(self.tilebag.path('shards')):
                 if i < len(reader):
                     sample = reader.get_item(i)
                     return sample.get('annotations')
