@@ -54,7 +54,7 @@ class DeepFeatureBag(Bag):
         ``fs.ls`` listing of the shards directory.
     """
 
-    VERSION = 8
+    VERSION = 7  # bump to 8 when rebuilding with tile_index + bag_name
 
     TOPICS = ['shards']
 

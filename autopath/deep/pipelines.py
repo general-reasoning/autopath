@@ -1274,13 +1274,13 @@ def gigapath_validate_tile_feature_zip(
 """
 ### Diagnostic: batch-size invariance of DeepFeatureClip
 git commit -am 'deep: verify batchsize' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.gigapath_verify_deep_feature_clip_batchsize( \
+autopath.deep.pipelines.gigapath_probe_deep_feature_clip_batchsize_effect( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 )"
 """
-def gigapath_verify_deep_feature_clip_batchsize(
+def gigapath_probe_deep_feature_clip_batchsize_effect(
     name: str,
     *,
     url: str | None = None,
