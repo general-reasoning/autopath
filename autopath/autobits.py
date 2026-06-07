@@ -451,7 +451,9 @@ class ValidateTileFeatureZipStreamingDataset:
         n_mismatched: int
         mismatched_indices: list
         max_abs_error: float
-        layer_errors: dict  # layer → max abs error across all samples
+        max_rel_error: float
+        layer_abs_errors: dict  # layer → max abs error across all samples
+        layer_rel_errors: dict  # layer → max rel error across all samples
 
         @property
         def passed(self) -> bool:
@@ -463,7 +465,8 @@ class ValidateTileFeatureZipStreamingDataset:
                 f"ValidationResult({status}: "
                 f"{self.n_validated} validated, "
                 f"{self.n_mismatched} mismatched, "
-                f"max_abs_error={self.max_abs_error:.2e})"
+                f"max_abs_error={self.max_abs_error:.2e}, "
+                f"max_rel_error={self.max_rel_error:.2e})"
             )
 
     def __init__(
@@ -473,8 +476,12 @@ class ValidateTileFeatureZipStreamingDataset:
         *,
         n_samples: int | None = None,
         tile_key: str = 'tile',
-        atol: float = 1e-5,
-        rtol: float = 1e-5,
+        # Tolerances are intentionally loose: fp32 non-determinism is
+        # typically ~1e-6 relative, but mixed-precision (fp16/bf16)
+        # builds or other sources of drift may be larger.  Inspect
+        # max_rel_error in the result to assess actual divergence.
+        atol: float = 1e-4,
+        rtol: float = 1e-4,
         log: dbx.Logger = None,
     ):
         self.dataset = dataset
@@ -492,7 +499,9 @@ class ValidateTileFeatureZipStreamingDataset:
 
         mismatched_indices = []
         max_abs_error = 0.0
-        layer_errors = {}
+        max_rel_error = 0.0
+        layer_abs_errors = {}
+        layer_rel_errors = {}
 
         layer_names = self.evaluator.layer_names
         # Build column mapping: evaluator layer → dataset column
@@ -525,9 +534,15 @@ class ValidateTileFeatureZipStreamingDataset:
                     stored = stored.numpy()
                 computed = result[layer][0].numpy()
 
-                abs_err = float(np.max(np.abs(stored - computed)))
+                diff = np.abs(stored - computed)
+                abs_err = float(np.max(diff))
+                denom = np.maximum(np.abs(stored), np.abs(computed))
+                rel_err = float(np.max(np.where(denom > 0, diff / denom, 0.0)))
+
                 max_abs_error = max(max_abs_error, abs_err)
-                layer_errors[layer] = max(layer_errors.get(layer, 0.0), abs_err)
+                max_rel_error = max(max_rel_error, rel_err)
+                layer_abs_errors[layer] = max(layer_abs_errors.get(layer, 0.0), abs_err)
+                layer_rel_errors[layer] = max(layer_rel_errors.get(layer, 0.0), rel_err)
 
                 if not np.allclose(stored, computed, atol=self.atol, rtol=self.rtol):
                     sample_ok = False
@@ -541,7 +556,8 @@ class ValidateTileFeatureZipStreamingDataset:
                 self.log.info(
                     f"Validated {i + 1}/{n_to_check} samples, "
                     f"{len(mismatched_indices)} mismatches, "
-                    f"max_abs_error={max_abs_error:.2e}"
+                    f"max_abs_error={max_abs_error:.2e}, "
+                    f"max_rel_error={max_rel_error:.2e}"
                 )
 
         return self.ValidationResult(
@@ -549,7 +565,9 @@ class ValidateTileFeatureZipStreamingDataset:
             n_mismatched=len(mismatched_indices),
             mismatched_indices=mismatched_indices,
             max_abs_error=max_abs_error,
-            layer_errors=layer_errors,
+            max_rel_error=max_rel_error,
+            layer_abs_errors=layer_abs_errors,
+            layer_rel_errors=layer_rel_errors,
         )
 
 

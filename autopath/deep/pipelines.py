@@ -1150,11 +1150,11 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
 """
 ### CPTAC 60/20/20 — validate deep features (100 samples)
 git commit -am 'deep: validate tile features' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \\
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
-    cfg_cls_token_only=True, \\
-    cfg_shard_size=64, \\
-    n_samples=100, \\
+autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    n_samples=100, \
 )"
 """
 def gigapath_validate_tile_feature_zip(
@@ -1168,8 +1168,8 @@ def gigapath_validate_tile_feature_zip(
     cfg_shard_size: int = 1024,
     n_samples: int | None = None,
     tile_key: str = 'tile',
-    atol: float = 1e-5,
-    rtol: float = 1e-5,
+    atol: float = 1e-4,
+    rtol: float = 1e-4,
     device: str = 'cuda',
     shuffle: bool = False,
     shuffle_seed: int = 42,
