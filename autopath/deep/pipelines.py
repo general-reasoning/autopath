@@ -1156,6 +1156,15 @@ autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \
     cfg_shard_size=64, \
     n_samples=100, \
 )"
+### CPTAC 60/20/20 — validate using TFRecord tiles (bypass MDS round-trip)
+git commit -am 'deep: validate tile features' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    n_samples=100, \
+    tile_source='tfrecord', \
+)"
 """
 def gigapath_validate_tile_feature_zip(
     name: str,
@@ -1168,6 +1177,7 @@ def gigapath_validate_tile_feature_zip(
     cfg_shard_size: int = 1024,
     n_samples: int | None = None,
     tile_key: str = 'tile',
+    tile_source: str = 'dataset',
     atol: float = 1e-4,
     rtol: float = 1e-4,
     device: str = 'cuda',
@@ -1190,6 +1200,14 @@ def gigapath_validate_tile_feature_zip(
         Forwarded to :func:`gigapath_deep_feature_clip`.
     n_samples : int | None
         Maximum number of samples to validate.  ``None`` validates all.
+    tile_source : str
+        Where to read tiles for recomputation.
+
+        * ``'dataset'`` (default) — from the MDS tile
+          :class:`StreamingDataset` (round-tripped through MDS).
+        * ``'tfrecord'`` — directly from the source TFRecords, the
+          same path the build uses.  Useful for isolating whether the
+          MDS tile round-trip introduces numerical discrepancies.
     atol, rtol : float
         Tolerances for ``np.allclose``.
     device : str
@@ -1244,6 +1262,8 @@ def gigapath_validate_tile_feature_zip(
         ds, evaluator,
         n_samples=n_samples,
         tile_key=tile_key,
+        tile_source=tile_source,
+        tilebagclip=clip.cfg.tilebagclip,
         atol=atol,
         rtol=rtol,
     )

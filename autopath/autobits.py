@@ -424,6 +424,16 @@ class ValidateTileFeatureZipStreamingDataset:
         Maximum number of samples to validate.  ``None`` validates all.
     tile_key : str
         Key for the tile column in the dataset.
+    tile_source : str
+        Where to read tiles for recomputation.
+
+        * ``'dataset'`` (default) — from ``sample[tile_key]``.
+        * ``'tfrecord'`` — from the source TFRecords via
+          ``bag_name`` + ``tile_index`` metadata in each sample.
+          Requires ``tilebagclip``.
+    tilebagclip : Clip | None
+        The source tile clip, required when ``tile_source='tfrecord'``.
+        Bags are indexed by name and tiles loaded lazily.
     atol : float
         Absolute tolerance for ``np.allclose``.
     rtol : float
@@ -451,7 +461,9 @@ class ValidateTileFeatureZipStreamingDataset:
         n_mismatched: int
         mismatched_indices: list
         max_abs_error: float
+        mean_abs_error: float
         max_rel_error: float
+        mean_rel_error: float
         layer_abs_errors: dict  # layer → max abs error across all samples
         layer_rel_errors: dict  # layer → max rel error across all samples
 
@@ -466,7 +478,9 @@ class ValidateTileFeatureZipStreamingDataset:
                 f"{self.n_validated} validated, "
                 f"{self.n_mismatched} mismatched, "
                 f"max_abs_error={self.max_abs_error:.2e}, "
-                f"max_rel_error={self.max_rel_error:.2e})"
+                f"mean_abs_error={self.mean_abs_error:.2e}, "
+                f"max_rel_error={self.max_rel_error:.2e}, "
+                f"mean_rel_error={self.mean_rel_error:.2e})"
             )
 
     def __init__(
@@ -476,21 +490,46 @@ class ValidateTileFeatureZipStreamingDataset:
         *,
         n_samples: int | None = None,
         tile_key: str = 'tile',
+        tile_source: str = 'dataset',
+        tilebagclip: 'Clip | None' = None,
         # Tolerances are intentionally loose: fp32 non-determinism is
         # typically ~1e-6 relative, but mixed-precision (fp16/bf16)
         # builds or other sources of drift may be larger.  Inspect
         # max_rel_error in the result to assess actual divergence.
         atol: float = 1e-4,
         rtol: float = 1e-4,
+        rel_floor: float = 1.0,
         log: dbx.Logger = None,
     ):
         self.dataset = dataset
         self.evaluator = evaluator
         self.n_samples = n_samples
         self.tile_key = tile_key
+        self.tile_source = tile_source
         self.atol = atol
         self.rtol = rtol
+        self.rel_floor = rel_floor
         self.log = log or dbx.Logger(name='ValidateTileFeatureZip')
+
+        # When tile_source='tfrecord', index the tilebagclip's bags by
+        # name so we can look up tiles via bag_name + tile_index.
+        self._bag_index = None
+        self._tile_cache = {}
+        if tile_source == 'tfrecord':
+            if tilebagclip is None:
+                raise ValueError(
+                    "tilebagclip is required when tile_source='tfrecord'"
+                )
+            self.log.info(
+                "tile_source='tfrecord': will read tiles from source TFRecords"
+            )
+            self._bag_index = {}
+            for idx in range(tilebagclip.n_shards):
+                bag = tilebagclip.shard(idx)
+                self._bag_index[bag.tag] = bag
+            self.log.info(
+                f"Indexed {len(self._bag_index)} tile bags by name"
+            )
 
     def validate(self):
         """Run validation and return a :class:`ValidationResult`."""
@@ -500,6 +539,9 @@ class ValidateTileFeatureZipStreamingDataset:
         mismatched_indices = []
         max_abs_error = 0.0
         max_rel_error = 0.0
+        sum_abs_error = 0.0
+        sum_rel_error = 0.0
+        n_comparisons = 0
         layer_abs_errors = {}
         layer_rel_errors = {}
 
@@ -514,10 +556,18 @@ class ValidateTileFeatureZipStreamingDataset:
         for i in progress:
             sample = self.dataset[i]
 
-            # Extract tile and run evaluator
-            tile = sample[self.tile_key]
+            # Extract tile — from TFRecord source or from the dataset
+            if self.tile_source == 'tfrecord':
+                bag_name = sample['bag_name']
+                tile_idx = int(sample['tile_index'])
+                if bag_name not in self._tile_cache:
+                    self._tile_cache.clear()  # release previous bag
+                    self._tile_cache[bag_name] = self._bag_index[bag_name].tiles
+                tile = self._tile_cache[bag_name][tile_idx]
+            else:
+                tile = sample[self.tile_key]
             if isinstance(tile, np.ndarray):
-                tile = torch.from_numpy(tile)
+                tile = torch.from_numpy(tile.copy())
             if tile.dim() == 3:
                 tile = tile.unsqueeze(0)  # (H, W, C) → (1, H, W, C)
 
@@ -536,11 +586,24 @@ class ValidateTileFeatureZipStreamingDataset:
 
                 diff = np.abs(stored - computed)
                 abs_err = float(np.max(diff))
-                denom = np.maximum(np.abs(stored), np.abs(computed))
-                rel_err = float(np.max(np.where(denom > 0, diff / denom, 0.0)))
+                mean_abs = float(np.mean(diff))
+                # Floor the denominator at rel_floor so near-zero
+                # features don't inflate relative error.  When
+                # |feature| < rel_floor, this degrades gracefully
+                # to absolute error (diff / 1.0).
+                denom = np.maximum(
+                    np.maximum(np.abs(stored), np.abs(computed)),
+                    self.rel_floor,
+                )
+                rel = diff / denom
+                rel_err = float(np.max(rel))
+                mean_rel = float(np.mean(rel))
 
                 max_abs_error = max(max_abs_error, abs_err)
                 max_rel_error = max(max_rel_error, rel_err)
+                sum_abs_error += mean_abs
+                sum_rel_error += mean_rel
+                n_comparisons += 1
                 layer_abs_errors[layer] = max(layer_abs_errors.get(layer, 0.0), abs_err)
                 layer_rel_errors[layer] = max(layer_rel_errors.get(layer, 0.0), rel_err)
 
@@ -553,19 +616,26 @@ class ValidateTileFeatureZipStreamingDataset:
             self.evaluator.clear()
 
             if (i + 1) % 50 == 0 or i == n_to_check - 1:
+                _mean_abs = sum_abs_error / max(n_comparisons, 1)
+                _mean_rel = sum_rel_error / max(n_comparisons, 1)
                 self.log.info(
                     f"Validated {i + 1}/{n_to_check} samples, "
                     f"{len(mismatched_indices)} mismatches, "
-                    f"max_abs_error={max_abs_error:.2e}, "
-                    f"max_rel_error={max_rel_error:.2e}"
+                    f"max_abs={max_abs_error:.2e}, mean_abs={_mean_abs:.2e}, "
+                    f"max_rel={max_rel_error:.2e}, mean_rel={_mean_rel:.2e}"
                 )
+
+        mean_abs_error = sum_abs_error / max(n_comparisons, 1)
+        mean_rel_error = sum_rel_error / max(n_comparisons, 1)
 
         return self.ValidationResult(
             n_validated=n_to_check,
             n_mismatched=len(mismatched_indices),
             mismatched_indices=mismatched_indices,
             max_abs_error=max_abs_error,
+            mean_abs_error=mean_abs_error,
             max_rel_error=max_rel_error,
+            mean_rel_error=mean_rel_error,
             layer_abs_errors=layer_abs_errors,
             layer_rel_errors=layer_rel_errors,
         )
