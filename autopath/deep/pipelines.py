@@ -1150,7 +1150,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
 """
 ### CPTAC 60/20/20 — validate deep features (100 samples)
 git commit -am 'deep: validate tile features' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \
+autopath.deep.pipelines.gigapath_validate_tile_feature_zip_alignment( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
@@ -1158,7 +1158,7 @@ autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \
 )"
 ### CPTAC 60/20/20 — validate using TFRecord tiles (bypass MDS round-trip)
 git commit -am 'deep: validate tile features' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \
+autopath.deep.pipelines.gigapath_validate_tile_feature_zip_alignment( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
@@ -1166,7 +1166,7 @@ autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \
     tile_source='tfrecord', \
 )"
 """
-def gigapath_validate_tile_feature_zip(
+def gigapath_validate_tile_feature_zip_alignment(
     name: str,
     *,
     url: str | None = None,
@@ -1270,6 +1270,81 @@ def gigapath_validate_tile_feature_zip(
     return validator.validate()
 
 """
+### Diagnostic: tile-feature zip index consistency
+git commit -am 'deep: probe zip alignment' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_probe_tile_feature_zip_alignment( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    n_samples=20, \
+)"
+"""
+def gigapath_probe_tile_feature_zip_alignment(
+    name: str,
+    *,
+    url: str | None = None,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 1024,
+    n_samples: int = 20,
+):
+    """Check that ``clip.dataset()[i]`` and ``clip.tile_feature_dataset()[i]``
+    return identical stored features for each flat index *i*.
+
+    The plain dataset streams only feature shards; the tile-feature
+    dataset zips feature and tile streams via
+    :class:`ZipStreamingDataset`.  If the two disagree at any index,
+    the zip is reordering or misaligning samples.
+    """
+    clip = gigapath_deep_feature_clip(
+        name, url=url,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+    )
+
+    ds_plain = clip.dataset(shuffle=False, batch_size=1)
+    ds_zip = clip.tile_feature_dataset(shuffle=False, batch_size=1)
+
+    clip.log.info(f"ds_plain length: {len(ds_plain)}")
+    clip.log.info(f"ds_zip   length: {len(ds_zip)}")
+
+    n_match = 0
+    n_differ = 0
+    max_diff = 0.0
+    for i in range(min(n_samples, len(ds_plain))):
+        feat_plain = ds_plain[i]['features_output']
+        if isinstance(feat_plain, torch.Tensor):
+            feat_plain = feat_plain.numpy()
+
+        sample_zip = ds_zip[i]
+        feat_zip = sample_zip.get('features_output')
+        if feat_zip is None:
+            clip.log.warning(f"[{i}] features_output MISSING in zip. keys={list(sample_zip.keys())}")
+            n_differ += 1
+            continue
+        if isinstance(feat_zip, torch.Tensor):
+            feat_zip = feat_zip.numpy()
+
+        diff = np.abs(feat_plain - feat_zip).max()
+        max_diff = max(max_diff, diff)
+        zip_bag = sample_zip.get('bag_name', '<missing>')
+
+        if diff == 0:
+            n_match += 1
+            tag = "MATCH"
+        else:
+            n_differ += 1
+            tag = f"DIFFER max={diff:.2e}"
+
+        clip.log.info(
+            f"[{i:3d}] {tag}  zip_bag_name={zip_bag}  "
+            f"plain[:3]=[{feat_plain.flat[0]:.6f}, {feat_plain.flat[1]:.6f}, {feat_plain.flat[2]:.6f}]"
+        )
+
+    status = 'PASSED' if n_differ == 0 else 'FAILED'
+    clip.log.info(f"{status}: {n_match} match, {n_differ} differ, max_diff={max_diff:.2e}")
+    return dict(n_match=n_match, n_differ=n_differ, max_diff=max_diff)
+
+
 ### Diagnostic: batch-size invariance of DeepFeatureClip
 git commit -am 'deep: verify batchsize' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_probe_deep_feature_clip_batchsize_effect( \
