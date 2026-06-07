@@ -1178,6 +1178,7 @@ def gigapath_validate_tile_feature_zip(
     n_samples: int | None = None,
     tile_key: str = 'tile',
     tile_source: str = 'dataset',
+    n_repeats: int = 5,
     atol: float = 1e-4,
     rtol: float = 1e-4,
     device: str = 'cuda',
@@ -1264,6 +1265,7 @@ def gigapath_validate_tile_feature_zip(
         tile_key=tile_key,
         tile_source=tile_source,
         tilebagclip=clip.cfg.tilebagclip,
+        n_repeats=n_repeats,
         atol=atol,
         rtol=rtol,
     )

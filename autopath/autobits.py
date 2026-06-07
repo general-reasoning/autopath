@@ -466,6 +466,9 @@ class ValidateTileFeatureZipStreamingDataset:
         mean_rel_error: float
         layer_abs_errors: dict  # layer → max abs error across all samples
         layer_rel_errors: dict  # layer → max rel error across all samples
+        # Repeat statistics (populated when n_repeats > 1)
+        max_repeat_std: float   # max std across repeats (GPU jitter envelope)
+        mean_repeat_std: float  # mean std across repeats
 
         @property
         def passed(self) -> bool:
@@ -473,15 +476,22 @@ class ValidateTileFeatureZipStreamingDataset:
 
         def __repr__(self):
             status = 'PASSED' if self.passed else 'FAILED'
-            return (
-                f"ValidationResult({status}: "
-                f"{self.n_validated} validated, "
-                f"{self.n_mismatched} mismatched, "
-                f"max_abs_error={self.max_abs_error:.2e}, "
-                f"mean_abs_error={self.mean_abs_error:.2e}, "
-                f"max_rel_error={self.max_rel_error:.2e}, "
-                f"mean_rel_error={self.mean_rel_error:.2e})"
-            )
+            parts = [
+                f"ValidationResult({status}: ",
+                f"{self.n_validated} validated, ",
+                f"{self.n_mismatched} mismatched, ",
+                f"max_abs_error={self.max_abs_error:.2e}, ",
+                f"mean_abs_error={self.mean_abs_error:.2e}, ",
+                f"max_rel_error={self.max_rel_error:.2e}, ",
+                f"mean_rel_error={self.mean_rel_error:.2e}",
+            ]
+            if self.max_repeat_std > 0:
+                parts.append(
+                    f", max_repeat_std={self.max_repeat_std:.2e}, "
+                    f"mean_repeat_std={self.mean_repeat_std:.2e}"
+                )
+            parts.append(")")
+            return "".join(parts)
 
     def __init__(
         self,
@@ -492,6 +502,7 @@ class ValidateTileFeatureZipStreamingDataset:
         tile_key: str = 'tile',
         tile_source: str = 'dataset',
         tilebagclip: 'Clip | None' = None,
+        n_repeats: int = 5,
         # Tolerances are intentionally loose: fp32 non-determinism is
         # typically ~1e-6 relative, but mixed-precision (fp16/bf16)
         # builds or other sources of drift may be larger.  Inspect
@@ -506,6 +517,7 @@ class ValidateTileFeatureZipStreamingDataset:
         self.n_samples = n_samples
         self.tile_key = tile_key
         self.tile_source = tile_source
+        self.n_repeats = n_repeats
         self.atol = atol
         self.rtol = rtol
         self.rel_floor = rel_floor
@@ -531,6 +543,16 @@ class ValidateTileFeatureZipStreamingDataset:
                 f"Indexed {len(self._bag_index)} tile bags by name"
             )
 
+    def _evaluate_tile(self, tile):
+        """Run evaluator on a tile, return {layer: ndarray} for one sample."""
+        result = self.evaluator(tile)
+        out = {}
+        for layer in self.evaluator.layer_names:
+            if layer in result:
+                out[layer] = result[layer][0].numpy()
+        self.evaluator.clear()
+        return out
+
     def validate(self):
         """Run validation and return a :class:`ValidationResult`."""
         n_total = len(self.dataset)
@@ -541,6 +563,8 @@ class ValidateTileFeatureZipStreamingDataset:
         max_rel_error = 0.0
         sum_abs_error = 0.0
         sum_rel_error = 0.0
+        max_repeat_std = 0.0
+        sum_repeat_std = 0.0
         n_comparisons = 0
         layer_abs_errors = {}
         layer_rel_errors = {}
@@ -571,7 +595,8 @@ class ValidateTileFeatureZipStreamingDataset:
             if tile.dim() == 3:
                 tile = tile.unsqueeze(0)  # (H, W, C) → (1, H, W, C)
 
-            result = self.evaluator(tile)
+            # Run evaluator n_repeats times; use mean for comparison.
+            runs = [self._evaluate_tile(tile) for _ in range(self.n_repeats)]
 
             # Compare each layer
             sample_ok = True
@@ -582,7 +607,18 @@ class ValidateTileFeatureZipStreamingDataset:
                 stored = sample[col]
                 if isinstance(stored, torch.Tensor):
                     stored = stored.numpy()
-                computed = result[layer][0].numpy()
+
+                # Stack repeats: (n_repeats, feature_dim)
+                repeat_stack = np.stack([r[layer] for r in runs])
+                computed = repeat_stack.mean(axis=0)
+
+                # Repeat std: per-element std across runs, then take max
+                if self.n_repeats > 1:
+                    repeat_std = repeat_stack.std(axis=0)
+                    sample_max_std = float(np.max(repeat_std))
+                    sample_mean_std = float(np.mean(repeat_std))
+                    max_repeat_std = max(max_repeat_std, sample_max_std)
+                    sum_repeat_std += sample_mean_std
 
                 diff = np.abs(stored - computed)
                 abs_err = float(np.max(diff))
@@ -613,20 +649,26 @@ class ValidateTileFeatureZipStreamingDataset:
             if not sample_ok:
                 mismatched_indices.append(i)
 
-            self.evaluator.clear()
-
             if (i + 1) % 50 == 0 or i == n_to_check - 1:
                 _mean_abs = sum_abs_error / max(n_comparisons, 1)
                 _mean_rel = sum_rel_error / max(n_comparisons, 1)
-                self.log.info(
+                msg = (
                     f"Validated {i + 1}/{n_to_check} samples, "
                     f"{len(mismatched_indices)} mismatches, "
                     f"max_abs={max_abs_error:.2e}, mean_abs={_mean_abs:.2e}, "
                     f"max_rel={max_rel_error:.2e}, mean_rel={_mean_rel:.2e}"
                 )
+                if self.n_repeats > 1:
+                    _mean_std = sum_repeat_std / max(n_comparisons, 1)
+                    msg += (
+                        f", repeat_std: max={max_repeat_std:.2e}, "
+                        f"mean={_mean_std:.2e}"
+                    )
+                self.log.info(msg)
 
         mean_abs_error = sum_abs_error / max(n_comparisons, 1)
         mean_rel_error = sum_rel_error / max(n_comparisons, 1)
+        mean_repeat_std = sum_repeat_std / max(n_comparisons, 1)
 
         return self.ValidationResult(
             n_validated=n_to_check,
@@ -638,6 +680,8 @@ class ValidateTileFeatureZipStreamingDataset:
             mean_rel_error=mean_rel_error,
             layer_abs_errors=layer_abs_errors,
             layer_rel_errors=layer_rel_errors,
+            max_repeat_std=max_repeat_std,
+            mean_repeat_std=mean_repeat_std,
         )
 
 
