@@ -1253,9 +1253,7 @@ def gigapath_validate_tile_feature_zip(
         sd_kwargs['shuffle_seed'] = shuffle_seed
         sd_kwargs['shuffle_block_size'] = shuffle_block_size
 
-    feature_ds = clip.dataset(**sd_kwargs)
-    tile_ds = clip.cfg.tilebagclip.dataset(**sd_kwargs)
-    ds = ZipStreamingDataset(feature_ds, tile_ds)
+    ds = clip.tile_feature_dataset(**sd_kwargs)
 
     evaluator = clip.cfg.evaluator_factory.evaluator(device=device)
 

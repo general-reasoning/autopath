@@ -565,6 +565,73 @@ class DeepFeatureClip(Clip):
             sd_kwargs['batch_size'] = batch_size
         return StreamingDataset(**sd_kwargs)
 
+    def tile_feature_dataset(
+        self,
+        *,
+        shuffle: bool = False,
+        skip_invalid_bags: bool = False,
+        batch_size: int | None = None,
+        **streaming_kwargs,
+    ):
+        """Return a :class:`ZipStreamingDataset` aligning features with tiles.
+
+        Iterates ``self.bags`` and for each valid bag creates both a
+        feature stream and a tile stream (from ``bag.tilebag``) in the
+        **same order**, guaranteeing that ``ds[i]`` pairs the correct
+        feature with its source tile.  Invalid bags are skipped
+        consistently from both sides.
+
+        Parameters
+        ----------
+        shuffle : bool
+            Whether to shuffle within both streaming datasets.
+        skip_invalid_bags : bool
+            If ``True``, silently skip bags whose feature shards have
+            not been built yet.
+        batch_size : int | None
+            Passed to both :class:`StreamingDataset` instances.
+
+        Returns
+        -------
+        ZipStreamingDataset
+            Merged dataset with both ``features_*`` and ``tile`` columns.
+        """
+        from autopath.autobits import ZipStreamingDataset
+
+        feature_streams = []
+        tile_streams = []
+        n_skipped = 0
+
+        for bag in self.bags:
+            if skip_invalid_bags and not bag.valid():
+                n_skipped += 1
+                continue
+            # Feature stream
+            if bag._is_local_fs:
+                feature_streams.append(Stream(local=bag.path('shards')))
+            else:
+                feature_streams.append(Stream(remote=bag.path('shards')))
+            # Corresponding tile stream — same bag order
+            tilebag = bag.tilebag
+            if tilebag._is_local_fs:
+                tile_streams.append(Stream(local=tilebag.path('shards')))
+            else:
+                tile_streams.append(Stream(remote=tilebag.path('shards')))
+
+        if n_skipped:
+            self.log.info(
+                f"Skipped {n_skipped}/{n_skipped + len(feature_streams)} "
+                f"unbuilt bags in {self.__class__.__name__}.tile_feature_dataset()"
+            )
+
+        sd_kwargs = dict(shuffle=shuffle, **streaming_kwargs)
+        if batch_size is not None:
+            sd_kwargs['batch_size'] = batch_size
+
+        feature_ds = StreamingDataset(streams=feature_streams, **sd_kwargs)
+        tile_ds = StreamingDataset(streams=tile_streams, **sd_kwargs)
+        return ZipStreamingDataset(feature_ds, tile_ds)
+
     def verify_batchsize_invariance(
         self,
         *,
