@@ -307,7 +307,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
         self.log.verbose(f"READING deep feature bags for layer '{self.cfg.layer}'")
         clip = self.cfg.clip
         if self.verbose:
-            bagitor = tqdm.tqdm(clip.bags, desc="Reading bag features")
+            bagitor = tqdm.tqdm(clip.bags, desc="Reading feature bags")
         else:
             bagitor = clip.bags
         for bag in bagitor:
