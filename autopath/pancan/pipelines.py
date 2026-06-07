@@ -385,3 +385,56 @@ def pancan_tilebag_dataset(name=None) -> TileClipDatasetBuilder:
         raise ValueError(f"Unknown pancan_tilebag_dataset: {name}")
     return builder.dataset()
 
+
+"""
+git commit -am 'pancan: verify tile integrity' > /dev/null || true; dbx.pprint "\
+autopath.pancan.pipelines.pancan_verify_tile_integrity( \
+    'CPTAC_602020_TRAIN', \
+    n_bags=3, \
+    n_tiles=10, \
+)"
+"""
+def pancan_verify_tile_integrity(
+    name: str,
+    *,
+    n_bags: int | None = None,
+    n_tiles: int | None = None,
+):
+    """Verify MDS tile shards match source TFRecords for a clip/fold.
+
+    Thin pipeline wrapper around
+    :meth:`PancanTileBag.verify_tile_integrity`.
+
+    Parameters
+    ----------
+    name : str
+        A fold name (e.g. ``'CPTAC_602020_TRAIN'``) or clip name
+        (e.g. ``'CPTAC'``).
+    n_bags : int | None
+        Number of bags to check.  ``None`` checks all.
+    n_tiles : int | None
+        Per-bag tile limit forwarded to
+        :meth:`PancanTileBag.verify_tile_integrity`.
+
+    Returns
+    -------
+    list[dict]
+        One result dict per bag checked.
+    """
+    try:
+        clip = pancan_tile_fold(name)
+    except ValueError:
+        clip = pancan_tile_clip(name)
+
+    total = clip.n_shards if n_bags is None else min(n_bags, clip.n_shards)
+    results = []
+    for i in tqdm.tqdm(range(total), desc='Verifying bags'):
+        bag = clip.shard(i)
+        r = bag.verify_tile_integrity(n_tiles=n_tiles)
+        r['bag_name'] = bag.name
+        results.append(r)
+
+    n_failed = sum(1 for r in results if r['n_pixel_mismatched'] > 0 or r['n_meta_mismatched'] > 0)
+    print(f"\n{'PASSED' if n_failed == 0 else 'FAILED'}: "
+          f"{total} bags checked, {n_failed} failed")
+    return results

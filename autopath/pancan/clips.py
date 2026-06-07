@@ -370,6 +370,95 @@ class PancanTileBag(TileBag):
 	def labels(self):
 		return np.array([self._label] * len(self))
 
+	def verify_tile_integrity(self, *, n_tiles=None):
+		"""Compare MDS tiles against source TFRecords.
+
+		Reads tiles from the MDS shards and from the source TFRecords
+		and checks for pixel-exact equality.  Also verifies that
+		``bag_name`` and ``tile_index`` metadata are correct.
+
+		Parameters
+		----------
+		n_tiles : int | None
+			Number of tiles to check.  ``None`` checks all tiles.
+
+		Returns
+		-------
+		dict
+			``n_checked``, ``n_pixel_mismatched``, ``n_meta_mismatched``,
+			``max_pixel_diff``, ``details`` (list of per-tile dicts for
+			any mismatched tiles).
+		"""
+		tiles_tfr = self.tiles  # (N, C, H, W) uint8 from TFRecords
+		mds_samples = list(read_mds_samples(self.path('shards')))
+
+		n_total = min(len(tiles_tfr), len(mds_samples))
+		if n_tiles is not None:
+			n_total = min(n_total, n_tiles)
+
+		expected_name = self.name
+		n_pixel_mismatch = 0
+		n_meta_mismatch = 0
+		max_pixel_diff = 0
+		details = []
+
+		for i in range(n_total):
+			tile_tf = tiles_tfr[i].numpy()  # (C, H, W) uint8
+			sample = mds_samples[i]
+			tile_mds = sample['tile']  # ndarray from MDS
+			if isinstance(tile_mds, torch.Tensor):
+				tile_mds = tile_mds.numpy()
+
+			# MDS stores as (H, W, C); TFRecords as (C, H, W)
+			# Normalise to (C, H, W) for comparison.
+			if tile_mds.ndim == 3 and tile_mds.shape[0] != tile_tf.shape[0]:
+				tile_mds_chw = np.transpose(tile_mds, (2, 0, 1))
+			else:
+				tile_mds_chw = tile_mds
+
+			pixel_diff = int(np.abs(
+				tile_tf.astype(np.int16) - tile_mds_chw.astype(np.int16)
+			).max())
+			max_pixel_diff = max(max_pixel_diff, pixel_diff)
+
+			# Metadata checks
+			mds_name = sample.get('bag_name', '')
+			mds_idx = int(sample.get('tile_index', -1))
+			name_ok = (mds_name == expected_name)
+			idx_ok = (mds_idx == i)
+
+			if pixel_diff > 0:
+				n_pixel_mismatch += 1
+			if not name_ok or not idx_ok:
+				n_meta_mismatch += 1
+
+			if pixel_diff > 0 or not name_ok or not idx_ok:
+				details.append(dict(
+					tile_index=i,
+					pixel_diff=pixel_diff,
+					shape_mds=tile_mds.shape,
+					shape_tfr=tile_tf.shape,
+					bag_name_mds=mds_name,
+					bag_name_expected=expected_name,
+					tile_index_mds=mds_idx,
+				))
+
+		result = dict(
+			n_checked=n_total,
+			n_pixel_mismatched=n_pixel_mismatch,
+			n_meta_mismatched=n_meta_mismatch,
+			max_pixel_diff=max_pixel_diff,
+			details=details,
+		)
+		status = 'PASSED' if (n_pixel_mismatch == 0 and n_meta_mismatch == 0) else 'FAILED'
+		self.log.info(
+			f"verify_tile_integrity {status}: "
+			f"{n_total} checked, {n_pixel_mismatch} pixel mismatches, "
+			f"{n_meta_mismatch} metadata mismatches, "
+			f"max_pixel_diff={max_pixel_diff}"
+		)
+		return result
+
 	def UNSAFE_clear(self, *topics, OVERRIDE: bool = False, clear_dirpath: bool = False):
 		"""Allow clearing the MDS shards (they are derived, not source data)."""
 		return super().UNSAFE_clear(*topics, OVERRIDE=OVERRIDE, clear_dirpath=clear_dirpath)
