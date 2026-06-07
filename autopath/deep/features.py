@@ -718,7 +718,7 @@ class BipolarDeepFeatureBag(Bag):
         raise ValueError(f"Unknown topic: {topic!r}")
 
     @functools.cached_property
-    def tile_bipolar_features(self):
+    def bipolar_features(self):
         """Tile-level bipolar features ``{-1, +1}^d``, shape ``(n_tiles, d)``."""
         tile_col = f'bipolar_features_{self.cfg.layer}'
         arrays = list(read_mds_samples(
@@ -753,7 +753,7 @@ class BipolarDeepFeatureBag(Bag):
             Shape ``(n_tiles, d)``, dtype ``float32``.
         """
         return torch.from_numpy(
-            self.tile_bipolar_features.astype(np.float32)
+            self.bipolar_features.astype(np.float32)
         )
 
     def annotations(self, i=0) -> dict | None:

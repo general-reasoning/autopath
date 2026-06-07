@@ -1018,8 +1018,9 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
 
     Creates a :class:`ZipStreamingDataset` pairing the
     :class:`BipolarDeepFeatureClip` dataset with the source tile clip's
-    dataset.  Each sample dict contains ``tile_bipolar_features`` and
-    ``tile``, ``bag_name``, ``annotations``.
+    dataset.  Each sample dict contains ``bipolar_features_{layer}``,
+    ``bag_bipolar_features_{layer}``, ``tile``, ``bag_name``, and
+    ``annotations``.
 
     If *n* is given, iterate *n* samples via a DataLoader and return
     the last batch (for smoke-testing).  Otherwise return the dataset.
