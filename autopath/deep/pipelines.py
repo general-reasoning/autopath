@@ -846,6 +846,15 @@ autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
 ).build_tree()"
+### CPTAC 60/20/20 — bipolar logistic probe
+git commit -am 'deep: bipolar logistic probe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    cfg_ternarize_tiles=True, \
+).build_tree()"
 """
 def gigapath_bipolar_deep_feature_affine_logistic_probe(
     name: str,
