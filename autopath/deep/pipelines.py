@@ -13,6 +13,8 @@ Modelled on :mod:`autopath.gigapath.pipelines`.
 
 from __future__ import annotations
 
+import os
+
 from typing import Literal
 
 import tqdm
@@ -30,12 +32,22 @@ from autopath.gigapath.backbone import (
 from autopath.deep.features import (
     DeepFeatureBag,
     DeepFeatureClip,
+    BipolarDeepFeatureClip,
+)
+from autopath.deep.probes import (
+    DeepFeatureAffineLogisticProbe,
+    DeepFeatureStatsProbe,
 )
 from autopath.pancan.pipelines import (
     pancan_tile_clip,
     pancan_tile_fold,
 )
-from autopath.autobits import sanitize_collate
+from autopath.autobits import sanitize_collate, ZipStreamingDataset
+from autopath.stills.bitpath import (
+    BitPathDataloaderBuilder,
+    BitPathLightning,
+    BitPathStill,
+)
 
 
 log = Logger()
@@ -533,7 +545,7 @@ def gigapath_deep_feature_affine_logistic_probe(
         )
         probe.build()
     """
-    from autopath.deep.probes import DeepFeatureAffineLogisticProbe
+
 
     clip = gigapath_deep_feature_clip(
         name,
@@ -624,7 +636,7 @@ def gigapath_deep_feature_stats_probe(
         stats.build()
         print(stats.tile_feature_mean)
     """
-    from autopath.deep.probes import DeepFeatureStatsProbe
+
 
     clip = gigapath_deep_feature_clip(
         name,
@@ -737,7 +749,7 @@ def gigapath_bipolar_deep_feature_clip(
         )
         bipolar.build_tree()
     """
-    from autopath.deep.features import BipolarDeepFeatureClip
+
 
     if parallelization is None and n_workers > 1:
         parallelization = 'multiprocessing'
@@ -868,7 +880,7 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
         )
         probe.build_tree()
     """
-    from autopath.deep.probes import DeepFeatureAffineLogisticProbe
+
 
     clip = gigapath_bipolar_deep_feature_clip(
         name,
@@ -944,7 +956,7 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
     n : int | None
         If given, iterate this many samples and return the last batch.
     """
-    from autopath.autobits import ZipStreamingDataset
+
 
     clip = gigapath_deep_feature_clip(
         name,
@@ -1036,7 +1048,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
     n : int | None
         If given, iterate this many samples and return the last batch.
     """
-    from autopath.autobits import ZipStreamingDataset
+
 
     bipolar_clip = gigapath_bipolar_deep_feature_clip(
         name,
@@ -1224,16 +1236,10 @@ def bitpath_still(
         )
         still.build_tree()
     """
-    import os as _os
-    from autopath.stills.bitpath import (
-        BitPathDataloaderBuilder,
-        BitPathLightning,
-        BitPathStill,
-    )
 
     if logsroot is None:
-        logsroot = _os.path.join(
-            _os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard',
+        logsroot = os.path.join(
+            os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard',
         )
 
     # 1. Build the bipolar clip
