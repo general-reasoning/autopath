@@ -13,12 +13,11 @@ import functools
 import gc
 import math
 import os
-from collections import OrderedDict
 from dataclasses import dataclass
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, ConcatDataset
+from torch.utils.data import Dataset
 
 import dbx
 from tqdm import tqdm
@@ -32,81 +31,6 @@ from autopath.autobits import Bag, Clip, DeepBackboneEvaluatorFactory, TileBag
 from autopath.tools import mds_readers, read_mds_samples
 
 
-# ═══════════════════════════════════════════════════════════════════════
-#  Dataset wrapper for tile–feature pairing
-# ═══════════════════════════════════════════════════════════════════════
-
-class TileFeatureDataset(Dataset):
-    """Pairs deep-feature samples with their upstream tile-shard fields.
-
-    Wraps a multi-stream :class:`StreamingDataset` of feature shards and
-    enriches each sample with **all** fields from the corresponding
-    tile shard (``tile``, ``bag_name``, ``annotations``, etc.).
-
-    Bag membership is derived from cumulative bag lengths: a binary
-    search maps the flat sample index to ``bag_index``, which selects
-    the correct per-bag tile :class:`StreamingDataset`.  Within that
-    dataset, ``tile_index`` (written by :class:`DeepFeatureBag`) is
-    used to fetch the matching tile entry.
-
-    Tile datasets are opened **lazily** to avoid exhausting file
-    descriptors when a clip contains thousands of bags.  An LRU cache
-    (default 32 entries) bounds the number of simultaneously open
-    shared-memory segments.
-
-    Parameters
-    ----------
-    base : StreamingDataset
-        Merged feature streaming dataset (one :class:`Stream` per bag).
-    bag_lens : list[int]
-        Length of each bag, in stream order.
-    bags : list[DeepFeatureBag]
-        Per-bag bag objects, in the same stream order.  Their
-        ``.tilebag.dataset()`` is called lazily on first access.
-    cache_size : int
-        Maximum number of tile datasets kept open simultaneously.
-    """
-
-    def __init__(self, base, bag_lens, bags, *, cache_size: int = 32):
-        self.base = base
-        self._bags = bags
-        # cumsum[i] = start index of bag i; cumsum[-1] = total length
-        self._cumsum = np.cumsum([0] + list(bag_lens))
-        self._tile_ds_cache = OrderedDict()
-        self._cache_size = cache_size
-
-    def __len__(self):
-        return len(self.base)
-
-    def _get_tile_dataset(self, bag_idx):
-        """Return the tile dataset for *bag_idx*, opening lazily."""
-        if bag_idx in self._tile_ds_cache:
-            # Move to end (most-recently used).
-            self._tile_ds_cache.move_to_end(bag_idx)
-            return self._tile_ds_cache[bag_idx][0]
-        cm = self._bags[bag_idx].tilebag.dataset()
-        ds = cm.__enter__()
-        self._tile_ds_cache[bag_idx] = (ds, cm)
-        # Evict oldest if over capacity.
-        while len(self._tile_ds_cache) > self._cache_size:
-            _, evicted_cm = self._tile_ds_cache.popitem(last=False)
-            evicted_cm.__exit__(None, None, None)
-        return ds
-
-    def __getitem__(self, idx):
-        sample = dict(self.base[idx])
-        bag_idx = int(np.searchsorted(self._cumsum[1:], idx, side='right'))
-        sample['bag_index'] = bag_idx
-        tile_idx = sample['tile_index']
-        tile_sample = self._get_tile_dataset(bag_idx)[tile_idx]
-        # Inject all fields from the tile shard (tile, bag_name,
-        # annotations, etc.) without overwriting feature columns.
-        # Skip None values — default_collate cannot handle them.
-        for k, v in tile_sample.items():
-            if k not in sample and v is not None:
-                sample[k] = v
-        return sample
-
 
 # ═══════════════════════════════════════════════════════════════════════
 #  Deep Feature Bags & Clips
@@ -117,9 +41,8 @@ class DeepFeatureBag(Bag):
     """A Bag that stores multi-layer activations from a DeepBackboneEvaluator.
 
     All data is stored as MDS shards for efficient streaming reads.
-    Each MDS sample contains feature columns for every captured layer,
-    optionally raw tile images, and a ``tile_index`` for back-referencing
-    the source :class:`TileBag`.
+    Each MDS sample contains feature columns for every captured layer
+    and a ``tile_index`` for back-referencing the source :class:`TileBag`.
 
     Topics
     ------
@@ -230,7 +153,6 @@ class DeepFeatureBag(Bag):
         for lyr in feature_names:
             safe = lyr.replace(".", "_")
             columns[f"features_{safe}"] = "ndarray:float32"
-        columns["tile_index"] = "int32"
 
         n_batches = math.ceil(n_tiles / self.gpu_batch_size)
         progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
@@ -251,7 +173,7 @@ class DeepFeatureBag(Bag):
                     sample_bytes = sum(
                         result[lyr][0].numpy().nbytes
                         for lyr in feature_names if lyr in result
-                    ) + 4  # +4 for tile_index int32
+                    )
                     byte_limit = self.cfg.shard_size * sample_bytes
                     writer = MDSWriter(
                         out=shards_dir,
@@ -270,7 +192,6 @@ class DeepFeatureBag(Bag):
                             sample[f"features_{safe}"] = result[lyr][i].numpy().astype(
                                 np.float32
                             )
-                    sample["tile_index"] = np.int32(tile_cursor + i)
                     writer.write(sample)
 
                 tile_cursor += batch_size
@@ -328,8 +249,7 @@ class DeepFeatureBag(Bag):
             with bag.dataset() as ds:
                 x = ds[0]['features_output']
 
-        Each sample is a dict with keys ``features_{name}`` (ndarray),
-        optionally ``tiles`` (ndarray), and ``tile_index`` (int32).
+        Each sample is a dict with keys ``features_{name}`` (ndarray).
 
         .. note::
             For bulk reads prefer :meth:`layer_features` or
@@ -582,7 +502,6 @@ class DeepFeatureClip(Clip):
         self,
         *,
         shuffle: bool = False,
-        include_tiles: bool = False,
         skip_invalid_bags: bool = False,
         batch_size: int | None = None,
     ) -> Dataset:
@@ -595,18 +514,11 @@ class DeepFeatureClip(Clip):
         Each sample dict contains:
 
         * ``features_{layer_name}`` — per-layer activation ndarray
-        * ``tile_index`` — index into the originating TileBag
-        * ``bag_index`` — index of the bag within this clip
-        * ``label`` — label string from the source TileBag
 
         Parameters
         ----------
         shuffle : bool
             Whether to shuffle within the streaming dataset.
-        include_tiles : bool
-            If ``True``, each sample also contains a ``tile`` field
-            loaded lazily from the source TileBag (slower; suitable
-            for visualization, not training).
         skip_invalid_bags : bool
             If ``True``, silently skip bags whose MDS shards have not
             been built yet instead of raising.  The number of skipped
@@ -621,10 +533,8 @@ class DeepFeatureClip(Clip):
             A :class:`torch.utils.data.Dataset` over all bags.
         """
         streams = []
-        bag_lens_list = []
         n_skipped = 0
 
-        valid_bags = []
         for i, bag in enumerate(self.bags):
             if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
@@ -633,8 +543,6 @@ class DeepFeatureClip(Clip):
                 streams.append(Stream(local=bag.path('shards')))
             else:
                 streams.append(Stream(remote=bag.path('shards')))
-            valid_bags.append(bag)
-            bag_lens_list.append(len(bag))
 
         if n_skipped:
             self.log.info(
@@ -646,12 +554,7 @@ class DeepFeatureClip(Clip):
         sd_kwargs = dict(streams=streams, shuffle=shuffle)
         if batch_size is not None:
             sd_kwargs['batch_size'] = batch_size
-        base = StreamingDataset(**sd_kwargs)
-
-        if include_tiles:
-            return TileFeatureDataset(base, bag_lens_list, valid_bags)
-
-        return base
+        return StreamingDataset(**sd_kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -924,6 +827,13 @@ class BipolarDeepFeatureBag(Bag):
     def __build__(self, median):
         """Build bipolar features for this bag.
 
+        Reads tile-level features from the underlying
+        :class:`DeepFeatureBag` and tile images / metadata from the
+        source :class:`TileBag`, writing **both** into a single set of
+        MDS shards so that downstream consumers get co-located
+        ``tile_bipolar_features``, ``tile``, ``bag_name``, and
+        ``annotations`` without a second dataset lookup.
+
         Parameters
         ----------
         median : ndarray
@@ -962,7 +872,6 @@ class BipolarDeepFeatureBag(Bag):
 
         columns = {
             'tile_bipolar_features': 'ndarray:int8',
-            'tile_index': 'int32',
         }
         writer = MDSWriter(
             out=shards_dir,
@@ -974,7 +883,6 @@ class BipolarDeepFeatureBag(Bag):
             for i in range(n_tiles):
                 writer.write({
                     'tile_bipolar_features': tile_bipolar[i],
-                    'tile_index': np.int32(i),
                 })
         finally:
             writer.finish()
@@ -1076,7 +984,7 @@ class BipolarDeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 4
+    VERSION = 3
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -1158,21 +1066,26 @@ class BipolarDeepFeatureClip(Clip):
         self,
         *,
         shuffle: bool = False,
-        include_tiles: bool = False,
         skip_invalid_bags: bool = False,
         batch_size: int | None = None,
     ) -> Dataset:
-        """Return a unified streaming dataset over all bipolar bags.
+        """Return a streaming dataset over all bipolar feature bags.
 
-        Each sample dict contains ``tile_bipolar_features`` (int8 ndarray).
+        Each sample dict contains ``tile_bipolar_features`` (int8
+        ndarray) and ``tile_index`` (int32).
+
+        To also include tile images, zip this dataset with the
+        corresponding tile clip's dataset using
+        :class:`ZipStreamingDataset`::
+
+            bipolar_ds = bipolar_clip.dataset(...)
+            tile_ds = bipolar_clip.cfg.clip.cfg.tilebagclip.dataset(...)
+            ds = ZipStreamingDataset(bipolar_ds, tile_ds)
 
         Parameters
         ----------
         shuffle : bool
             Whether to shuffle within the streaming dataset.
-        include_tiles : bool
-            If ``True``, each sample also contains a ``tile`` field
-            loaded lazily from the source TileBag.
         skip_invalid_bags : bool
             If ``True``, silently skip bags whose MDS shards have not
             been built yet instead of raising.
@@ -1181,9 +1094,7 @@ class BipolarDeepFeatureClip(Clip):
             resumption.
         """
         streams = []
-        bag_lens_list = []
         n_skipped = 0
-        valid_bags = []
 
         for bag in self.bags:
             if skip_invalid_bags and not bag.valid():
@@ -1193,8 +1104,6 @@ class BipolarDeepFeatureClip(Clip):
                 streams.append(Stream(local=bag.path('shards')))
             else:
                 streams.append(Stream(remote=bag.path('shards')))
-            valid_bags.append(bag)
-            bag_lens_list.append(len(bag))
 
         if n_skipped:
             self.log.info(
@@ -1205,12 +1114,7 @@ class BipolarDeepFeatureClip(Clip):
         sd_kwargs = dict(streams=streams, shuffle=shuffle)
         if batch_size is not None:
             sd_kwargs['batch_size'] = batch_size
-        base = StreamingDataset(**sd_kwargs)
-
-        if include_tiles:
-            return TileFeatureDataset(base, bag_lens_list, valid_bags)
-
-        return base
+        return StreamingDataset(**sd_kwargs)
 
     def valid(self):
         return self.validtopics(reduce=True)

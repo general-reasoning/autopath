@@ -327,12 +327,23 @@ class BitPathDataloaderBuilder(Datablock):
         num_workers: int = 4
 
     def dataloader(self):
-        """Build and return a DataLoader over the clip's tile+feature dataset."""
-        ds = self.cfg.clip.dataset(
-            include_tiles=True,
+        """Build and return a DataLoader over zipped tile+feature datasets.
+
+        Creates a :class:`ZipStreamingDataset` pairing the bipolar
+        feature clip's dataset with the source tile clip's dataset,
+        so each sample contains both ``tile_bipolar_features`` and
+        ``tile`` images.
+        """
+        from autopath.autobits import ZipStreamingDataset
+
+        sd_kwargs = dict(
             shuffle=self.cfg.shuffle,
             batch_size=self.cfg.batch_size,
         )
+        bipolar_ds = self.cfg.clip.dataset(**sd_kwargs)
+        tile_ds = self.cfg.clip.cfg.clip.cfg.tilebagclip.dataset(**sd_kwargs)
+        ds = ZipStreamingDataset(bipolar_ds, tile_ds)
+
         generator = None
         if self.cfg.seed is not None:
             generator = torch.Generator()
@@ -344,26 +355,7 @@ class BitPathDataloaderBuilder(Datablock):
             num_workers=self.cfg.num_workers,
             pin_memory=True,
             generator=generator,
-            worker_init_fn=self._worker_init,
         )
-
-    @staticmethod
-    def _worker_init(_worker_id):
-        """Tear down inherited NCCL state in DataLoader workers.
-
-        Workers are forked subprocesses that inherit the parent's
-        ``torch.distributed`` process-group handle.  Per-tile
-        ``StreamingDataset`` instances call ``dist.barrier()`` inside
-        ``get_shm_prefix``, which fails because NCCL cannot be used
-        from the fork.  Destroying the group and hiding the DDP env
-        vars makes streaming treat the worker as a single-rank job.
-        """
-        import torch.distributed as _dist
-        if _dist.is_available() and _dist.is_initialized():
-            _dist.destroy_process_group()
-        for k in ('RANK', 'WORLD_SIZE', 'LOCAL_RANK', 'LOCAL_WORLD_SIZE',
-                  'MASTER_ADDR', 'MASTER_PORT'):
-            os.environ.pop(k, None)
 
 
 # ═══════════════════════════════════════════════════════════════════════

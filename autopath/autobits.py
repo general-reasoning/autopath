@@ -12,6 +12,7 @@ import tqdm
 import numpy as np
 import torch
 import torchvision
+from torch.utils.data import Dataset
 
 
 import dbx
@@ -358,6 +359,44 @@ class DeepBackboneEvaluatorFactory(Datablock):
         Must be overridden by subclasses.
         """
         raise NotImplementedError
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Zip wrapper for paired streaming datasets
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class ZipStreamingDataset(Dataset):
+    """Pairs multiple :class:`StreamingDataset` objects by index.
+
+    All datasets must have the same length.  ``__getitem__`` merges
+    the sample dicts from all datasets into a single dict.
+
+    This avoids opening per-bag tile datasets inside DataLoader
+    workers (which breaks DDP barriers) by creating multiple
+    rank-coordinated ``StreamingDataset`` objects at the top level.
+    """
+
+    def __init__(self, *datasets):
+        lengths = [len(d) for d in datasets]
+        if len(set(lengths)) != 1:
+            raise ValueError(
+                f"ZipStreamingDataset requires datasets of equal length, "
+                f"got {lengths}"
+            )
+        self.datasets = datasets
+
+    def __len__(self):
+        return len(self.datasets[0])
+
+    def __getitem__(self, idx):
+        merged = {}
+        for ds in self.datasets:
+            sample = ds[idx]
+            for k, v in sample.items():
+                if v is not None:
+                    merged[k] = v
+        return merged
 
 
 # ═══════════════════════════════════════════════════════════════════════
