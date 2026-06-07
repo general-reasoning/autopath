@@ -1352,6 +1352,7 @@ git commit -am 'deep: verify batchsize' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_probe_deep_feature_clip_batchsize_effect( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=True, \
+    bag_index = 0, tile_indices = list(range(100)), \
     cfg_shard_size=64, \
 )"
 """

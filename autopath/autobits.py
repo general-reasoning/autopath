@@ -503,6 +503,7 @@ class ValidateTileFeatureZipStreamingDataset:
         tile_source: str = 'dataset',
         tilebagclip: 'Clip | None' = None,
         n_repeats: int = 5,
+        build_batch_size: int = 64,
         # Tolerances are intentionally loose: fp32 non-determinism is
         # typically ~1e-6 relative, but mixed-precision (fp16/bf16)
         # builds or other sources of drift may be larger.  Inspect
@@ -518,6 +519,7 @@ class ValidateTileFeatureZipStreamingDataset:
         self.tile_key = tile_key
         self.tile_source = tile_source
         self.n_repeats = n_repeats
+        self.build_batch_size = build_batch_size
         self.atol = atol
         self.rtol = rtol
         self.rel_floor = rel_floor
@@ -544,7 +546,14 @@ class ValidateTileFeatureZipStreamingDataset:
             )
 
     def _evaluate_tile(self, tile):
-        """Run evaluator on a tile, return {layer: ndarray} for one sample."""
+        """Run evaluator on a tile, return {layer: ndarray} for one sample.
+
+        Replicates the tile to match ``build_batch_size`` so that
+        batch-normalisation and other batch-size-sensitive ops produce
+        the same result as during the original build.
+        """
+        if self.build_batch_size > 1 and tile.shape[0] == 1:
+            tile = tile.expand(self.build_batch_size, -1, -1, -1)
         result = self.evaluator(tile)
         out = {}
         for layer in self.evaluator.layer_names:
