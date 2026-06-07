@@ -1345,6 +1345,7 @@ def gigapath_probe_tile_feature_zip_alignment(
     return dict(n_match=n_match, n_differ=n_differ, max_diff=max_diff)
 
 
+"""
 ### Diagnostic: batch-size invariance of DeepFeatureClip
 git commit -am 'deep: verify batchsize' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_probe_deep_feature_clip_batchsize_effect( \
