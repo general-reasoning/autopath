@@ -585,7 +585,7 @@ class BipolarDeepFeatureBag(Bag):
         across all tiles in the same bag).
     """
 
-    VERSION = 4
+    VERSION = 5
 
     TOPICS = ['shards']
 
@@ -801,7 +801,7 @@ class BipolarDeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 4
+    VERSION = 5
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
