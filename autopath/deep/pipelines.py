@@ -984,8 +984,8 @@ def gigapath_tile_deep_feature_clip_dataset(
 
 
 """
-git commit -am 'deep: gigapath_tile_bipolar_deep_feature_clip_dataset: TEST' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataset( \
+git commit -am 'deep: gigapath_tile_bipolar_deep_feature_clip_dataset_samples: TEST' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataset_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
@@ -994,7 +994,7 @@ autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataset( \
     n=8, \
 )"
 """
-def gigapath_tile_bipolar_deep_feature_clip_dataset(
+def gigapath_tile_bipolar_deep_feature_clip_dataset_samples(
     name: str,
     *,
     cfg_layer: str = 'output',
