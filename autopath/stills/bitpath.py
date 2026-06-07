@@ -331,8 +331,8 @@ class BitPathDataloaderBuilder(Datablock):
 
         Creates a :class:`ZipStreamingDataset` pairing the bipolar
         feature clip's dataset with the source tile clip's dataset,
-        so each sample contains both ``tile_bipolar_features`` and
-        ``tile`` images.
+        so each sample contains both ``bipolar_features_{layer}`` and
+        ``bag_bipolar_features_{layer}`` alongside ``tile`` images.
         """
         from autopath.autobits import ZipStreamingDataset
 
@@ -383,12 +383,15 @@ class BitPathLightning(Datablock):
         weight_decay: float = 0.01
         # Scheduler
         scheduler: str = 'cosine'
+        # Feature column
+        feature_layer: str = 'output'
 
     class Lightning(L.LightningModule):
 
         def __init__(
             self,
             model: nn.Module,
+            feature_layer: str = 'output',
             learning_rate: float = 1e-3,
             weight_decay: float = 0.01,
             scheduler: str = 'cosine',
@@ -396,6 +399,7 @@ class BitPathLightning(Datablock):
         ):
             super().__init__()
             self.model = model
+            self.feature_layer = feature_layer
             self.learning_rate = learning_rate
             self.weight_decay = weight_decay
             self.scheduler_name = scheduler
@@ -405,7 +409,7 @@ class BitPathLightning(Datablock):
         def training_step(self, batch, batch_idx):
             # batch is a dict from StreamingDataset
             tiles = batch['tile']             # (B, H, W, 3) uint8 ndarray
-            targets = batch['tile_bipolar_features']  # (B, D) int8
+            targets = batch[f'bipolar_features_{self.feature_layer}']  # (B, D) int8
 
             # Prepare tiles: (B, H, W, 3) → (B, 3, H, W) float32
             if tiles.ndim == 4 and tiles.shape[-1] == 3:
@@ -483,6 +487,7 @@ class BitPathLightning(Datablock):
         )
         return self.Lightning(
             model=model,
+            feature_layer=self.cfg.feature_layer,
             learning_rate=self.cfg.learning_rate,
             weight_decay=self.cfg.weight_decay,
             scheduler=self.cfg.scheduler,

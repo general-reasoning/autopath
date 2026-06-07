@@ -580,12 +580,12 @@ class BipolarDeepFeatureBag(Bag):
     Topics
     ------
     shards
-        MDS shards with per-tile ``tile_bipolar_features`` (int8).
-    bag_bipolar_features
-        Computed on-the-fly from tile bipolars via mean + threshold.
+        MDS shards with per-tile ``bipolar_features_{layer}`` (int8)
+        and per-bag ``bag_bipolar_features_{layer}`` (int8, identical
+        across all tiles in the same bag).
     """
 
-    VERSION = 3
+    VERSION = 4
 
     TOPICS = ['shards']
 
@@ -627,11 +627,14 @@ class BipolarDeepFeatureBag(Bag):
         """Build bipolar features for this bag.
 
         Reads tile-level features from the underlying
-        :class:`DeepFeatureBag` and tile images / metadata from the
-        source :class:`TileBag`, writing **both** into a single set of
-        MDS shards so that downstream consumers get co-located
-        ``tile_bipolar_features``, ``tile``, ``bag_name``, and
-        ``annotations`` without a second dataset lookup.
+        :class:`DeepFeatureBag`, computes tile-level and bag-level
+        bipolar encodings, and writes them into MDS shards.
+
+        Columns written:
+
+        * ``bipolar_features_{layer}``  — per-tile ``{-1, +1}^d`` (int8)
+        * ``bag_bipolar_features_{layer}`` — per-bag ``{-1, 0, +1}^d``
+          (int8, identical for every tile in the bag)
 
         Parameters
         ----------
@@ -639,10 +642,13 @@ class BipolarDeepFeatureBag(Bag):
             Per-dimension median vector ``(d,)``.  Passed via
             ``callable_kwargs`` from the clip.
         """
+        layer = self.cfg.layer
+        tile_col = f'bipolar_features_{layer}'
+        bag_col = f'bag_bipolar_features_{layer}'
 
         # 1. Read raw tile features for the target layer.
         features = self.cfg.deep_feature_bag.layer_features(
-            self.cfg.layer
+            layer
         ).numpy()  # (n_tiles, d)
         n_tiles = features.shape[0]
 
@@ -663,14 +669,24 @@ class BipolarDeepFeatureBag(Bag):
                 f"uncertain dimensions (bag mean ≈ 0)"
             )
 
-        # 4. Write tile-level bipolar features as MDS shards.
+        # 4. Bag-level bipolar: aggregate tile bipolars via mean + threshold.
+        bag_mean = tile_bipolar.astype(np.float32).mean(axis=0)  # (d,)
+        threshold = self.cfg.bag_aggregation_threshold
+        bag_bipolar = np.where(
+            np.abs(bag_mean) >= threshold,
+            np.sign(bag_mean),
+            0.0,
+        ).astype(np.int8)  # (d,)
+
+        # 5. Write tile-level + bag-level bipolar features as MDS shards.
         shards_dir = self.path('shards', ensure_dirpath=True)
         if self.fs.exists(shards_dir) and self.fs.ls(shards_dir):
             self.fs.rm(shards_dir, recursive=True)
             self.fs.mkdirs(shards_dir, exist_ok=True)
 
         columns = {
-            'tile_bipolar_features': 'ndarray:int8',
+            tile_col: 'ndarray:int8',
+            bag_col: 'ndarray:int8',
         }
         writer = MDSWriter(
             out=shards_dir,
@@ -681,13 +697,16 @@ class BipolarDeepFeatureBag(Bag):
         try:
             for i in range(n_tiles):
                 writer.write({
-                    'tile_bipolar_features': tile_bipolar[i],
+                    tile_col: tile_bipolar[i],
+                    bag_col: bag_bipolar,
                 })
         finally:
             writer.finish()
 
         self.log.verbose(
-            f"Built bipolar features: {n_tiles} tiles, d={tile_bipolar.shape[1]}"
+            f"Built bipolar features: {n_tiles} tiles, d={tile_bipolar.shape[1]}, "
+            f"bag dims with |mean|>={threshold}: "
+            f"{int((np.abs(bag_mean) >= threshold).sum())}/{tile_bipolar.shape[1]}"
         )
         return self
 
@@ -701,22 +720,21 @@ class BipolarDeepFeatureBag(Bag):
     @functools.cached_property
     def tile_bipolar_features(self):
         """Tile-level bipolar features ``{-1, +1}^d``, shape ``(n_tiles, d)``."""
+        tile_col = f'bipolar_features_{self.cfg.layer}'
         arrays = list(read_mds_samples(
-            self.path('shards'), column='tile_bipolar_features'
+            self.path('shards'), column=tile_col
         ))
         return np.stack(arrays)
 
     @functools.cached_property
     def bag_bipolar_features(self):
-        """Bag-level bipolar features ``{-1, 0, +1}^d``, shape ``(d,)``."""
-        tiles = self.tile_bipolar_features.astype(np.float32)
-        bag_mean = tiles.mean(axis=0)
-        threshold = self.cfg.bag_aggregation_threshold
-        return np.where(
-            np.abs(bag_mean) >= threshold,
-            np.sign(bag_mean),
-            0.0,
-        ).astype(np.int8)
+        """Bag-level bipolar features ``{-1, 0, +1}^d``, shape ``(d,)``.
+
+        Read from the first MDS sample (identical across all tiles).
+        """
+        bag_col = f'bag_bipolar_features_{self.cfg.layer}'
+        samples = read_mds_samples(self.path('shards'), column=bag_col)
+        return next(iter(samples))
 
     def layer_features(self, layer: str = None):
         """Read tile-level bipolar features as a float32 tensor.
@@ -750,7 +768,7 @@ class BipolarDeepFeatureBag(Bag):
         descriptors are released promptly::
 
             with bag.dataset() as ds:
-                x = ds[0]['tile_bipolar_features']
+                x = ds[0][f'bipolar_features_{layer}']
         """
         if self.is_local_fs:
             ds = StreamingDataset(local=self.path('shards'), shuffle=shuffle)
@@ -783,7 +801,7 @@ class BipolarDeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 3
+    VERSION = 4
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -870,8 +888,8 @@ class BipolarDeepFeatureClip(Clip):
     ) -> Dataset:
         """Return a streaming dataset over all bipolar feature bags.
 
-        Each sample dict contains ``tile_bipolar_features`` (int8
-        ndarray) and ``tile_index`` (int32).
+        Each sample dict contains ``bipolar_features_{layer}`` and
+        ``bag_bipolar_features_{layer}`` (both int8 ndarray).
 
         To also include tile images, zip this dataset with the
         corresponding tile clip's dataset using
