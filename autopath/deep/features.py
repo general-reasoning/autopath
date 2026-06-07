@@ -41,8 +41,11 @@ class DeepFeatureBag(Bag):
     """A Bag that stores multi-layer activations from a DeepBackboneEvaluator.
 
     All data is stored as MDS shards for efficient streaming reads.
-    Each MDS sample contains feature columns for every captured layer
-    and a ``tile_index`` for back-referencing the source :class:`TileBag`.
+    Each MDS sample contains:
+
+    * ``features_{layer}`` — per-layer activation ndarray (float32)
+    * ``tile_index`` — position of this tile within the source TileBag
+    * ``bag_name`` — slide/bag name string for provenance
 
     Topics
     ------
@@ -51,7 +54,7 @@ class DeepFeatureBag(Bag):
         ``fs.ls`` listing of the shards directory.
     """
 
-    VERSION = 7
+    VERSION = 8
 
     TOPICS = ['shards']
 
@@ -153,6 +156,8 @@ class DeepFeatureBag(Bag):
         for lyr in feature_names:
             safe = lyr.replace(".", "_")
             columns[f"features_{safe}"] = "ndarray:float32"
+        columns["tile_index"] = "int32"
+        columns["bag_name"] = "str"
 
         n_batches = math.ceil(n_tiles / self.gpu_batch_size)
         progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
@@ -173,7 +178,7 @@ class DeepFeatureBag(Bag):
                     sample_bytes = sum(
                         result[lyr][0].numpy().nbytes
                         for lyr in feature_names if lyr in result
-                    )
+                    ) + 4  # +4 for tile_index int32
                     byte_limit = self.cfg.shard_size * sample_bytes
                     writer = MDSWriter(
                         out=shards_dir,
@@ -183,6 +188,7 @@ class DeepFeatureBag(Bag):
                     )
 
                 # Write features for each sample directly to MDS.
+                bag_name = tilebag.name
                 batch_size = n - m
                 for i in range(batch_size):
                     sample = {}
@@ -192,6 +198,8 @@ class DeepFeatureBag(Bag):
                             sample[f"features_{safe}"] = result[lyr][i].numpy().astype(
                                 np.float32
                             )
+                    sample["tile_index"] = np.int32(tile_cursor + i)
+                    sample["bag_name"] = bag_name
                     writer.write(sample)
 
                 tile_cursor += batch_size
@@ -556,6 +564,91 @@ class DeepFeatureClip(Clip):
         if batch_size is not None:
             sd_kwargs['batch_size'] = batch_size
         return StreamingDataset(**sd_kwargs)
+
+    def verify_batchsize_invariance(
+        self,
+        *,
+        n_repeats: int = 3,
+        build_batch_size: int = 64,
+        device: str = 'cuda',
+    ):
+        """Compare evaluator output at BS=1 vs BS=``build_batch_size``.
+
+        Also compares both against the stored features for the first
+        tile in the first bag, to quantify systematic drift.  This is
+        useful for diagnosing whether CUDA kernel selection differences
+        (which can vary by batch size) contribute to build/validation
+        discrepancies.
+
+        Returns a dict with ``bs1_vs_bsN``, ``stored_vs_bs1``,
+        ``stored_vs_bsN`` max-absolute-error values.
+        """
+        evaluator = self.cfg.evaluator_factory.evaluator(device=device, log=self.log)
+
+        bag = self.cfg.tilebagclip.shard(0)
+        tiles = bag.tiles  # NCHW uint8
+        tile = tiles[0:1]
+        self.log.info(f"Tile shape: {tile.shape}, dtype: {tile.dtype}")
+
+        # --- BS=1 ---
+        results_bs1 = []
+        for _ in range(n_repeats):
+            r = evaluator(tile)
+            results_bs1.append(r['output'][0].numpy().copy())
+            evaluator.clear()
+
+        # --- BS=build_batch_size (same tile repeated) ---
+        batch = tile.expand(build_batch_size, -1, -1, -1)
+        results_bsN = []
+        for _ in range(n_repeats):
+            r = evaluator(batch)
+            results_bsN.append(r['output'][0].numpy().copy())
+            evaluator.clear()
+
+        bs1 = np.stack(results_bs1)
+        bsN = np.stack(results_bsN)
+        bs1_mean = bs1.mean(axis=0)
+        bsN_mean = bsN.mean(axis=0)
+
+        self.log.info(
+            f"BS1 repeat std:  max={bs1.std(0).max():.2e}  mean={bs1.std(0).mean():.2e}"
+        )
+        self.log.info(
+            f"BS{build_batch_size} repeat std: "
+            f"max={bsN.std(0).max():.2e}  mean={bsN.std(0).mean():.2e}"
+        )
+
+        diff = np.abs(bs1_mean - bsN_mean)
+        denom = np.maximum(np.maximum(np.abs(bs1_mean), np.abs(bsN_mean)), 1.0)
+        rel = diff / denom
+        self.log.info(
+            f"BS1 vs BS{build_batch_size}:  "
+            f"max_abs={diff.max():.2e}  mean_abs={diff.mean():.2e}  "
+            f"max_rel={rel.max():.2e}  mean_rel={rel.mean():.2e}"
+        )
+
+        # --- Compare against stored features (first sample) ---
+        ds = self.dataset(shuffle=False, batch_size=1)
+        sample = ds[0]
+        stored = sample['features_output']
+        if isinstance(stored, torch.Tensor):
+            stored = stored.numpy()
+
+        for label, fresh in [('BS1', bs1_mean), (f'BS{build_batch_size}', bsN_mean)]:
+            d = np.abs(stored - fresh)
+            den = np.maximum(np.maximum(np.abs(stored), np.abs(fresh)), 1.0)
+            r = d / den
+            self.log.info(
+                f"Stored vs {label}:  "
+                f"max_abs={d.max():.2e}  mean_abs={d.mean():.2e}  "
+                f"max_rel={r.max():.2e}  mean_rel={r.mean():.2e}"
+            )
+
+        return {
+            'bs1_vs_bsN': float(diff.max()),
+            'stored_vs_bs1': float(np.abs(stored - bs1_mean).max()),
+            'stored_vs_bsN': float(np.abs(stored - bsN_mean).max()),
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════
