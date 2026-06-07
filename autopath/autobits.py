@@ -526,7 +526,7 @@ class ValidateTileFeatureZipStreamingDataset:
             self._bag_index = {}
             for idx in range(tilebagclip.n_shards):
                 bag = tilebagclip.shard(idx)
-                self._bag_index[bag.tag] = bag
+                self._bag_index[bag.name] = bag
             self.log.info(
                 f"Indexed {len(self._bag_index)} tile bags by name"
             )
