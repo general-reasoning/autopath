@@ -399,6 +399,160 @@ class ZipStreamingDataset(Dataset):
         return merged
 
 
+class ValidateTileFeatureZipStreamingDataset:
+    """Validate that a zipped tile+feature dataset is consistent.
+
+    Takes a :class:`ZipStreamingDataset` (pairing tiles with stored
+    features) and a :class:`DeepBackboneEvaluator`, re-runs the
+    evaluator on the tiles, and compares the result against the stored
+    feature columns.
+
+    The feature columns in the dataset follow the naming convention
+    ``features_{safe_layer}`` where ``safe_layer`` is the evaluator
+    layer name with dots replaced by underscores (e.g. ``block.38``
+    → ``features_block_38``).
+
+    Parameters
+    ----------
+    dataset : ZipStreamingDataset
+        Zipped dataset whose samples contain both ``tile`` and
+        ``features_*`` columns.
+    evaluator : DeepBackboneEvaluator
+        A ready-to-use evaluator (e.g. from
+        ``evaluator_factory.evaluator(device=...)``).
+    n_samples : int | None
+        Maximum number of samples to validate.  ``None`` validates all.
+    tile_key : str
+        Key for the tile column in the dataset.
+    atol : float
+        Absolute tolerance for ``np.allclose``.
+    rtol : float
+        Relative tolerance for ``np.allclose``.
+    log : dbx.Logger | None
+        Logger instance.
+
+    Examples
+    --------
+    ::
+
+        factory = GigapathDeepBackboneEvaluatorFactory(...)
+        evaluator = factory.evaluator(device='cuda')
+        ds = ZipStreamingDataset(feature_ds, tile_ds)
+        result = ValidateTileFeatureZipStreamingDataset(
+            ds, evaluator, n_samples=100,
+        ).validate()
+        print(result)  # ValidationResult(n_validated=100, n_mismatched=0, ...)
+    """
+
+    @dataclass
+    class ValidationResult:
+        """Summary of a validation run."""
+        n_validated: int
+        n_mismatched: int
+        mismatched_indices: list
+        max_abs_error: float
+        layer_errors: dict  # layer → max abs error across all samples
+
+        @property
+        def passed(self) -> bool:
+            return self.n_mismatched == 0
+
+        def __repr__(self):
+            status = 'PASSED' if self.passed else 'FAILED'
+            return (
+                f"ValidationResult({status}: "
+                f"{self.n_validated} validated, "
+                f"{self.n_mismatched} mismatched, "
+                f"max_abs_error={self.max_abs_error:.2e})"
+            )
+
+    def __init__(
+        self,
+        dataset,
+        evaluator,
+        *,
+        n_samples: int | None = None,
+        tile_key: str = 'tile',
+        atol: float = 1e-5,
+        rtol: float = 1e-5,
+        log: dbx.Logger = None,
+    ):
+        self.dataset = dataset
+        self.evaluator = evaluator
+        self.n_samples = n_samples
+        self.tile_key = tile_key
+        self.atol = atol
+        self.rtol = rtol
+        self.log = log or dbx.Logger(name='ValidateTileFeatureZip')
+
+    def validate(self):
+        """Run validation and return a :class:`ValidationResult`."""
+        n_total = len(self.dataset)
+        n_to_check = n_total if self.n_samples is None else min(self.n_samples, n_total)
+
+        mismatched_indices = []
+        max_abs_error = 0.0
+        layer_errors = {}
+
+        layer_names = self.evaluator.layer_names
+        # Build column mapping: evaluator layer → dataset column
+        col_map = {}
+        for layer in layer_names:
+            safe = layer.replace('.', '_')
+            col_map[layer] = f'features_{safe}'
+
+        progress = tqdm.tqdm(range(n_to_check), desc='Validating', unit='sample')
+        for i in progress:
+            sample = self.dataset[i]
+
+            # Extract tile and run evaluator
+            tile = sample[self.tile_key]
+            if isinstance(tile, np.ndarray):
+                tile = torch.from_numpy(tile)
+            if tile.dim() == 3:
+                tile = tile.unsqueeze(0)  # (H, W, C) → (1, H, W, C)
+
+            result = self.evaluator(tile)
+
+            # Compare each layer
+            sample_ok = True
+            for layer in layer_names:
+                col = col_map[layer]
+                if col not in sample:
+                    continue
+                stored = sample[col]
+                if isinstance(stored, torch.Tensor):
+                    stored = stored.numpy()
+                computed = result[layer][0].numpy()
+
+                abs_err = float(np.max(np.abs(stored - computed)))
+                max_abs_error = max(max_abs_error, abs_err)
+                layer_errors[layer] = max(layer_errors.get(layer, 0.0), abs_err)
+
+                if not np.allclose(stored, computed, atol=self.atol, rtol=self.rtol):
+                    sample_ok = False
+
+            if not sample_ok:
+                mismatched_indices.append(i)
+
+            self.evaluator.clear()
+
+            if (i + 1) % 50 == 0 or i == n_to_check - 1:
+                self.log.info(
+                    f"Validated {i + 1}/{n_to_check} samples, "
+                    f"{len(mismatched_indices)} mismatches, "
+                    f"max_abs_error={max_abs_error:.2e}"
+                )
+
+        return self.ValidationResult(
+            n_validated=n_to_check,
+            n_mismatched=len(mismatched_indices),
+            mismatched_indices=mismatched_indices,
+            max_abs_error=max_abs_error,
+            layer_errors=layer_errors,
+        )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 #  Collation helpers
 # ═══════════════════════════════════════════════════════════════════════

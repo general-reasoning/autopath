@@ -24,6 +24,8 @@ import lightning.pytorch.loggers
 import dbx
 from dbx import Datablock
 
+from autopath.autobits import ZipStreamingDataset
+
 
 # ═══════════════════════════════════════════════════════════════════════
 #  BitNet 1.58b primitives
@@ -334,7 +336,7 @@ class BitPathDataloaderBuilder(Datablock):
         so each sample contains both ``bipolar_features_{layer}`` and
         ``bag_bipolar_features_{layer}`` alongside ``tile`` images.
         """
-        from autopath.autobits import ZipStreamingDataset
+
 
         sd_kwargs = dict(
             shuffle=self.cfg.shuffle,
