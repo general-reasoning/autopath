@@ -1365,7 +1365,7 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
     cfg_cls_token_only: bool = False,
     cfg_shard_size: int = 1024,
     bag_index: int = 0,
-    tile_index: int = 0,
+    tile_index: int | list[int] = 0,
     n_repeats: int = 3,
     device: str = 'cuda',
 ):
@@ -1373,6 +1373,13 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
 
     Thin pipeline wrapper around
     :meth:`DeepFeatureClip.verify_batchsize_invariance`.
+
+    Parameters
+    ----------
+    tile_index : int | list[int]
+        A single tile index or a list of tile indices to probe.
+        When a list is given, runs the test for each tile, prints
+        per-tile line items, and returns a summary with averages.
     """
     clip = gigapath_deep_feature_clip(
         name,
@@ -1383,11 +1390,52 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
         cfg_cls_token_only=cfg_cls_token_only,
         cfg_shard_size=cfg_shard_size,
     )
-    return clip.verify_batchsize_invariance(
-        bag_index=bag_index,
-        tile_index=tile_index,
-        n_repeats=n_repeats,
-        device=device,
+
+    if isinstance(tile_index, int):
+        return clip.verify_batchsize_invariance(
+            bag_index=bag_index,
+            tile_index=tile_index,
+            n_repeats=n_repeats,
+            device=device,
+        )
+
+    # Multiple tiles
+    results = []
+    for ti in tile_index:
+        r = clip.verify_batchsize_invariance(
+            bag_index=bag_index,
+            tile_index=ti,
+            n_repeats=n_repeats,
+            device=device,
+        )
+        results.append(r)
+        clip.log.info(
+            f"  tile {ti:3d}: stored_vs_bs1={r['stored_vs_bs1']:.2e}  "
+            f"stored_vs_bsN={r['stored_vs_bsN']:.2e}  "
+            f"bs1_vs_bsN={r['bs1_vs_bsN']:.2e}"
+        )
+
+    avg_stored_bs1 = np.mean([r['stored_vs_bs1'] for r in results])
+    avg_stored_bsN = np.mean([r['stored_vs_bsN'] for r in results])
+    avg_bs1_bsN = np.mean([r['bs1_vs_bsN'] for r in results])
+    max_stored_bs1 = max(r['stored_vs_bs1'] for r in results)
+    max_stored_bsN = max(r['stored_vs_bsN'] for r in results)
+    max_bs1_bsN = max(r['bs1_vs_bsN'] for r in results)
+
+    clip.log.info(
+        f"Summary ({len(results)} tiles): "
+        f"stored_vs_bs1: avg={avg_stored_bs1:.2e} max={max_stored_bs1:.2e}  "
+        f"stored_vs_bsN: avg={avg_stored_bsN:.2e} max={max_stored_bsN:.2e}  "
+        f"bs1_vs_bsN: avg={avg_bs1_bsN:.2e} max={max_bs1_bsN:.2e}"
+    )
+    return dict(
+        results=results,
+        avg_stored_vs_bs1=avg_stored_bs1,
+        avg_stored_vs_bsN=avg_stored_bsN,
+        avg_bs1_vs_bsN=avg_bs1_bsN,
+        max_stored_vs_bs1=max_stored_bs1,
+        max_stored_vs_bsN=max_stored_bsN,
+        max_bs1_vs_bsN=max_bs1_bsN,
     )
 
 # ═══════════════════════════════════════════════════════════════════════
