@@ -19,6 +19,7 @@ from typing import Literal
 
 import tqdm
 import torch
+import numpy as np
 
 import dbx
 from dbx import Logger
