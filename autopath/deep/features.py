@@ -568,27 +568,43 @@ class DeepFeatureClip(Clip):
     def verify_batchsize_invariance(
         self,
         *,
+        bag_index: int = 0,
+        tile_index: int = 0,
         n_repeats: int = 3,
         build_batch_size: int = 64,
         device: str = 'cuda',
     ):
         """Compare evaluator output at BS=1 vs BS=``build_batch_size``.
 
-        Also compares both against the stored features for the first
-        tile in the first bag, to quantify systematic drift.  This is
-        useful for diagnosing whether CUDA kernel selection differences
-        (which can vary by batch size) contribute to build/validation
-        discrepancies.
+        Re-evaluates the tile at (``bag_index``, ``tile_index``) and
+        compares both batch-size variants against the stored feature
+        at the corresponding flat dataset position.
+
+        Parameters
+        ----------
+        bag_index : int
+            Which bag (shard) within the clip to probe.
+        tile_index : int
+            Which tile within that bag to probe.
+        n_repeats : int
+            Number of repeated forward passes per batch size.
+        build_batch_size : int
+            Batch size used during the original build (default 64).
+        device : str
+            CUDA device string.
 
         Returns a dict with ``bs1_vs_bsN``, ``stored_vs_bs1``,
         ``stored_vs_bsN`` max-absolute-error values.
         """
         evaluator = self.cfg.evaluator_factory.evaluator(device=device, log=self.log)
 
-        bag = self.cfg.tilebagclip.shard(0)
-        tiles = bag.tiles  # NCHW uint8
-        tile = tiles[0:1]
-        self.log.info(f"Tile shape: {tile.shape}, dtype: {tile.dtype}")
+        tilebag = self.cfg.tilebagclip.shard(bag_index)
+        tiles = tilebag.tiles  # NCHW uint8
+        tile = tiles[tile_index:tile_index + 1]
+        self.log.info(
+            f"Probing bag={bag_index} ({tilebag.name}) tile={tile_index}  "
+            f"shape={tile.shape} dtype={tile.dtype}"
+        )
 
         # --- BS=1 ---
         results_bs1 = []
@@ -627,12 +643,21 @@ class DeepFeatureClip(Clip):
             f"max_rel={rel.max():.2e}  mean_rel={rel.mean():.2e}"
         )
 
-        # --- Compare against stored features (first sample) ---
+        # --- Compare against stored features ---
+        # Compute the flat dataset offset: sum of bag lengths before
+        # this bag, plus tile_index within the bag.
+        flat_offset = tile_index
+        for i in range(bag_index):
+            flat_offset += len(self.bags[i])
         ds = self.dataset(shuffle=False, batch_size=1)
-        sample = ds[0]
+        sample = ds[flat_offset]
         stored = sample['features_output']
         if isinstance(stored, torch.Tensor):
             stored = stored.numpy()
+
+        self.log.info(
+            f"Stored feature at flat_offset={flat_offset} (bag={bag_index}, tile={tile_index})"
+        )
 
         for label, fresh in [('BS1', bs1_mean), (f'BS{build_batch_size}', bsN_mean)]:
             d = np.abs(stored - fresh)

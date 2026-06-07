@@ -1289,6 +1289,8 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
     cfg_capture_outputs: bool = True,
     cfg_cls_token_only: bool = False,
     cfg_shard_size: int = 1024,
+    bag_index: int = 0,
+    tile_index: int = 0,
     n_repeats: int = 3,
     device: str = 'cuda',
 ):
@@ -1307,6 +1309,8 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
         cfg_shard_size=cfg_shard_size,
     )
     return clip.verify_batchsize_invariance(
+        bag_index=bag_index,
+        tile_index=tile_index,
         n_repeats=n_repeats,
         device=device,
     )
