@@ -1272,6 +1272,97 @@ def gigapath_validate_tile_feature_zip(
     return validator.validate()
 
 
+"""
+### Diagnostic: batch-size effect on GigaPath evaluator output
+git commit -am 'deep: diag batchsize' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.check_batchsize_effect( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+)"
+"""
+def check_batchsize_effect(
+    name: str,
+    *,
+    url: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 1024,
+    n_repeats: int = 3,
+    device: str = 'cuda',
+):
+    """Compare evaluator output at BS=1 vs BS=64 and both against stored."""
+    clip = gigapath_deep_feature_clip(
+        name,
+        url=url,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+    )
+    evaluator = clip.cfg.evaluator_factory.evaluator(device=device)
+
+    bag = clip.cfg.tilebagclip.shard(0)
+    tiles = bag.tiles  # NCHW
+    tile = tiles[0:1]
+    print(f"Tile shape: {tile.shape}, dtype: {tile.dtype}")
+
+    # --- BS=1 ---
+    results_bs1 = []
+    for _ in range(n_repeats):
+        r = evaluator(tile)
+        results_bs1.append(r['output'][0].numpy().copy())
+        evaluator.clear()
+
+    # --- BS=64 (same tile repeated) ---
+    batch = tile.expand(64, -1, -1, -1)
+    results_bs64 = []
+    for _ in range(n_repeats):
+        r = evaluator(batch)
+        results_bs64.append(r['output'][0].numpy().copy())
+        evaluator.clear()
+
+    bs1 = np.stack(results_bs1)
+    bs64 = np.stack(results_bs64)
+    bs1_mean = bs1.mean(axis=0)
+    bs64_mean = bs64.mean(axis=0)
+
+    print(f"\n=== BS1 repeat std:  max={bs1.std(0).max():.2e}  mean={bs1.std(0).mean():.2e}")
+    print(f"=== BS64 repeat std: max={bs64.std(0).max():.2e}  mean={bs64.std(0).mean():.2e}")
+
+    diff = np.abs(bs1_mean - bs64_mean)
+    denom = np.maximum(np.maximum(np.abs(bs1_mean), np.abs(bs64_mean)), 1.0)
+    rel = diff / denom
+    print(f"\n=== BS1 vs BS64 ===")
+    print(f"  Max abs diff:  {diff.max():.2e}")
+    print(f"  Mean abs diff: {diff.mean():.2e}")
+    print(f"  Max rel diff:  {rel.max():.2e}")
+    print(f"  Mean rel diff: {rel.mean():.2e}")
+
+    # --- Compare against stored features (first sample) ---
+    ds = clip.dataset(shuffle=False, batch_size=1)
+    sample = ds[0]
+    stored = sample['features_output']
+    if isinstance(stored, torch.Tensor):
+        stored = stored.numpy()
+
+    for label, fresh in [('BS1', bs1_mean), ('BS64', bs64_mean)]:
+        d = np.abs(stored - fresh)
+        den = np.maximum(np.maximum(np.abs(stored), np.abs(fresh)), 1.0)
+        r = d / den
+        print(f"\n=== Stored vs {label} ===")
+        print(f"  Max abs diff:  {d.max():.2e}")
+        print(f"  Mean abs diff: {d.mean():.2e}")
+        print(f"  Max rel diff:  {r.max():.2e}")
+        print(f"  Mean rel diff: {r.mean():.2e}")
+
+    return {'bs1_vs_bs64': float(diff.max()),
+            'stored_vs_bs1': float(np.abs(stored - bs1_mean).max()),
+            'stored_vs_bs64': float(np.abs(stored - bs64_mean).max())}
+
 # ═══════════════════════════════════════════════════════════════════════
 #  BitPath still
 # ═══════════════════════════════════════════════════════════════════════
