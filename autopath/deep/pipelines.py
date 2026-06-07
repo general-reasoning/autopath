@@ -887,8 +887,6 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
         )
         probe.build_tree()
     """
-
-
     clip = gigapath_bipolar_deep_feature_clip(
         name,
         cfg_layer=cfg_layer,
@@ -963,8 +961,6 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
     n : int | None
         If given, iterate this many samples and return the last batch.
     """
-
-
     clip = gigapath_deep_feature_clip(
         name,
         url=url,
@@ -1006,6 +1002,15 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
 git commit -am 'deep: gigapath_tile_bipolar_deep_feature_clip_dataloader_samples: TEST' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    batch_size=4, \
+    n=8, \
+)"
+git commit -am 'deep: gigapath_tile_bipolar_deep_feature_clip_dataloader_samples: TEST' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
