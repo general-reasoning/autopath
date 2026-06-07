@@ -42,7 +42,7 @@ from autopath.pancan.pipelines import (
     pancan_tile_clip,
     pancan_tile_fold,
 )
-from autopath.autobits import sanitize_collate, ZipStreamingDataset
+from autopath.autobits import sanitize_collate, ValidateTileFeatureZipStreamingDataset, ZipStreamingDataset
 from autopath.stills.bitpath import (
     BitPathDataloaderBuilder,
     BitPathLightning,
@@ -1141,6 +1141,113 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
             break
     if return_last:
         return last
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Validate tile ↔ feature consistency
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — validate deep features (100 samples)
+git commit -am 'deep: validate tile features' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_validate_tile_feature_zip( \\
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \\
+    cfg_cls_token_only=True, \\
+    cfg_shard_size=64, \\
+    n_samples=100, \\
+)"
+"""
+def gigapath_validate_tile_feature_zip(
+    name: str,
+    *,
+    url: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 1024,
+    n_samples: int | None = None,
+    tile_key: str = 'tile',
+    atol: float = 1e-5,
+    rtol: float = 1e-5,
+    device: str = 'cuda',
+    shuffle: bool = False,
+    shuffle_seed: int = 42,
+    shuffle_block_size: int = 256,
+    skip_invalid_bags: bool = True,
+    batch_size: int = 1,
+):
+    """Validate stored deep features against fresh backbone evaluation.
+
+    Builds a :class:`ZipStreamingDataset` pairing the
+    :class:`DeepFeatureClip` dataset with its source tile clip, then
+    uses :class:`ValidateTileFeatureZipStreamingDataset` to re-run the
+    GigaPath backbone on each tile and compare.
+
+    Parameters
+    ----------
+    name : str
+        Forwarded to :func:`gigapath_deep_feature_clip`.
+    n_samples : int | None
+        Maximum number of samples to validate.  ``None`` validates all.
+    atol, rtol : float
+        Tolerances for ``np.allclose``.
+    device : str
+        Device for the evaluator (e.g. ``'cuda'``, ``'cuda:1'``).
+    shuffle : bool
+        Whether to shuffle within the streaming datasets.  When
+        ``True``, ``shuffle_seed`` and ``shuffle_block_size`` are
+        applied to both datasets identically.
+    shuffle_seed : int
+        Seed for deterministic shuffle order.
+    shuffle_block_size : int
+        Block size for the shuffle algorithm.
+    batch_size : int
+        Passed to both datasets for deterministic resumption.
+
+    Returns
+    -------
+    ValidateTileFeatureZipStreamingDataset.ValidationResult
+    """
+    clip = gigapath_deep_feature_clip(
+        name,
+        url=url,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+    )
+    assert clip.valid(), (
+        f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
+        f"Build it first with gigapath_deep_feature_clip(...).build_tree()\n"
+        f"  validpaths = {clip.validpaths()}\n"
+        f"  anchorkeypath = {clip.anchorkeypath}"
+    )
+
+    sd_kwargs = dict(
+        shuffle=shuffle,
+        skip_invalid_bags=skip_invalid_bags,
+        batch_size=batch_size,
+    )
+    if shuffle:
+        sd_kwargs['shuffle_seed'] = shuffle_seed
+        sd_kwargs['shuffle_block_size'] = shuffle_block_size
+
+    feature_ds = clip.dataset(**sd_kwargs)
+    tile_ds = clip.cfg.tilebagclip.dataset(**sd_kwargs)
+    ds = ZipStreamingDataset(feature_ds, tile_ds)
+
+    evaluator = clip.cfg.evaluator_factory.evaluator(device=device)
+
+    validator = ValidateTileFeatureZipStreamingDataset(
+        ds, evaluator,
+        n_samples=n_samples,
+        tile_key=tile_key,
+        atol=atol,
+        rtol=rtol,
+    )
+    return validator.validate()
 
 
 # ═══════════════════════════════════════════════════════════════════════

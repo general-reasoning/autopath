@@ -476,6 +476,7 @@ class PancanTileClip(Clip):
 		shuffle: bool = False,
 		skip_invalid_bags: bool = False,
 		batch_size: int = 1,
+		**streaming_kwargs,
 	):
 		"""Return a unified dataset over all bags using MDS multi-stream API.
 
@@ -516,7 +517,7 @@ class PancanTileClip(Clip):
 				f"unbuilt bags in {self.__class__.__name__}.dataset()"
 			)
 
-		return StreamingDataset(streams=streams, shuffle=shuffle, batch_size=batch_size)
+		return StreamingDataset(streams=streams, shuffle=shuffle, batch_size=batch_size, **streaming_kwargs)
 
 
 
@@ -527,7 +528,7 @@ class PancanTilePartition(Partition):
 class PancanTileFold(Fold):
 	VERSION = 2
 
-	def dataset(self, *, shuffle: bool = False, skip_invalid_bags: bool = False, batch_size: int = 1):
+	def dataset(self, *, shuffle: bool = False, skip_invalid_bags: bool = False, batch_size: int = 1, **streaming_kwargs):
 		"""Delegate to :meth:`PancanTileClip.dataset` (same shard interface)."""
-		return PancanTileClip.dataset(self, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size)
+		return PancanTileClip.dataset(self, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size, **streaming_kwargs)
 

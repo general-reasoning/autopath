@@ -504,6 +504,7 @@ class DeepFeatureClip(Clip):
         shuffle: bool = False,
         skip_invalid_bags: bool = False,
         batch_size: int | None = None,
+        **streaming_kwargs,
     ) -> Dataset:
         """Return a unified, labeled dataset over all bags.
 
@@ -551,7 +552,7 @@ class DeepFeatureClip(Clip):
             )
 
         # One StreamingDataset with N streams — one shared-memory segment.
-        sd_kwargs = dict(streams=streams, shuffle=shuffle)
+        sd_kwargs = dict(streams=streams, shuffle=shuffle, **streaming_kwargs)
         if batch_size is not None:
             sd_kwargs['batch_size'] = batch_size
         return StreamingDataset(**sd_kwargs)
@@ -885,6 +886,7 @@ class BipolarDeepFeatureClip(Clip):
         shuffle: bool = False,
         skip_invalid_bags: bool = False,
         batch_size: int | None = None,
+        **streaming_kwargs,
     ) -> Dataset:
         """Return a streaming dataset over all bipolar feature bags.
 
@@ -928,7 +930,7 @@ class BipolarDeepFeatureClip(Clip):
                 f"unbuilt bags in {self.__class__.__name__}.dataset()"
             )
 
-        sd_kwargs = dict(streams=streams, shuffle=shuffle)
+        sd_kwargs = dict(streams=streams, shuffle=shuffle, **streaming_kwargs)
         if batch_size is not None:
             sd_kwargs['batch_size'] = batch_size
         return StreamingDataset(**sd_kwargs)
