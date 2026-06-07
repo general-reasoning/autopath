@@ -4,8 +4,6 @@ Provides declarative constructors for
 :class:`~autopath.gigapath.backbone.GigapathDeepBackboneEvaluator`,
 :class:`~autopath.deep.features.DeepFeatureBag`,
 :class:`~autopath.deep.features.DeepFeatureClip`,
-:class:`~autopath.deep.features.SphericalDeepFeatureClip`,
-:class:`~autopath.deep.features.CornerDeepFeatureClip`,
 and a convenience dataloader sampler, all wired to the GigaPath ViT
 backbone via
 :class:`~autopath.gigapath.backbone.GigapathDeepBackboneEvaluatorFactory`.
@@ -32,8 +30,6 @@ from autopath.gigapath.backbone import (
 from autopath.deep.features import (
     DeepFeatureBag,
     DeepFeatureClip,
-    SphericalDeepFeatureClip,
-    CornerDeepFeatureClip,
 )
 from autopath.pancan.pipelines import (
     pancan_tile_clip,
@@ -415,158 +411,6 @@ def gigapath_deep_feature_clip_dataloader_samples(
             break
     if return_last:
         return last
-
-
-# ═══════════════════════════════════════════════════════════════════════
-#  Spherical (L2-normalised) deep feature clip
-# ═══════════════════════════════════════════════════════════════════════
-
-"""
-git commit -am 'deep: SphericalDeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_spherical_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=1024, \
-    gpu_batch_size=1024, \
-).build()"
-git commit -am 'deep: SphericalDeepFeatureClip: BUILD fold' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_spherical_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=1024, \
-    gpu_batch_size=1024, \
-).build()"
-"""
-def gigapath_spherical_deep_feature_clip(
-    name: str = None,
-    *,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
-    url: str | None = None,
-    n_devices: int | None = None,
-    devices: list | None = None,
-    gpu_batch_size: int = 64,
-    parallelization: str | None = None,
-) -> SphericalDeepFeatureClip:
-    """Create a :class:`SphericalDeepFeatureClip` over a named deep feature clip.
-
-    L2-normalises each layer's features onto the unit hypersphere.
-    Pure runtime transformation -- delegates storage to the underlying
-    :class:`DeepFeatureClip`.
-
-    Parameters
-    ----------
-    name : str
-        Named configuration -- same values accepted by
-        :func:`gigapath_deep_feature_clip` (e.g.
-        ``"GIGAPATH_DEEP_CPTAC"``,
-        ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
-        Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_shard_size
-        Forwarded to the underlying :class:`DeepFeatureClip`.
-    url : str | None
-        Datablock URL (symbolic specline for relocatability).
-    n_devices, devices, gpu_batch_size, parallelization
-        Forwarded to :func:`gigapath_deep_feature_clip` for the
-        underlying build.
-    """
-    if name is None:
-        return SphericalDeepFeatureClip
-    deep_clip = gigapath_deep_feature_clip(
-        name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
-        url=url,
-        n_devices=n_devices,
-        devices=devices,
-        gpu_batch_size=gpu_batch_size,
-        parallelization=parallelization,
-    )
-    return SphericalDeepFeatureClip(
-        url=url,
-        spec=dict(deep_feature_clip=dbx.quote(deep_clip)),
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════════
-#  Corner (bipolar) deep feature clip
-# ═══════════════════════════════════════════════════════════════════════
-
-"""
-git commit -am 'deep: CornerDeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_corner_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=1024, \
-    gpu_batch_size=1024, \
-).build()"
-git commit -am 'deep: CornerDeepFeatureClip: BUILD fold' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_corner_deep_feature_clip( \
-    'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=1024, \
-    gpu_batch_size=1024, \
-).build()"
-"""
-def gigapath_corner_deep_feature_clip(
-    name: str = None,
-    *,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
-    url: str | None = None,
-    n_devices: int | None = None,
-    devices: list | None = None,
-    gpu_batch_size: int = 64,
-    parallelization: str | None = None,
-) -> CornerDeepFeatureClip:
-    """Create a :class:`CornerDeepFeatureClip` over a named deep feature clip.
-
-    Maps each layer's features to bipolar ``{-1, +1}^d`` hypercube
-    vertices via ``sign(x)``.  Pure runtime transformation -- delegates
-    storage to the underlying :class:`DeepFeatureClip`.
-
-    Parameters
-    ----------
-    name : str
-        Named configuration -- same values accepted by
-        :func:`gigapath_deep_feature_clip` (e.g.
-        ``"GIGAPATH_DEEP_CPTAC"``,
-        ``"GIGAPATH_DEEP_CPTAC_404020_TRAIN"``).
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
-        Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_shard_size
-        Forwarded to the underlying :class:`DeepFeatureClip`.
-    url : str | None
-        Datablock URL (symbolic specline for relocatability).
-    n_devices, devices, gpu_batch_size, parallelization
-        Forwarded to :func:`gigapath_deep_feature_clip` for the
-        underlying build.
-    """
-    if name is None:
-        return CornerDeepFeatureClip
-    deep_clip = gigapath_deep_feature_clip(
-        name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
-        url=url,
-        n_devices=n_devices,
-        devices=devices,
-        gpu_batch_size=gpu_batch_size,
-        parallelization=parallelization,
-    )
-    return CornerDeepFeatureClip(
-        url=url,
-        spec=dict(deep_feature_clip=dbx.quote(deep_clip)),
-    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

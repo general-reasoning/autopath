@@ -47,7 +47,7 @@ def _extract_bag_label(bag, annotation_key: str | None) -> str:
 
     Parameters
     ----------
-    bag : DeepFeatureBag (or Spherical/Corner variant)
+    bag : DeepFeatureBag
         Must expose ``.tilebag`` (a :class:`PancanTileBag`).
     annotation_key : str | None
         If ``None``, returns ``bag.tilebag.label`` (the cohort-level
@@ -283,7 +283,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
 
     @dataclass
     class CONFIG:
-        clip: object        # DeepFeatureClip (or Spherical/Corner variant)
+        clip: object        # DeepFeatureClip
         layer: str          # which capture key to probe (e.g. "B_0_norm1")
         annotation_key: str | None = None  # dotted path into annotations dict, or None for tilebag.label
         fit_intercept: bool = True
