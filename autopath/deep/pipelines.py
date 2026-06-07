@@ -325,18 +325,18 @@ def gigapath_deep_feature_clip(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-git commit -am 'deep: dataloader_samples: TEST' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64,\
     n=8,\
 )"
-git commit -am 'deep: dataloader_samples: TEST' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
     cfg_cls_token_only=True, \
     n=8,\
 )"
-git commit -am 'deep: dataloader_samples: TEST shuffle' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST shuffle' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
     cfg_capture_blocks=[0,19,38], \
     cfg_cls_token_only=True, \
@@ -344,7 +344,7 @@ git commit -am 'deep: dataloader_samples: TEST shuffle' > /dev/null || true; dbx
     shuffle=True, \
     n=16,\
 )"
-git commit -am 'deep: dataloader_samples: TEST tiles' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST tiles' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
     n=4,\
@@ -361,7 +361,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     cfg_shard_size: int = 1024,
     batch_size: int = 4,
     shuffle: bool = False,
-    skip_invalid_bags: bool = True,
+    skip_invalid_bags: bool = False,
     return_last: bool = True,
     **dataloader_kwargs,
 ):
