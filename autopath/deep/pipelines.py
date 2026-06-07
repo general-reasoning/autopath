@@ -787,189 +787,6 @@ def bipolar_deep_feature_clip(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Zipped tile + feature datasets
-# ═══════════════════════════════════════════════════════════════════════
-
-"""
-git commit -am 'deep: tile_deep_feature_clip_dataset: TEST' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.tile_deep_feature_clip_dataset( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    batch_size=4, \
-    n=8, \
-)"
-"""
-def tile_deep_feature_clip_dataset(
-    name: str,
-    *,
-    url: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
-    shuffle: bool = False,
-    skip_invalid_bags: bool = True,
-    batch_size: int | None = None,
-    n: int | None = None,
-    return_last: bool = True,
-    **dataloader_kwargs,
-):
-    """Return a zipped dataset of tiles + deep features from a named clip.
-
-    Creates a :class:`ZipStreamingDataset` pairing the
-    :class:`DeepFeatureClip` dataset with its source tile clip's
-    dataset.  Each sample dict contains both ``features_*`` columns
-    and ``tile``, ``bag_name``, ``annotations`` from the tile shards.
-
-    If *n* is given, iterate *n* samples via a DataLoader and return
-    the last batch (for smoke-testing).  Otherwise return the dataset.
-
-    Parameters
-    ----------
-    name : str
-        Forwarded to :func:`gigapath_deep_feature_clip`.
-    shuffle, skip_invalid_bags, batch_size
-        Forwarded to both ``.dataset()`` calls.
-    n : int | None
-        If given, iterate this many samples and return the last batch.
-    """
-    from autopath.autobits import ZipStreamingDataset
-
-    clip = gigapath_deep_feature_clip(
-        name,
-        url=url,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
-    )
-    assert clip.valid(), (
-        f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
-        f"Build it first with gigapath_deep_feature_clip(...).build()\n"
-        f"  validpaths = {clip.validpaths()}\n"
-        f"  anchorkeypath = {clip.anchorkeypath}"
-    )
-    sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
-    if batch_size is not None:
-        sd_kwargs['batch_size'] = batch_size
-    feature_ds = clip.dataset(**sd_kwargs)
-    tile_ds = clip.cfg.tilebagclip.dataset(**sd_kwargs)
-    ds = ZipStreamingDataset(feature_ds, tile_ds)
-
-    if n is None:
-        return ds
-
-    loader = torch.utils.data.DataLoader(
-        ds, batch_size=batch_size or 1, collate_fn=sanitize_collate, **dataloader_kwargs,
-    )
-    bs = batch_size or 1
-    last = None
-    for i, batch in enumerate(tqdm.tqdm(loader, total=(n + bs - 1) // bs)):
-        last = batch
-        if (i + 1) * bs >= n:
-            break
-    if return_last:
-        return last
-
-
-"""
-git commit -am 'deep: tile_bipolar_deep_feature_clip_dataset: TEST' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.tile_bipolar_deep_feature_clip_dataset( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    batch_size=4, \
-    n=8, \
-)"
-"""
-def tile_bipolar_deep_feature_clip_dataset(
-    name: str,
-    *,
-    cfg_layer: str = 'output',
-    cfg_bag_aggregation_threshold: float = 0.5,
-    cfg_ternarize_tiles: bool = False,
-    cfg_stats_probe_name: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 64,
-    url: str | None = None,
-    shuffle: bool = False,
-    skip_invalid_bags: bool = True,
-    batch_size: int | None = None,
-    n: int | None = None,
-    return_last: bool = True,
-    **dataloader_kwargs,
-):
-    """Return a zipped dataset of tiles + bipolar features from a named clip.
-
-    Creates a :class:`ZipStreamingDataset` pairing the
-    :class:`BipolarDeepFeatureClip` dataset with the source tile clip's
-    dataset.  Each sample dict contains ``tile_bipolar_features`` and
-    ``tile``, ``bag_name``, ``annotations``.
-
-    If *n* is given, iterate *n* samples via a DataLoader and return
-    the last batch (for smoke-testing).  Otherwise return the dataset.
-
-    Parameters
-    ----------
-    name : str
-        Forwarded to :func:`bipolar_deep_feature_clip`.
-    cfg_layer, cfg_bag_aggregation_threshold, cfg_ternarize_tiles, cfg_stats_probe_name
-        Forwarded to :func:`bipolar_deep_feature_clip`.
-    shuffle, skip_invalid_bags, batch_size
-        Forwarded to both ``.dataset()`` calls.
-    n : int | None
-        If given, iterate this many samples and return the last batch.
-    """
-    from autopath.autobits import ZipStreamingDataset
-
-    bipolar_clip = bipolar_deep_feature_clip(
-        name,
-        cfg_layer=cfg_layer,
-        cfg_bag_aggregation_threshold=cfg_bag_aggregation_threshold,
-        cfg_ternarize_tiles=cfg_ternarize_tiles,
-        cfg_stats_probe_name=cfg_stats_probe_name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
-        url=url,
-    )
-    assert bipolar_clip.valid(), (
-        f"BipolarDeepFeatureClip is not valid (hash={bipolar_clip.hash[:8]}). "
-        f"Build it first with bipolar_deep_feature_clip(...).build_tree()\n"
-        f"  validpaths = {bipolar_clip.validpaths()}\n"
-        f"  anchorkeypath = {bipolar_clip.anchorkeypath}"
-    )
-    sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
-    if batch_size is not None:
-        sd_kwargs['batch_size'] = batch_size
-    bipolar_ds = bipolar_clip.dataset(**sd_kwargs)
-    tile_ds = bipolar_clip.cfg.clip.cfg.tilebagclip.dataset(**sd_kwargs)
-    ds = ZipStreamingDataset(bipolar_ds, tile_ds)
-
-    if n is None:
-        return ds
-
-    loader = torch.utils.data.DataLoader(
-        ds, batch_size=batch_size or 1, collate_fn=sanitize_collate, **dataloader_kwargs,
-    )
-    bs = batch_size or 1
-    last = None
-    for i, batch in enumerate(tqdm.tqdm(loader, total=(n + bs - 1) // bs)):
-        last = batch
-        if (i + 1) * bs >= n:
-            break
-    if return_last:
-        return last
-
-
-# ═══════════════════════════════════════════════════════════════════════
 #  Bipolar deep feature affine logistic probe
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -1167,6 +984,189 @@ def bipolar_deep_feature_stats_probe(
             normalize=cfg_normalize,
         ),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Zipped tile + feature datasets
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+git commit -am 'deep: tile_deep_feature_clip_dataset: TEST' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.tile_deep_feature_clip_dataset( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    batch_size=4, \
+    n=8, \
+)"
+"""
+def tile_deep_feature_clip_dataset(
+    name: str,
+    *,
+    url: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 1024,
+    shuffle: bool = False,
+    skip_invalid_bags: bool = True,
+    batch_size: int | None = None,
+    n: int | None = None,
+    return_last: bool = True,
+    **dataloader_kwargs,
+):
+    """Return a zipped dataset of tiles + deep features from a named clip.
+
+    Creates a :class:`ZipStreamingDataset` pairing the
+    :class:`DeepFeatureClip` dataset with its source tile clip's
+    dataset.  Each sample dict contains both ``features_*`` columns
+    and ``tile``, ``bag_name``, ``annotations`` from the tile shards.
+
+    If *n* is given, iterate *n* samples via a DataLoader and return
+    the last batch (for smoke-testing).  Otherwise return the dataset.
+
+    Parameters
+    ----------
+    name : str
+        Forwarded to :func:`gigapath_deep_feature_clip`.
+    shuffle, skip_invalid_bags, batch_size
+        Forwarded to both ``.dataset()`` calls.
+    n : int | None
+        If given, iterate this many samples and return the last batch.
+    """
+    from autopath.autobits import ZipStreamingDataset
+
+    clip = gigapath_deep_feature_clip(
+        name,
+        url=url,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+    )
+    assert clip.valid(), (
+        f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
+        f"Build it first with gigapath_deep_feature_clip(...).build()\n"
+        f"  validpaths = {clip.validpaths()}\n"
+        f"  anchorkeypath = {clip.anchorkeypath}"
+    )
+    sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+    if batch_size is not None:
+        sd_kwargs['batch_size'] = batch_size
+    feature_ds = clip.dataset(**sd_kwargs)
+    tile_ds = clip.cfg.tilebagclip.dataset(**sd_kwargs)
+    ds = ZipStreamingDataset(feature_ds, tile_ds)
+
+    if n is None:
+        return ds
+
+    loader = torch.utils.data.DataLoader(
+        ds, batch_size=batch_size or 1, collate_fn=sanitize_collate, **dataloader_kwargs,
+    )
+    bs = batch_size or 1
+    last = None
+    for i, batch in enumerate(tqdm.tqdm(loader, total=(n + bs - 1) // bs)):
+        last = batch
+        if (i + 1) * bs >= n:
+            break
+    if return_last:
+        return last
+
+
+"""
+git commit -am 'deep: tile_bipolar_deep_feature_clip_dataset: TEST' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.tile_bipolar_deep_feature_clip_dataset( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    batch_size=4, \
+    n=8, \
+)"
+"""
+def tile_bipolar_deep_feature_clip_dataset(
+    name: str,
+    *,
+    cfg_layer: str = 'output',
+    cfg_bag_aggregation_threshold: float = 0.5,
+    cfg_ternarize_tiles: bool = False,
+    cfg_stats_probe_name: str | None = None,
+    cfg_capture_blocks: list | None = None,
+    cfg_capture_layers: list | None = None,
+    cfg_capture_outputs: bool = True,
+    cfg_cls_token_only: bool = False,
+    cfg_shard_size: int = 64,
+    url: str | None = None,
+    shuffle: bool = False,
+    skip_invalid_bags: bool = True,
+    batch_size: int | None = None,
+    n: int | None = None,
+    return_last: bool = True,
+    **dataloader_kwargs,
+):
+    """Return a zipped dataset of tiles + bipolar features from a named clip.
+
+    Creates a :class:`ZipStreamingDataset` pairing the
+    :class:`BipolarDeepFeatureClip` dataset with the source tile clip's
+    dataset.  Each sample dict contains ``tile_bipolar_features`` and
+    ``tile``, ``bag_name``, ``annotations``.
+
+    If *n* is given, iterate *n* samples via a DataLoader and return
+    the last batch (for smoke-testing).  Otherwise return the dataset.
+
+    Parameters
+    ----------
+    name : str
+        Forwarded to :func:`bipolar_deep_feature_clip`.
+    cfg_layer, cfg_bag_aggregation_threshold, cfg_ternarize_tiles, cfg_stats_probe_name
+        Forwarded to :func:`bipolar_deep_feature_clip`.
+    shuffle, skip_invalid_bags, batch_size
+        Forwarded to both ``.dataset()`` calls.
+    n : int | None
+        If given, iterate this many samples and return the last batch.
+    """
+    from autopath.autobits import ZipStreamingDataset
+
+    bipolar_clip = bipolar_deep_feature_clip(
+        name,
+        cfg_layer=cfg_layer,
+        cfg_bag_aggregation_threshold=cfg_bag_aggregation_threshold,
+        cfg_ternarize_tiles=cfg_ternarize_tiles,
+        cfg_stats_probe_name=cfg_stats_probe_name,
+        cfg_capture_blocks=cfg_capture_blocks,
+        cfg_capture_layers=cfg_capture_layers,
+        cfg_capture_outputs=cfg_capture_outputs,
+        cfg_cls_token_only=cfg_cls_token_only,
+        cfg_shard_size=cfg_shard_size,
+        url=url,
+    )
+    assert bipolar_clip.valid(), (
+        f"BipolarDeepFeatureClip is not valid (hash={bipolar_clip.hash[:8]}). "
+        f"Build it first with bipolar_deep_feature_clip(...).build_tree()\n"
+        f"  validpaths = {bipolar_clip.validpaths()}\n"
+        f"  anchorkeypath = {bipolar_clip.anchorkeypath}"
+    )
+    sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+    if batch_size is not None:
+        sd_kwargs['batch_size'] = batch_size
+    bipolar_ds = bipolar_clip.dataset(**sd_kwargs)
+    tile_ds = bipolar_clip.cfg.clip.cfg.tilebagclip.dataset(**sd_kwargs)
+    ds = ZipStreamingDataset(bipolar_ds, tile_ds)
+
+    if n is None:
+        return ds
+
+    loader = torch.utils.data.DataLoader(
+        ds, batch_size=batch_size or 1, collate_fn=sanitize_collate, **dataloader_kwargs,
+    )
+    bs = batch_size or 1
+    last = None
+    for i, batch in enumerate(tqdm.tqdm(loader, total=(n + bs - 1) // bs)):
+        last = batch
+        if (i + 1) * bs >= n:
+            break
+    if return_last:
+        return last
 
 
 # ═══════════════════════════════════════════════════════════════════════
