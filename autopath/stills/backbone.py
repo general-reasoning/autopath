@@ -1,9 +1,9 @@
-"""BitPathConv-specific deep backbone evaluation infrastructure.
+"""BitConv-specific deep backbone evaluation infrastructure.
 
-Provides :class:`BitPathConvDeepBackboneEvaluator` — which runs the
+Provides :class:`BitConvDeepBackboneEvaluator` — which runs the
 trained :class:`~autopath.stills.bitpath.BitPathConvNet` and converts
 per-dimension logits to ternary predictions ``{-1, 0, +1}`` — and
-:class:`BitPathConvDeepBackboneEvaluatorFactory`, a concrete
+:class:`BitConvDeepBackboneEvaluatorFactory`, a concrete
 :class:`~autopath.autobits.DeepBackboneEvaluatorFactory` that references
 a trained :class:`~autopath.stills.bitpath.BitPathConvStill` and
 participates in the usual spec-hash lineage tracking.
@@ -15,14 +15,26 @@ continuous-valued nature of the Gigapath backbone is not central (e.g.
 when plugging into :class:`~autopath.deep.features.DeepFeatureClip` or
 probes that operate on the ternary feature space).
 
+Architecture notes
+------------------
+:class:`~autopath.stills.bitpath.BitPathConvNet` uses **simulated
+BitNet-1.58b quantization**: weights are stored in full float32 (shadow
+weights) and quantized to ``{-1, 0, +1} × α`` on every forward pass via
+absmean quantization with STE gradients.  Activations are similarly
+quantized to 8-bit range before each BitConv2d / BitLinear layer.
+All arithmetic is therefore float32 (no hardware int8/int4 intrinsics).
+Because the network is small relative to the GigaPath ViT and does not
+benefit from GPU integer acceleration, the default compute device is
+``"cpu"``.
+
 Tile format expected by the evaluator
 --------------------------------------
-The same format as the rest of the pipeline:
-``(B, H, W, 3)`` uint8 or float, *or* already channel-first
-``(B, 3, H, W)``.  The internal :func:`bitpath_tile_transform` handles
-both variants by detecting the channel dimension position and casting to
-float.  No ImageNet normalisation is applied — the :class:`BitPathConvNet`
-was trained directly on raw tile values.
+``(B, H, W, 3)`` uint8 or float (channel-last), *or* already
+``(B, 3, H, W)`` (channel-first).  The internal
+:func:`bitconv_tile_transform` handles both variants by detecting the
+channel dimension position and casting to float.  No ImageNet
+normalisation is applied — the model was trained directly on raw tile
+values in [0, 255].
 """
 
 from dataclasses import dataclass
@@ -44,11 +56,12 @@ from autopath.stills.bitpath import BitPathConvNet
 
 # ─── Tile preprocessing ────────────────────────────────────────────────
 
-def bitpath_tile_transform(x: torch.Tensor) -> torch.Tensor:
+def bitconv_tile_transform(x: torch.Tensor) -> torch.Tensor:
     """Minimal preprocessing: permute HWC → CHW and cast to float.
 
-    The :class:`BitPathConvNet` expects ``(B, 3, H, W)`` float tensors
-    in the raw pixel value range (no ImageNet normalisation).
+    The :class:`~autopath.stills.bitpath.BitPathConvNet` expects
+    ``(B, 3, H, W)`` float tensors in the raw pixel-value range
+    (no ImageNet normalisation).
 
     Parameters
     ----------
@@ -66,10 +79,14 @@ def bitpath_tile_transform(x: torch.Tensor) -> torch.Tensor:
     return x.float()
 
 
+# keep old name as alias for any code that already imported it
+bitpath_tile_transform = bitconv_tile_transform
+
+
 # ─── Evaluator ────────────────────────────────────────────────────────
 
-class BitPathConvDeepBackboneEvaluator(DeepBackboneEvaluator):
-    """Evaluator that wraps a trained :class:`BitPathConvNet`.
+class BitConvDeepBackboneEvaluator(DeepBackboneEvaluator):
+    """Evaluator that wraps a trained :class:`~autopath.stills.bitpath.BitPathConvNet`.
 
     On each forward call, runs the network and converts the per-class
     logits to ternary predictions via::
@@ -79,12 +96,16 @@ class BitPathConvDeepBackboneEvaluator(DeepBackboneEvaluator):
     The result is returned as float32 for compatibility with the MDS
     writer used by :class:`~autopath.deep.features.DeepFeatureBag`.
 
+    Default device is ``"cpu"`` because the network uses simulated
+    float32 quantization (not hardware integer ops) and is small enough
+    that CPU throughput is acceptable.
+
     Parameters
     ----------
     model : BitPathConvNet
         Network with weights already loaded (or random for testing).
     device : str
-        Target compute device (``"cuda"`` or ``"cpu"``).
+        Target compute device.  Defaults to ``"cpu"``.
     log : Logger
         Logger instance.
     """
@@ -93,7 +114,7 @@ class BitPathConvDeepBackboneEvaluator(DeepBackboneEvaluator):
         self,
         model: BitPathConvNet,
         *,
-        device: str = 'cuda',
+        device: str = 'cpu',
         log: Logger = Logger(),
     ):
         super().__init__(device=device, log=log)
@@ -122,7 +143,7 @@ class BitPathConvDeepBackboneEvaluator(DeepBackboneEvaluator):
             ``(B, output_dim)`` and dtype float32 with values in
             ``{-1.0, 0.0, +1.0}``.
         """
-        x = bitpath_tile_transform(x.to(self.device))
+        x = bitconv_tile_transform(x.to(self.device))
         with torch.no_grad():
             logits = self._model(x)          # (B, n_classes, D)
             preds = (logits.argmax(dim=1) - 1).float()  # (B, D)
@@ -135,17 +156,16 @@ class BitPathConvDeepBackboneEvaluator(DeepBackboneEvaluator):
         return dict(self._last_features)
 
     def clear(self):
-        """Release cached tensors and free GPU memory."""
+        """Release cached tensors."""
         self._last_features.clear()
         gc.collect()
-        torch.cuda.empty_cache()
         return self
 
 
 # ─── Factory ──────────────────────────────────────────────────────────
 
-class BitPathConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
-    """Factory that loads a trained :class:`BitPathConvNet` from a still.
+class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
+    """Factory that loads a trained :class:`~autopath.stills.bitpath.BitPathConvNet` from a still.
 
     Participates in spec-based hash / lineage tracking in exactly the
     same way as
@@ -160,16 +180,21 @@ class BitPathConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
     -----
     ::
 
-        from autopath.stills.backbone import BitPathConvDeepBackboneEvaluatorFactory
+        from autopath.stills.backbone import BitConvDeepBackboneEvaluatorFactory
+        from autopath.stills.pipelines import bitconv_deep_feature_clip
 
-        factory = BitPathConvDeepBackboneEvaluatorFactory(
+        # Low-level
+        factory = BitConvDeepBackboneEvaluatorFactory(
             still=dbx.quote(my_bitpath_still),
         )
         clip = deep_feature_clip(
-            tilebagclip=tile_clip,
+            tilebagclip=...,
             evaluator_factory=dbx.quote(factory),
             ...
         )
+
+        # Via pipeline entrypoint (recommended)
+        clip = bitconv_deep_feature_clip('BITCONV_DEEP_CPTAC_602020_TRAIN', still=my_still)
 
     Parameters
     ----------
@@ -187,10 +212,10 @@ class BitPathConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
     def evaluator(
         self,
         *,
-        device: str = 'cuda',
+        device: str = 'cpu',
         log: Logger = None,
-    ) -> BitPathConvDeepBackboneEvaluator:
-        """Return a live :class:`BitPathConvDeepBackboneEvaluator`.
+    ) -> BitConvDeepBackboneEvaluator:
+        """Return a live :class:`BitConvDeepBackboneEvaluator`.
 
         The model is built from the still's architecture config and
         weights are loaded from its latest local checkpoint on the first
@@ -200,7 +225,7 @@ class BitPathConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
         Parameters
         ----------
         device : str
-            Target compute device.
+            Target compute device.  Defaults to ``"cpu"``.
         log : Logger | None
             Logger; falls back to ``self.log`` when ``None``.
         """
@@ -217,7 +242,7 @@ class BitPathConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
         self,
         device: str,
         log: Logger,
-    ) -> BitPathConvDeepBackboneEvaluator:
+    ) -> BitConvDeepBackboneEvaluator:
         """Instantiate model, load checkpoint, return wrapped evaluator."""
         still = self.cfg.still
         lm_cfg = still.cfg.lightning.cfg
@@ -235,7 +260,7 @@ class BitPathConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
         ckpt_path = still.ckpt()
         if ckpt_path is not None:
             log.info(
-                f'BitPathConvDeepBackboneEvaluatorFactory: '
+                f'BitConvDeepBackboneEvaluatorFactory: '
                 f'loading checkpoint {ckpt_path}'
             )
             state = torch.load(ckpt_path, map_location='cpu', weights_only=False)
@@ -248,11 +273,18 @@ class BitPathConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
                 if k.startswith('model.')
             }
             model.load_state_dict(model_state)
-            log.info('BitPathConvDeepBackboneEvaluatorFactory: checkpoint loaded')
+            log.info('BitConvDeepBackboneEvaluatorFactory: checkpoint loaded')
         else:
             log.warning(
-                'BitPathConvDeepBackboneEvaluatorFactory: no checkpoint found '
+                'BitConvDeepBackboneEvaluatorFactory: no checkpoint found '
                 'for the provided still — evaluator will use random weights'
             )
 
-        return BitPathConvDeepBackboneEvaluator(model=model, device=device, log=log)
+        return BitConvDeepBackboneEvaluator(model=model, device=device, log=log)
+
+
+# ── Backwards compatibility aliases ────────────────────────────────────
+# These were the names used before the rename; kept so that any
+# serialised dbx.quote references still resolve.
+BitPathConvDeepBackboneEvaluator = BitConvDeepBackboneEvaluator
+BitPathConvDeepBackboneEvaluatorFactory = BitConvDeepBackboneEvaluatorFactory

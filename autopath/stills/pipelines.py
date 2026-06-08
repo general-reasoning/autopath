@@ -259,3 +259,145 @@ def bitpath_conv_still(
         devices=devices,
         logsroot=logsroot,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitConv evaluator factory
+# ═══════════════════════════════════════════════════════════════════════
+
+from autopath.stills.backbone import (      # noqa: E402 (local import avoids circular dep at module load)
+    BitConvDeepBackboneEvaluator,
+    BitConvDeepBackboneEvaluatorFactory,
+)
+from autopath.deep.features import DeepFeatureClip  # noqa: E402
+from autopath.pancan.pipelines import (             # noqa: E402
+    pancan_tile_clip,
+    pancan_tile_fold,
+)
+
+
+def bitconv_deep_backbone_evaluator_factory(
+    still: 'BitPathConvStill',
+    *,
+    url: str | None = None,
+) -> BitConvDeepBackboneEvaluatorFactory:
+    """Create a :class:`~autopath.stills.backbone.BitConvDeepBackboneEvaluatorFactory`.
+
+    Parameters
+    ----------
+    still : BitPathConvStill
+        Trained still whose latest checkpoint will be loaded at eval time.
+    url : str | None
+        Datablock URL for relocatability.
+    """
+    return BitConvDeepBackboneEvaluatorFactory(
+        url=url,
+        spec=dict(still=dbx.quote(still)),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitConv deep feature clip
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — BitConv feature extraction (CPU, multiprocessing)
+git commit -am 'stills: bitconv_deep_feature_clip: BUILD' > /dev/null || true; dbx.pprint "\\
+autopath.stills.pipelines.bitconv_deep_feature_clip( \\
+    'BITCONV_DEEP_CPTAC_602020_TRAIN', \\
+    still=autopath.stills.pipelines.bitpath_conv_still('GIGAPATH_DEEP_CPTAC_602020'), \\
+    cfg_shard_size=64, \\
+).build_tree()"
+"""
+def bitconv_deep_feature_clip(
+    name: str,
+    still: 'BitPathConvStill',
+    *,
+    cfg_shard_size: int = 1024,
+    url: str | None = None,
+    n_devices: int | None = None,
+    devices: list | None = None,
+    cpu_batch_size: int = 256,
+    parallelization: str | None = None,
+) -> DeepFeatureClip:
+    """Create a :class:`~autopath.deep.features.DeepFeatureClip` backed by a trained BitConv still.
+
+    Evaluates the trained :class:`~autopath.stills.bitpath.BitPathConvNet`
+    on each tile and stores the resulting ternary ``{-1, 0, +1}``
+    feature vectors as ``features_output`` in MDS format, identically to
+    how :func:`~autopath.deep.pipelines.gigapath_deep_feature_clip` stores
+    Gigapath activations.
+
+    Parameters
+    ----------
+    name : str
+        Named tile-bag clip to evaluate.  Supported patterns:
+
+        * ``"BITCONV_DEEP_CPTAC"``              → full CPTAC tile-bag clip
+        * ``"BITCONV_DEEP_CPTAC_<fold>"``       → a fold of CPTAC
+          (e.g. ``"BITCONV_DEEP_CPTAC_602020_TRAIN"``)
+
+        The ``BITCONV_DEEP_`` prefix is stripped to resolve the
+        underlying tile-bag clip name.
+    still : BitPathConvStill
+        Trained still to use as the evaluator.  Its hash is incorporated
+        into the clip's hash so that a new still produces a new clip.
+    cfg_shard_size : int
+        Number of samples per MDS shard file (default 1024).
+    url : str | None
+        Datablock URL for relocatability.
+    n_devices : int | None
+        Shorthand: evaluate on *n* CPU workers (or GPU if overridden via
+        *devices*).  Ignored when *devices* is provided explicitly.
+    devices : list | None
+        Explicit device list (e.g. ``["cpu", "cpu", "cpu"]`` for three
+        parallel CPU workers).  Overrides *n_devices*.  Defaults to
+        ``["cpu"]``.
+    cpu_batch_size : int
+        Number of tiles processed in a single forward pass (default 256).
+        Larger values increase memory usage but reduce overhead.
+    parallelization : str | None
+        Parallelization strategy (``'inline'``, ``'multithreading'``,
+        ``'multiprocessing'``, ``'ray'``).  Defaults to
+        ``'multiprocessing'`` when multiple devices are used.
+    """
+    # Resolve devices (default to CPU).
+    if devices is not None:
+        pass
+    elif n_devices is not None:
+        devices = ['cpu'] * n_devices
+    else:
+        devices = ['cpu']
+
+    if parallelization is None and len(devices) > 1:
+        parallelization = 'multiprocessing'
+
+    factory = bitconv_deep_backbone_evaluator_factory(still, url=url)
+
+    # Resolve the underlying tile-bag clip by stripping the BITCONV_DEEP_ prefix.
+    _PREFIX = 'BITCONV_DEEP_'
+    if not name.startswith(_PREFIX):
+        raise ValueError(
+            f"bitconv_deep_feature_clip: name must start with {_PREFIX!r}, got {name!r}"
+        )
+    tile_name = name[len(_PREFIX):]   # e.g. 'CPTAC' or 'CPTAC_602020_TRAIN'
+
+    if tile_name == 'CPTAC':
+        tilebagclip = dbx.quote(pancan_tile_clip, 'CPTAC')
+    else:
+        tilebagclip = dbx.quote(pancan_tile_fold, f'CPTAC_{tile_name}')
+
+    return DeepFeatureClip(
+        url=url,
+        spec=dict(
+            tilebagclip=tilebagclip,
+            evaluator_factory=dbx.quote(factory),
+            shard_size=cfg_shard_size,
+        ),
+        gpu_batch_size=cpu_batch_size,
+        devices=devices,
+        n_workers=len(devices),
+        parallelization=parallelization,
+        keyby='tag_version_hash',
+    )
+
