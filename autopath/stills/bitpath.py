@@ -228,11 +228,11 @@ class BitBlock(nn.Module):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  BitPathNet: full distillation network
+#  BitPathConvNet: full distillation network
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class BitPathNet(nn.Module):
+class BitPathConvNet(nn.Module):
     """BitNet1.58b convolutional network for Gigapath distillation.
 
     Input: ``(B, 3, 256, 256)`` RGB tiles.
@@ -361,11 +361,11 @@ class BitPathDataloaderBuilder(Datablock):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  BitPathLightning (Datablock)
+#  BitPathConvLightning (Datablock)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class BitPathLightning(Datablock):
+class BitPathConvLightning(Datablock):
     """Lightning module factory for BitPath distillation.
 
     CONFIG contains only parameters that affect the training output:
@@ -406,7 +406,7 @@ class BitPathLightning(Datablock):
             self.weight_decay = weight_decay
             self.scheduler_name = scheduler
             self.save_hyperparameters(ignore=['model'])
-            self.log_ = log or dbx.Logger(name='BitPathLightning')
+            self.log_ = log or dbx.Logger(name='BitPathConvLightning')
 
         def training_step(self, batch, batch_idx):
             # batch is a dict from StreamingDataset
@@ -480,7 +480,7 @@ class BitPathLightning(Datablock):
 
     @functools.cached_property
     def lightning_module(self):
-        model = BitPathNet(
+        model = BitPathConvNet(
             n_blocks=self.cfg.n_blocks,
             hidden_channels=self.cfg.hidden_channels,
             output_dim=self.cfg.output_dim,
@@ -498,7 +498,7 @@ class BitPathLightning(Datablock):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  BitPathStill (Datablock)
+#  BitPathConvStill (Datablock)
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -558,7 +558,7 @@ class BitPathDataModule(L.LightningDataModule):
         return self._train_dl
 
 
-class BitPathStill(Datablock):
+class BitPathConvStill(Datablock):
     """Full training pipeline for BitPath distillation.
 
     Uses Lightning for training with TensorBoard logging, checkpoint
@@ -575,7 +575,7 @@ class BitPathStill(Datablock):
 
     @dataclass
     class CONFIG:
-        lightning: BitPathLightning
+        lightning: BitPathConvLightning
         dataloader: BitPathDataloaderBuilder
         max_epochs: int = 1
         max_steps: int = 10000
@@ -833,12 +833,12 @@ class BitPathStill(Datablock):
             version=f"run_{datetime.now().strftime('%Y-%m-%d_%H.%M.%S')}",
         )
         logger.experiment.add_text(
-            'BitPathStill: anchorkeypath',
+            'BitPathConvStill: anchorkeypath',
             f'```python\n{self.anchorkeypath}\n```',
             global_step=0,
         )
         logger.experiment.add_text(
-            'BitPathStill: dfn',
+            'BitPathConvStill: dfn',
             f'```python\n{self.dfn}\n```',
             global_step=0,
         )

@@ -375,9 +375,19 @@ class ZipStreamingDataset(Dataset):
     This avoids opening per-bag tile datasets inside DataLoader
     workers (which breaks DDP barriers) by creating multiple
     rank-coordinated ``StreamingDataset`` objects at the top level.
+
+    Parameters
+    ----------
+    *datasets
+        One or more ``StreamingDataset`` instances to zip.
+    zip_validator : callable | None
+        Optional callable ``(idx, *samples) → None`` that is invoked
+        with the flat index and the individual sample dicts **before**
+        they are merged.  It should raise on inconsistency (e.g. when
+        ``bag_name`` or ``tile_index`` disagree across the datasets).
     """
 
-    def __init__(self, *datasets):
+    def __init__(self, *datasets, zip_validator=None):
         lengths = [len(d) for d in datasets]
         if len(set(lengths)) != 1:
             raise ValueError(
@@ -385,14 +395,17 @@ class ZipStreamingDataset(Dataset):
                 f"got {lengths}"
             )
         self.datasets = datasets
+        self.zip_validator = zip_validator
 
     def __len__(self):
         return len(self.datasets[0])
 
     def __getitem__(self, idx):
+        samples = [ds[idx] for ds in self.datasets]
+        if self.zip_validator is not None:
+            self.zip_validator(idx, *samples)
         merged = {}
-        for ds in self.datasets:
-            sample = ds[idx]
+        for sample in samples:
             for k, v in sample.items():
                 if v is not None:
                     merged[k] = v
@@ -503,7 +516,7 @@ class ValidateTileFeatureZipStreamingDataset:
         tile_source: str = 'dataset',
         tilebagclip: 'Clip | None' = None,
         n_repeats: int = 5,
-        build_batch_size: int = 64,
+        gpu_batch_size: int = 64,
         # Tolerances are intentionally loose: fp32 non-determinism is
         # typically ~1e-6 relative, but mixed-precision (fp16/bf16)
         # builds or other sources of drift may be larger.  Inspect
@@ -519,7 +532,7 @@ class ValidateTileFeatureZipStreamingDataset:
         self.tile_key = tile_key
         self.tile_source = tile_source
         self.n_repeats = n_repeats
-        self.build_batch_size = build_batch_size
+        self.gpu_batch_size = gpu_batch_size
         self.atol = atol
         self.rtol = rtol
         self.rel_floor = rel_floor
@@ -548,12 +561,12 @@ class ValidateTileFeatureZipStreamingDataset:
     def _evaluate_tile(self, tile):
         """Run evaluator on a tile, return {layer: ndarray} for one sample.
 
-        Replicates the tile to match ``build_batch_size`` so that
+        Replicates the tile to match ``gpu_batch_size`` so that
         batch-normalisation and other batch-size-sensitive ops produce
         the same result as during the original build.
         """
-        if self.build_batch_size > 1 and tile.shape[0] == 1:
-            tile = tile.expand(self.build_batch_size, -1, -1, -1)
+        if self.gpu_batch_size > 1 and tile.shape[0] == 1:
+            tile = tile.expand(self.gpu_batch_size, -1, -1, -1)
         result = self.evaluator(tile)
         out = {}
         for layer in self.evaluator.layer_names:

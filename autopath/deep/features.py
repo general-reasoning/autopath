@@ -571,6 +571,7 @@ class DeepFeatureClip(Clip):
         shuffle: bool = False,
         skip_invalid_bags: bool = False,
         batch_size: int | None = None,
+        validate_zipping: bool = False,
         **streaming_kwargs,
     ):
         """Return a :class:`ZipStreamingDataset` aligning features with tiles.
@@ -590,6 +591,11 @@ class DeepFeatureClip(Clip):
             not been built yet.
         batch_size : int | None
             Passed to both :class:`StreamingDataset` instances.
+        validate_zipping : bool
+            If ``True``, attach a per-sample validator that checks
+            ``bag_name`` and ``tile_index`` consistency between the
+            feature and tile sides.  Requires provenance columns in
+            the feature shards (version ≥ 8).
 
         Returns
         -------
@@ -630,7 +636,30 @@ class DeepFeatureClip(Clip):
 
         feature_ds = StreamingDataset(streams=feature_streams, **sd_kwargs)
         tile_ds = StreamingDataset(streams=tile_streams, **sd_kwargs)
-        return ZipStreamingDataset(feature_ds, tile_ds)
+
+        # Build a zip validator that checks provenance consistency
+        # between the feature and tile sides.  Only enabled when
+        # validate_zipping=True and the feature shards contain
+        # bag_name / tile_index (version >= 8).
+        zip_validator = None
+        if validate_zipping:
+            first_sample = feature_ds[0]
+            has_provenance = 'bag_name' in first_sample and 'tile_index' in first_sample
+            if has_provenance:
+                def _validate_tile_feature_zip(idx, feature_sample, tile_sample):
+                    f_bag = feature_sample.get('bag_name')
+                    t_bag = tile_sample.get('bag_name')
+                    f_idx = feature_sample.get('tile_index')
+                    t_idx = tile_sample.get('tile_index')
+                    if f_bag != t_bag or f_idx != t_idx:
+                        raise ValueError(
+                            f"Tile-feature zip mismatch at flat index {idx}: "
+                            f"feature side bag_name={f_bag!r} tile_index={f_idx}, "
+                            f"tile side bag_name={t_bag!r} tile_index={t_idx}"
+                        )
+                zip_validator = _validate_tile_feature_zip
+
+        return ZipStreamingDataset(feature_ds, tile_ds, zip_validator=zip_validator)
 
     def verify_batchsize_invariance(
         self,
