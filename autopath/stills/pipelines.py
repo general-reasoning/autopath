@@ -52,8 +52,8 @@ def bitpath_conv_still(
     cfg_weight_decay: float = 0.01,
     cfg_scheduler: str = 'cosine',
     # Logging / validation schedule
-    cfg_log_every_n_steps: int = 50,
-    cfg_val_every_n_steps: int = 200,
+    cfg_log_every_n_steps: int = 20,
+    cfg_val_every_n_steps: int = 100,
     cfg_limit_val_batches: int = 200,
     # Dataloader
     cfg_batch_size: int = 64,

@@ -324,40 +324,38 @@ def _bitpath_collate(batch):
 
 
 
-def _tb_ternary_bar(writer, tag, vectors, step):
-    """Log mean per-dimension ternary activation as a matplotlib bar chart.
+def _tb_bar(writer, tag, values_1d, step, *, ylim=(-1, 1)):
+    """Plot a 1-D array as a red/blue bar chart figure in TensorBoard.
 
-    ``vectors`` is a ``(B, D)`` tensor with values in ``{-1, 0, +1}``.
-    The mean across the batch dimension is plotted as a bar chart:
-
-    * Positive mean → red bar
-    * Negative mean → blue bar
-
-    :func:`SummaryWriter.add_figure` records one rendered figure per global
-    step, so the TensorBoard *Images* tab shows the full step slider.
+    Positive values → red, negative values → blue.
+    Uses :func:`SummaryWriter.add_figure` so TensorBoard's *Images* tab
+    shows one rendered figure per step with a step slider.
     """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import numpy as np
 
-    mean_vals = vectors.float().mean(dim=0).numpy()  # (D,)
-    D = len(mean_vals)
-
+    arr = np.asarray(values_1d, dtype=float)
+    D = len(arr)
     fig, ax = plt.subplots(figsize=(20, 3))
-    pos = np.maximum(mean_vals, 0)
-    neg = np.minimum(mean_vals, 0)
-    ax.bar(range(D), pos, width=1.0, color='#dc2626', linewidth=0)
-    ax.bar(range(D), neg, width=1.0, color='#2563eb', linewidth=0)
+    ax.bar(range(D), np.maximum(arr, 0), width=1.0, color='#dc2626', linewidth=0)
+    ax.bar(range(D), np.minimum(arr, 0), width=1.0, color='#2563eb', linewidth=0)
     ax.axhline(0, color='k', linewidth=0.4, alpha=0.5)
     ax.set_xlim(0, D)
-    ax.set_ylim(-1, 1)
+    ax.set_ylim(*ylim)
     ax.set_xlabel('Feature dimension')
-    ax.set_ylabel('Batch mean')
+    ax.set_ylabel('Value')
     ax.set_title(tag)
     fig.tight_layout()
     writer.add_figure(tag, fig, step)
     plt.close(fig)
+
+
+def _tb_ternary_bar(writer, tag, vectors, step):
+    """Batch-mean of ternary ``(B, D)`` vectors as a bar chart."""
+    import numpy as np
+    _tb_bar(writer, tag, vectors.float().mean(dim=0).numpy(), step, ylim=(-1, 1))
 
 
 
@@ -558,8 +556,15 @@ class BitPathConvLightning(Datablock):
                     actual = targets - 1
                     acc = (preds == actual).float().mean()
                     exp.add_scalar('Train/Accuracy', acc.item(), step)
+                    # Batch-mean bar charts
                     _tb_ternary_bar(exp, 'Train/Output', preds.float().cpu(), step)
                     _tb_ternary_bar(exp, 'Train/Target', actual.float().cpu(), step)
+                    # 0th-sample bar charts + diff
+                    p0 = preds[0].float().cpu()
+                    a0 = actual[0].float().cpu()
+                    _tb_bar(exp, 'Train/Sample/Output', p0, step, ylim=(-1, 1))
+                    _tb_bar(exp, 'Train/Sample/Target', a0, step, ylim=(-1, 1))
+                    _tb_bar(exp, 'Train/Sample/Diff',   p0 - a0, step, ylim=(-2, 2))
 
                     scheduler = self.lr_schedulers()
                     if scheduler is not None:
@@ -600,6 +605,9 @@ class BitPathConvLightning(Datablock):
                 exp.add_scalar('Val/Loss', loss.item(), step)
                 _tb_ternary_bar(exp, 'Val/Output', preds.float().cpu(), step)
                 _tb_ternary_bar(exp, 'Val/Target', actual.float().cpu(), step)
+                p0 = preds[0].float().cpu()
+                a0 = actual[0].float().cpu()
+                _tb_bar(exp, 'Val/Diff', p0 - a0, step, ylim=(-2, 2))
 
         def configure_optimizers(self):
             optimizer = torch.optim.AdamW(
