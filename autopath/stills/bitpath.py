@@ -1114,6 +1114,18 @@ class BitPathConvStill(Datablock):
                 self.log.info(f'Resuming from checkpoint {ckpt}')
                 fit_kwargs['ckpt_path'] = ckpt
 
+            # Suppress harmless "NumPy array is not writable" spam from
+            # torch.collate when wrapping MosaicML memory-mapped shards.
+            # The warning fires per-worker per-run because each DDP subprocess
+            # starts with a fresh Python warning state.  We never write to
+            # these tensors in-place, so the behaviour is safe.
+            import warnings as _warnings
+            _warnings.filterwarnings(
+                'ignore',
+                message='The given NumPy array is not writable',
+                category=UserWarning,
+            )
+
             # ─── Training banner ──────────────────────────────────────────
             _lm = self.cfg.lightning.cfg
             _dl = self.cfg.dataloader.cfg
