@@ -1114,6 +1114,56 @@ class BitPathConvStill(Datablock):
                 self.log.info(f'Resuming from checkpoint {ckpt}')
                 fit_kwargs['ckpt_path'] = ckpt
 
+            # ─── Training banner ──────────────────────────────────────────
+            _lm = self.cfg.lightning.cfg
+            _dl = self.cfg.dataloader.cfg
+            _n_all = sum(p.numel() for p in model.parameters())
+            _n_tr  = sum(p.numel() for p in model.parameters() if p.requires_grad)
+            _ckpt_str = (
+                f'RESUME → {os.path.basename(ckpt)}'
+                if ckpt is not None else '(from scratch)'
+            )
+            _val_str = (
+                f'every {self.cfg.val_every_n_steps} steps, '
+                f'limit {self.cfg.limit_val_batches} batches'
+                if self.cfg.val_dataloader is not None else '(disabled)'
+            )
+            _W = 74
+            _H = '─' * _W
+            print('\n' + '═' * _W, flush=True)
+            print('  BitPathConvStill — TRAINING START')
+            print(_H)
+            print(f'  {"Model":<26}: BitPathConvNet')
+            print(f'  {"Params (total)":<26}: {_n_all:>14,}')
+            print(f'  {"Params (trainable)":<26}: {_n_tr:>14,}')
+            print(f'  {"Arch":<26}: '
+                  f'blocks={_lm.n_blocks}  '
+                  f'hidden_ch={_lm.hidden_channels}  '
+                  f'output_dim={_lm.output_dim}  '
+                  f'bits={_lm.activation_bits}')
+            print(_H)
+            print(f'  {"Learning rate":<26}: {_lm.learning_rate}  '
+                  f'weight_decay={_lm.weight_decay}')
+            print(f'  {"Scheduler":<26}: {_lm.scheduler}')
+            print(f'  {"Gradient clip":<26}: {self.cfg.gradient_clip_val} '
+                  f'({self.cfg.gradient_clip_algorithm})')
+            print(f'  {"Precision":<26}: {self.cfg.precision or "default"}')
+            print(_H)
+            print(f'  {"Max steps":<26}: {self.max_steps:,}')
+            print(f'  {"Max epochs":<26}: {self.cfg.max_epochs}')
+            print(f'  {"Batch size":<26}: {_dl.batch_size}')
+            print(f'  {"Devices":<26}: {getattr(self, "n_devices", 1)}')
+            print(_H)
+            print(f'  {"Log every":<26}: {self.cfg.log_every_n_steps} steps')
+            print(f'  {"Validation":<26}: {_val_str}')
+            print(f'  {"Ckpt every":<26}: '
+                  f'{self.cfg.ckpt_every_n_steps or "(end only)"} steps')
+            print(f'  {"Local TB logs":<26}: {logs_dir}')
+            print(_H)
+            print(f'  {"Checkpoint":<26}: {_ckpt_str}')
+            print('═' * _W + '\n', flush=True)
+            # ──────────────────────────────────────────────────────────────
+
             trainer.fit(
                 model=model,
                 datamodule=datamodule,
