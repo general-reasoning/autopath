@@ -678,7 +678,10 @@ class BitPathDataModule(L.LightningDataModule):
         return self._train_dl
 
     def val_dataloader(self):
-        return self._val_dl
+        # Return [] (not None) when no val data — Lightning requires an
+        # iterable, and an empty list paired with limit_val_batches=0
+        # cleanly skips validation.
+        return self._val_dl if self._val_dl is not None else []
 
 
 class BitPathConvStill(Datablock):
@@ -700,6 +703,7 @@ class BitPathConvStill(Datablock):
     class CONFIG:
         lightning: BitPathConvLightning
         dataloader: BitPathDataloaderBuilder
+        val_dataloader: object = None  # Optional BitPathDataloaderBuilder
         max_epochs: int = 1
         max_steps: int = 10000
         log_every_n_steps: int = 50
@@ -716,7 +720,6 @@ class BitPathConvStill(Datablock):
         devices=None,
         logsroot: str = None,
         save_remote_logs: bool = True,
-        val_dataloader_builder=None,
         **kwargs,
     ):
         super().__init__(
@@ -728,7 +731,6 @@ class BitPathConvStill(Datablock):
             **kwargs,
         )
         self.save_remote_logs = save_remote_logs
-        self.val_dataloader_builder = val_dataloader_builder
 
         if isinstance(self.cfg.max_steps, str):
             self.max_steps = int(self.cfg.max_steps.strip('%'))  # resolved in __build__
@@ -1031,8 +1033,10 @@ class BitPathConvStill(Datablock):
             num_sanity_val_steps=0,
             **kwargs,
         )
-        if self.val_dataloader_builder is not None:
+        if self.cfg.val_dataloader is not None:
             trainer_kwargs['val_check_interval'] = self.cfg.val_every_n_steps
+        else:
+            trainer_kwargs['limit_val_batches'] = 0
 
         # Multi-GPU support
         if hasattr(self, 'devices') and self.devices is not None:
@@ -1051,7 +1055,7 @@ class BitPathConvStill(Datablock):
         try:
             datamodule = BitPathDataModule(
                 self.cfg.dataloader,
-                val_dataloader_builder=self.val_dataloader_builder,
+                val_dataloader_builder=self.cfg.val_dataloader,
             )
 
             model = self.cfg.lightning.lightning_module

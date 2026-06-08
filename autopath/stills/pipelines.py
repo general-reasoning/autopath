@@ -240,6 +240,7 @@ def bitpath_conv_still(
         spec=dict(
             lightning=dbx.quote(lightning),
             dataloader=dbx.quote(train_dataloader_builder),
+            val_dataloader=dbx.quote(val_dataloader_builder),
             max_epochs=max_epochs,
             max_steps=max_steps,
             log_every_n_steps=cfg_log_every_n_steps,
