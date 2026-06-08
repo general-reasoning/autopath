@@ -28,17 +28,7 @@ from autopath.stills.bitpath import (
 ### CPTAC 60/20/20 — BitPath distillation (3 GPUs)
 git commit -am 'stills: BitPathConvStill: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.stills.pipelines.bitpath_conv_still( \
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    max_steps=10000, \
-    ckpt_every_n_steps=1000, \
-    n_devices=3, \
-).build_tree()"
-git commit -am 'stills: BitPathConvStill: BUILD' > /dev/null || true; dbx.pprint "\
-autopath.stills.pipelines.bitpath_conv_still( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    'GIGAPATH_DEEP_CPTAC_602020', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
@@ -60,6 +50,9 @@ def bitpath_conv_still(
     cfg_learning_rate: float = 1e-3,
     cfg_weight_decay: float = 0.01,
     cfg_scheduler: str = 'cosine',
+    # Logging / validation schedule
+    cfg_log_every_n_steps: int = 50,
+    cfg_val_every_n_steps: int = 100,
     # Dataloader
     cfg_batch_size: int = 64,
     cfg_shuffle: bool = True,
@@ -78,7 +71,6 @@ def bitpath_conv_still(
     # Still params (non-CONFIG)
     max_epochs: int = 1,
     max_steps: int = 10000,
-    log_interval: int = 10,
     gradient_clip_val: float = 1.0,
     ckpt_every_n_steps: int | None = None,
     precision: str | None = None,
@@ -97,8 +89,15 @@ def bitpath_conv_still(
     Parameters
     ----------
     name : str
-        Named configuration (e.g.
-        ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
+        Base clip name **without** a split suffix, e.g.
+        ``"GIGAPATH_DEEP_CPTAC_602020"``.  Any trailing ``_TRAIN``,
+        ``_TEST``, or ``_CALIBRATE`` suffix is stripped automatically.
+        Training uses ``<name>_TRAIN``; validation uses ``<name>_TEST``.
+    cfg_log_every_n_steps : int
+        How often (in training steps) to write TensorBoard scalars and
+        histograms.  Stored in the Lightning module CONFIG (affects hash).
+    cfg_val_every_n_steps : int
+        Run a validation pass every this many training steps.
     cfg_n_blocks : int
         Number of residual BitBlocks.
     cfg_hidden_channels : int
@@ -154,7 +153,7 @@ def bitpath_conv_still(
 
         ### 3-GPU BitPath distillation on CPTAC 60/20/20
         still = bitpath_conv_still(
-            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            'GIGAPATH_DEEP_CPTAC_602020',
             cfg_layer='output',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
@@ -170,9 +169,18 @@ def bitpath_conv_still(
             os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard',
         )
 
-    # 1. Build the bipolar clip
-    clip = gigapath_bipolar_deep_feature_clip(
-        name,
+    # Strip any known split suffix so the user can pass either the base
+    # name or a fully-qualified split name.
+    _SPLIT_SUFFIXES = ('_TRAIN', '_TEST', '_CALIBRATE', '_VAL')
+    base_name = name
+    for sfx in _SPLIT_SUFFIXES:
+        if base_name.endswith(sfx):
+            base_name = base_name[: -len(sfx)]
+            break
+    train_name = f'{base_name}_TRAIN'
+    val_name = f'{base_name}_TEST'
+
+    _clip_kwargs = dict(
         cfg_layer=cfg_layer,
         cfg_bag_aggregation_threshold=cfg_bag_aggregation_threshold,
         cfg_ternarize_tiles=cfg_ternarize_tiles,
@@ -187,16 +195,25 @@ def bitpath_conv_still(
         parallelization=parallelization,
     )
 
-    # 2. Dataloader builder
-    dataloader_builder = BitPathDataloaderBuilder(
+    # 1. Build train and val bipolar clips
+    train_clip = gigapath_bipolar_deep_feature_clip(train_name, **_clip_kwargs)
+    val_clip = gigapath_bipolar_deep_feature_clip(val_name, **_clip_kwargs)
+
+    _dl_spec = dict(
+        batch_size=cfg_batch_size,
+        shuffle=cfg_shuffle,
+        seed=cfg_dataloader_seed,
+        num_workers=cfg_num_workers,
+    )
+
+    # 2. Dataloader builders
+    train_dataloader_builder = BitPathDataloaderBuilder(
         url=url,
-        spec=dict(
-            clip=dbx.quote(clip),
-            batch_size=cfg_batch_size,
-            shuffle=cfg_shuffle,
-            seed=cfg_dataloader_seed,
-            num_workers=cfg_num_workers,
-        ),
+        spec=dict(clip=dbx.quote(train_clip), **_dl_spec),
+    )
+    val_dataloader_builder = BitPathDataloaderBuilder(
+        url=url,
+        spec=dict(clip=dbx.quote(val_clip), **_dl_spec),
     )
 
     # 3. Lightning module factory
@@ -211,6 +228,8 @@ def bitpath_conv_still(
             learning_rate=cfg_learning_rate,
             weight_decay=cfg_weight_decay,
             scheduler=cfg_scheduler,
+            feature_layer=cfg_layer,
+            log_every_n_steps=cfg_log_every_n_steps,
         ),
     )
 
@@ -219,10 +238,11 @@ def bitpath_conv_still(
         url=url,
         spec=dict(
             lightning=dbx.quote(lightning),
-            dataloader=dbx.quote(dataloader_builder),
+            dataloader=dbx.quote(train_dataloader_builder),
             max_epochs=max_epochs,
             max_steps=max_steps,
-            log_interval=log_interval,
+            log_every_n_steps=cfg_log_every_n_steps,
+            val_every_n_steps=cfg_val_every_n_steps,
             gradient_clip_val=gradient_clip_val,
             ckpt_every_n_steps=ckpt_every_n_steps,
             precision=precision,

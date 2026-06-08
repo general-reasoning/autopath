@@ -402,6 +402,8 @@ class BitPathConvLightning(Datablock):
         scheduler: str = 'cosine'
         # Feature column
         feature_layer: str = 'output'
+        # Logging
+        log_every_n_steps: int = 50
 
     class Lightning(L.LightningModule):
 
@@ -412,6 +414,7 @@ class BitPathConvLightning(Datablock):
             learning_rate: float = 1e-3,
             weight_decay: float = 0.01,
             scheduler: str = 'cosine',
+            log_every_n_steps: int = 50,
             log: dbx.Logger = None,
         ):
             super().__init__()
@@ -420,6 +423,7 @@ class BitPathConvLightning(Datablock):
             self.learning_rate = learning_rate
             self.weight_decay = weight_decay
             self.scheduler_name = scheduler
+            self.log_every_n_steps = log_every_n_steps
             self.save_hyperparameters(ignore=['model'])
             self.log_ = log or dbx.Logger(name='BitPathConvLightning')
 
@@ -436,8 +440,8 @@ class BitPathConvLightning(Datablock):
             # Prepare targets: {-1, 0, +1} → class indices {0, 1, 2}
             targets = (targets.long() + 1)  # -1→0, 0→1, +1→2
 
-            # Forward: (B, 3, output_dim) logits
-            logits = self.model(tiles)        # (B, n_classes, D)
+            # Forward: (B, n_classes, D) logits
+            logits = self.model(tiles)
 
             # Cross-entropy: reshape to (B*D, n_classes) vs (B*D,)
             B, C, D = logits.shape
@@ -446,24 +450,59 @@ class BitPathConvLightning(Datablock):
                 targets.reshape(-1),                       # (B*D,)
             )
 
-            # Logging
-            self.logger.experiment.add_scalar('Loss/train', loss, self.global_step)
-
-            with torch.no_grad():
-                preds = logits.argmax(dim=1) - 1  # back to {-1, 0, +1}
-                actual = targets - 1
-                acc = (preds == actual).float().mean()
-                self.logger.experiment.add_scalar('Accuracy/train', acc, self.global_step)
-
             if torch.isnan(loss) or torch.isinf(loss):
                 self.log_.warning(f'[step {self.global_step}] Loss is {loss.item()}!')
 
-            scheduler = self.lr_schedulers()
-            if scheduler is not None:
-                lr = scheduler.get_last_lr()[0]
-                self.logger.experiment.add_scalar('Learning Rate', lr, self.global_step)
+            # Throttled TensorBoard logging (rank-0 only)
+            if self.global_step % self.log_every_n_steps == 0 and self.trainer.is_global_zero:
+                exp = self.logger.experiment
+                step = self.global_step
+                exp.add_scalar('Train/Loss', loss.item(), step)
+
+                with torch.no_grad():
+                    preds = logits.argmax(dim=1) - 1  # {-1, 0, +1}, shape (B, D)
+                    actual = targets - 1
+                    acc = (preds == actual).float().mean()
+                    exp.add_scalar('Train/Accuracy', acc.item(), step)
+                    exp.add_histogram('Train/Output', preds.float().cpu(), step)
+                    exp.add_histogram('Train/Target', actual.float().cpu(), step)
+
+                    scheduler = self.lr_schedulers()
+                    if scheduler is not None:
+                        exp.add_scalar('Train/LR', scheduler.get_last_lr()[0], step)
 
             return loss
+
+        def validation_step(self, batch, batch_idx):
+            tiles = batch['tile']
+            targets = batch[f'bipolar_features_{self.feature_layer}']
+
+            if tiles.ndim == 4 and tiles.shape[-1] == 3:
+                tiles = tiles.permute(0, 3, 1, 2)
+            tiles = tiles.float()
+            targets = (targets.long() + 1)  # -1→0, 0→1, +1→2
+
+            logits = self.model(tiles)
+            B, C, D = logits.shape
+            loss = F.cross_entropy(
+                logits.permute(0, 2, 1).reshape(-1, C),
+                targets.reshape(-1),
+            )
+
+            preds = logits.argmax(dim=1) - 1  # {-1, 0, +1}
+            actual = targets - 1
+            acc = (preds == actual).float().mean()
+
+            # Aggregated across DDP ranks and val batches
+            self.log('Val/Loss', loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('Val/Accuracy', acc, on_step=False, on_epoch=True, sync_dist=True)
+
+            # Histograms logged once per val run from rank 0
+            if batch_idx == 0 and self.trainer.is_global_zero:
+                step = self.global_step
+                exp = self.logger.experiment
+                exp.add_histogram('Val/Output', preds.float().cpu(), step)
+                exp.add_histogram('Val/Target', actual.float().cpu(), step)
 
         def configure_optimizers(self):
             optimizer = torch.optim.AdamW(
@@ -508,6 +547,7 @@ class BitPathConvLightning(Datablock):
             learning_rate=self.cfg.learning_rate,
             weight_decay=self.cfg.weight_decay,
             scheduler=self.cfg.scheduler,
+            log_every_n_steps=self.cfg.log_every_n_steps,
             log=self.log,
         )
 
@@ -535,13 +575,15 @@ class BitPathDataModule(L.LightningDataModule):
     ``setup()`` fills in the missing vars from the trainer.
     """
 
-    def __init__(self, dataloader_builder):
+    def __init__(self, dataloader_builder, val_dataloader_builder=None):
         super().__init__()
         self._builder = dataloader_builder
+        self._builder_val = val_dataloader_builder
         self._train_dl = None
+        self._val_dl = None
 
     def setup(self, stage=None):
-        if stage in ('fit', None) and self._train_dl is None:
+        if stage in ('fit', None):
             # MosaicML streaming reads rank topology from env vars
             # (RANK, LOCAL_WORLD_SIZE) — not torch.distributed.  Lightning's
             # SubprocessScriptLauncher sets LOCAL_RANK and WORLD_SIZE but
@@ -553,9 +595,12 @@ class BitPathDataModule(L.LightningDataModule):
                 os.environ.setdefault('RANK', str(self.trainer.global_rank))
                 os.environ.setdefault('LOCAL_WORLD_SIZE',
                                       str(self.trainer.num_devices))
-            self._purge_shm()
-            self._train_dl = self._builder.dataloader()
-            atexit.register(self._purge_shm)
+            if self._train_dl is None:
+                self._purge_shm()
+                self._train_dl = self._builder.dataloader()
+                atexit.register(self._purge_shm)
+            if self._val_dl is None and self._builder_val is not None:
+                self._val_dl = self._builder_val.dataloader()
 
     @staticmethod
     def _purge_shm():
@@ -571,6 +616,9 @@ class BitPathDataModule(L.LightningDataModule):
 
     def train_dataloader(self):
         return self._train_dl
+
+    def val_dataloader(self):
+        return self._val_dl
 
 
 class BitPathConvStill(Datablock):
@@ -594,7 +642,8 @@ class BitPathConvStill(Datablock):
         dataloader: BitPathDataloaderBuilder
         max_epochs: int = 1
         max_steps: int = 10000
-        log_interval: int = 10
+        log_every_n_steps: int = 50
+        val_every_n_steps: int = 100
         gradient_clip_val: float = 1.0
         gradient_clip_algorithm: str = 'norm'
         ckpt_every_n_steps: int | None = None
@@ -607,6 +656,7 @@ class BitPathConvStill(Datablock):
         devices=None,
         logsroot: str = None,
         save_remote_logs: bool = True,
+        val_dataloader_builder=None,
         **kwargs,
     ):
         super().__init__(
@@ -618,6 +668,7 @@ class BitPathConvStill(Datablock):
             **kwargs,
         )
         self.save_remote_logs = save_remote_logs
+        self.val_dataloader_builder = val_dataloader_builder
 
         if isinstance(self.cfg.max_steps, str):
             self.max_steps = int(self.cfg.max_steps.strip('%'))  # resolved in __build__
@@ -914,11 +965,14 @@ class BitPathConvStill(Datablock):
             default_root_dir=ckpts_dir,
             max_epochs=self.cfg.max_epochs,
             limit_train_batches=self.max_steps,
-            log_every_n_steps=self.cfg.log_interval,
+            log_every_n_steps=self.cfg.log_every_n_steps,
             callbacks=callbacks,
             logger=logger,
+            num_sanity_val_steps=0,
             **kwargs,
         )
+        if self.val_dataloader_builder is not None:
+            trainer_kwargs['val_check_interval'] = self.cfg.val_every_n_steps
 
         # Multi-GPU support
         if hasattr(self, 'devices') and self.devices is not None:
@@ -935,7 +989,10 @@ class BitPathConvStill(Datablock):
             torch.set_float32_matmul_precision(self.cfg.precision)
 
         try:
-            datamodule = BitPathDataModule(self.cfg.dataloader)
+            datamodule = BitPathDataModule(
+                self.cfg.dataloader,
+                val_dataloader_builder=self.val_dataloader_builder,
+            )
 
             model = self.cfg.lightning.lightning_module
             ckpt = self.ckpt()
