@@ -24,7 +24,7 @@ import lightning.pytorch.loggers
 import dbx
 from dbx import Datablock
 
-from autopath.autobits import ZipStreamingDataset
+from autopath.autobits import ZipStreamingDataset, sanitize_collate
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -314,12 +314,11 @@ def _bitpath_collate(batch):
     ``annotations`` is a JSON dict column present in some tile shards but
     absent in others, and its nested structure varies per bag.  It is not
     used during BitPath training, so we drop it before delegating to
-    ``default_collate``.
+    :func:`sanitize_collate`.
     """
-    from torch.utils.data._utils.collate import default_collate
     drop = {'annotations'}
     filtered = [{k: v for k, v in s.items() if k not in drop} for s in batch]
-    return default_collate(filtered)
+    return sanitize_collate(filtered)
 
 
 
