@@ -53,7 +53,8 @@ def bitpath_conv_still(
     cfg_scheduler: str = 'cosine',
     # Logging / validation schedule
     cfg_log_every_n_steps: int = 50,
-    cfg_val_every_n_steps: int = 100,
+    cfg_val_every_n_steps: int = 200,
+    cfg_limit_val_batches: int = 200,
     # Dataloader
     cfg_batch_size: int = 64,
     cfg_shuffle: bool = True,
@@ -96,9 +97,13 @@ def bitpath_conv_still(
         Training uses ``<name>_TRAIN``; validation uses ``<name>_TEST``.
     cfg_log_every_n_steps : int
         How often (in training steps) to write TensorBoard scalars and
-        histograms.  Stored in the Lightning module CONFIG (affects hash).
+        images.  Stored in the Lightning module CONFIG (affects hash).
     cfg_val_every_n_steps : int
-        Run a validation pass every this many training steps.
+        Run a validation pass every this many training steps (default 200).
+    cfg_limit_val_batches : int
+        Maximum number of validation batches per check (default 200,
+        = 200 * batch_size tiles).  Keeps each val pass quick even when
+        the validation dataset is large.
     cfg_n_blocks : int
         Number of residual BitBlocks.
     cfg_hidden_channels : int
@@ -245,6 +250,7 @@ def bitpath_conv_still(
             max_steps=max_steps,
             log_every_n_steps=cfg_log_every_n_steps,
             val_every_n_steps=cfg_val_every_n_steps,
+            limit_val_batches=cfg_limit_val_batches,
             gradient_clip_val=gradient_clip_val,
             ckpt_every_n_steps=ckpt_every_n_steps,
             precision=precision,

@@ -732,7 +732,8 @@ class BitPathConvStill(Datablock):
         max_epochs: int = 1
         max_steps: int = 10000
         log_every_n_steps: int = 50
-        val_every_n_steps: int = 100
+        val_every_n_steps: int = 200
+        limit_val_batches: int = 200  # max batches per val check
         gradient_clip_val: float = 1.0
         gradient_clip_algorithm: str = 'norm'
         ckpt_every_n_steps: int | None = None
@@ -1060,6 +1061,7 @@ class BitPathConvStill(Datablock):
         )
         if self.cfg.val_dataloader is not None:
             trainer_kwargs['val_check_interval'] = self.cfg.val_every_n_steps
+            trainer_kwargs['limit_val_batches'] = self.cfg.limit_val_batches
         else:
             trainer_kwargs['limit_val_batches'] = 0
 
