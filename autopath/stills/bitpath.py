@@ -342,6 +342,15 @@ class BitPathDataloaderBuilder(Datablock):
         seed: int | None = None
         num_workers: int = 4
 
+    @staticmethod
+    def _mds_n_samples(path, fs):
+        """Read the total sample count from an MDS ``index.json``."""
+        import json as _json
+        idx_path = os.path.join(path, 'index.json')
+        with fs.open(idx_path, 'r') as fh:
+            index = _json.load(fh)
+        return sum(s['samples'] for s in index['shards'])
+
     def dataloader(self):
         """Build and return a DataLoader over zipped tile+feature datasets.
 
@@ -349,15 +358,64 @@ class BitPathDataloaderBuilder(Datablock):
         feature clip's dataset with the source tile clip's dataset,
         so each sample contains both ``bipolar_features_{layer}`` and
         ``bag_bipolar_features_{layer}`` alongside ``tile`` images.
+
+        Bags are aligned **per-bag**: for each valid bipolar bag we
+        locate the exact same tile bag and compare their MDS shard
+        tile counts.  Bags where the counts differ (e.g. the tile bag
+        was re-tiled after the bipolar bag was built) are skipped with
+        a warning rather than causing a length-mismatch error.
         """
+        bipolar_clip = self.cfg.clip
+        bipolar_streams: list = []
+        tile_streams: list = []
+        n_skipped_invalid = 0
+        n_skipped_mismatch = 0
 
+        for bag in bipolar_clip.bags:
+            if not bag.valid():
+                n_skipped_invalid += 1
+                continue
 
-        sd_kwargs = dict(
-            shuffle=self.cfg.shuffle,
-            batch_size=self.cfg.batch_size,
-        )
-        bipolar_ds = self.cfg.clip.dataset(**sd_kwargs)
-        tile_ds = self.cfg.clip.cfg.clip.cfg.tilebagclip.dataset(**sd_kwargs)
+            tilebag = bag.tilebag
+
+            # Per-bag count check — catches re-tiled bags
+            n_bip = self._mds_n_samples(bag.path('shards'), bag.fs)
+            n_tile = self._mds_n_samples(tilebag.path('shards'), tilebag.fs)
+            if n_bip != n_tile:
+                n_skipped_mismatch += 1
+                bipolar_clip.log.warning(
+                    f'Skipping bag {bag.tag!r}: bipolar shards have '
+                    f'{n_bip} tiles but tile bag has {n_tile} tiles. '
+                    f'Rebuild: bipolar bag path = {bag.path("shards")!r}'
+                )
+                continue
+
+            if bag.is_local_fs:
+                bipolar_streams.append(Stream(local=bag.path('shards')))
+            else:
+                bipolar_streams.append(Stream(remote=bag.path('shards')))
+
+            if tilebag.is_local_fs:
+                tile_streams.append(Stream(local=tilebag.path('shards')))
+            else:
+                tile_streams.append(Stream(remote=tilebag.path('shards')))
+
+        n_total = len(bipolar_clip.bags)
+        n_used = len(bipolar_streams)
+        if n_skipped_invalid:
+            bipolar_clip.log.info(
+                f'Skipped {n_skipped_invalid}/{n_total} invalid bipolar bags'
+            )
+        if n_skipped_mismatch:
+            bipolar_clip.log.warning(
+                f'Skipped {n_skipped_mismatch}/{n_total} bags due to '
+                f'bipolar/tile count mismatch — rebuild those bipolar bags '
+                f'to restore them. Using {n_used}/{n_total} bags.'
+            )
+
+        sd_kwargs = dict(shuffle=self.cfg.shuffle, batch_size=self.cfg.batch_size)
+        bipolar_ds = StreamingDataset(streams=bipolar_streams, **sd_kwargs)
+        tile_ds = StreamingDataset(streams=tile_streams, **sd_kwargs)
         ds = ZipStreamingDataset(bipolar_ds, tile_ds)
 
         generator = None
