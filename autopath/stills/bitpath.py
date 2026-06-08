@@ -24,6 +24,8 @@ import lightning.pytorch.loggers
 import dbx
 from dbx import Datablock
 
+from streaming import Stream, StreamingDataset
+
 from autopath.autobits import ZipStreamingDataset, sanitize_collate
 
 
