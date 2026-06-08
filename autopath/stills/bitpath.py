@@ -324,28 +324,40 @@ def _bitpath_collate(batch):
 
 
 
-def _tb_ternary_image(writer, tag, vectors, step, *, row_height=4, max_rows=32):
-    """Visualise a batch of ternary {-1, 0, +1} vectors as a colour image.
+def _tb_ternary_bar(writer, tag, vectors, step):
+    """Log mean per-dimension ternary activation as a matplotlib bar chart.
 
-    Each column is a feature dimension (width = D), each row is one batch
-    sample (height = max_rows * row_height).  Colour encoding:
+    ``vectors`` is a ``(B, D)`` tensor with values in ``{-1, 0, +1}``.
+    The mean across the batch dimension is plotted as a bar chart:
 
-    * **+1** → red  (220, 30, 30)
-    *  **0** → grey (160, 160, 160)
-    * **-1** → blue ( 30, 30, 220)
+    * Positive mean → red bar
+    * Negative mean → blue bar
 
-    :func:`SummaryWriter.add_image` records one frame per global step so
-    TensorBoard's *Images* tab shows the full step slider.
+    :func:`SummaryWriter.add_figure` records one rendered figure per global
+    step, so the TensorBoard *Images* tab shows the full step slider.
     """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
     import numpy as np
-    arr = vectors.numpy()[:max_rows]          # (N, D)
-    N, D = arr.shape
-    r = np.where(arr > 0, 220, np.where(arr == 0, 160,  30)).astype(np.uint8)
-    g = np.where(arr == 0, 160,                           30 ).astype(np.uint8)
-    b = np.where(arr < 0, 220, np.where(arr == 0, 160,  30)).astype(np.uint8)
-    img = np.stack([r, g, b], axis=2)         # (N, D, 3)
-    img = np.repeat(img, row_height, axis=0)  # (N*row_height, D, 3)
-    writer.add_image(tag, img, step, dataformats='HWC')
+
+    mean_vals = vectors.float().mean(dim=0).numpy()  # (D,)
+    D = len(mean_vals)
+
+    fig, ax = plt.subplots(figsize=(20, 3))
+    pos = np.maximum(mean_vals, 0)
+    neg = np.minimum(mean_vals, 0)
+    ax.bar(range(D), pos, width=1.0, color='#dc2626', linewidth=0)
+    ax.bar(range(D), neg, width=1.0, color='#2563eb', linewidth=0)
+    ax.axhline(0, color='k', linewidth=0.4, alpha=0.5)
+    ax.set_xlim(0, D)
+    ax.set_ylim(-1, 1)
+    ax.set_xlabel('Feature dimension')
+    ax.set_ylabel('Batch mean')
+    ax.set_title(tag)
+    fig.tight_layout()
+    writer.add_figure(tag, fig, step)
+    plt.close(fig)
 
 
 
@@ -546,8 +558,8 @@ class BitPathConvLightning(Datablock):
                     actual = targets - 1
                     acc = (preds == actual).float().mean()
                     exp.add_scalar('Train/Accuracy', acc.item(), step)
-                    _tb_ternary_image(exp, 'Train/Output', preds.float().cpu(), step)
-                    _tb_ternary_image(exp, 'Train/Target', actual.float().cpu(), step)
+                    _tb_ternary_bar(exp, 'Train/Output', preds.float().cpu(), step)
+                    _tb_ternary_bar(exp, 'Train/Target', actual.float().cpu(), step)
 
                     scheduler = self.lr_schedulers()
                     if scheduler is not None:
@@ -586,8 +598,8 @@ class BitPathConvLightning(Datablock):
                 # Loss preview: epoch-level log only fires after the full val
                 # epoch, so also emit a step-level scalar immediately.
                 exp.add_scalar('Val/Loss', loss.item(), step)
-                _tb_ternary_image(exp, 'Val/Output', preds.float().cpu(), step)
-                _tb_ternary_image(exp, 'Val/Target', actual.float().cpu(), step)
+                _tb_ternary_bar(exp, 'Val/Output', preds.float().cpu(), step)
+                _tb_ternary_bar(exp, 'Val/Target', actual.float().cpu(), step)
 
         def configure_optimizers(self):
             optimizer = torch.optim.AdamW(
@@ -732,7 +744,7 @@ class BitPathConvStill(Datablock):
         max_epochs: int = 1
         max_steps: int = 10000
         log_every_n_steps: int = 50
-        val_every_n_steps: int = 200
+        val_every_n_steps: int = 100
         limit_val_batches: int = 200  # max batches per val check
         gradient_clip_val: float = 1.0
         gradient_clip_algorithm: str = 'norm'
