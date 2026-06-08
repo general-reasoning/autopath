@@ -24,7 +24,7 @@ import lightning.pytorch.loggers
 import dbx
 from dbx import Datablock
 
-from autopath.autobits import ZipStreamingDataset, sanitize_collate
+from autopath.autobits import ZipStreamingDataset
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -308,6 +308,21 @@ class BitPathConvNet(nn.Module):
         return x.view(x.size(0), self.n_classes, self.output_dim)
 
 
+def _bitpath_collate(batch):
+    """Collate a BitPath batch, dropping the un-batchable ``'annotations'`` column.
+
+    ``annotations`` is a JSON dict column present in some tile shards but
+    absent in others, and its nested structure varies per bag.  It is not
+    used during BitPath training, so we drop it before delegating to
+    ``default_collate``.
+    """
+    from torch.utils.data._utils.collate import default_collate
+    drop = {'annotations'}
+    filtered = [{k: v for k, v in s.items() if k not in drop} for s in batch]
+    return default_collate(filtered)
+
+
+
 # ═══════════════════════════════════════════════════════════════════════
 #  BitPathDataloaderBuilder (Datablock)
 # ═══════════════════════════════════════════════════════════════════════
@@ -355,7 +370,7 @@ class BitPathDataloaderBuilder(Datablock):
             dataset=ds,
             batch_size=self.cfg.batch_size,
             num_workers=self.cfg.num_workers,
-            collate_fn=sanitize_collate,
+            collate_fn=_bitpath_collate,
             pin_memory=True,
             generator=generator,
         )
