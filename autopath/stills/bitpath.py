@@ -607,7 +607,9 @@ class BitPathConvLightning(Datablock):
                 _tb_ternary_bar(exp, 'Val/Target', actual.float().cpu(), step)
                 p0 = preds[0].float().cpu()
                 a0 = actual[0].float().cpu()
-                _tb_bar(exp, 'Val/Diff', p0 - a0, step, ylim=(-2, 2))
+                _tb_bar(exp, 'Val/Sample/Output', p0,      step, ylim=(-1, 1))
+                _tb_bar(exp, 'Val/Sample/Target', a0,      step, ylim=(-1, 1))
+                _tb_bar(exp, 'Val/Sample/Diff',   p0 - a0, step, ylim=(-2, 2))
 
         def configure_optimizers(self):
             optimizer = torch.optim.AdamW(
