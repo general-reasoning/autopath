@@ -24,7 +24,7 @@ import lightning.pytorch.loggers
 import dbx
 from dbx import Datablock
 
-from autopath.autobits import ZipStreamingDataset
+from autopath.autobits import ZipStreamingDataset, sanitize_collate
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -355,6 +355,7 @@ class BitPathDataloaderBuilder(Datablock):
             dataset=ds,
             batch_size=self.cfg.batch_size,
             num_workers=self.cfg.num_workers,
+            collate_fn=sanitize_collate,
             pin_memory=True,
             generator=generator,
         )
