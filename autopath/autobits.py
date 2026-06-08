@@ -723,11 +723,20 @@ def _sanitize(obj):
 
 
 def sanitize_collate(batch):
-    """Recursively replace ``None`` values in sample dicts so ``default_collate`` succeeds.
+    """Collate a batch of sample dicts, tolerating missing or ``None`` values.
 
     MDS JSON columns can deserialise to ``None`` (e.g. bags without a
-    valid case-id have no annotations).  PyTorch's ``default_collate``
-    rejects ``NoneType``, so we normalise before delegating.
+    valid case-id have no annotations), or be absent entirely from some
+    samples.  PyTorch's ``default_collate`` rejects both cases, so we:
+
+    1. Union all keys across the batch (some shards may omit optional
+       columns entirely).
+    2. Fill missing keys with ``None``.
+    3. Recursively replace ``None`` with ``{}`` via :func:`_sanitize`.
+    4. Delegate to ``default_collate``.
     """
     from torch.utils.data._utils.collate import default_collate
-    return default_collate([_sanitize(sample) for sample in batch])
+    all_keys = set().union(*(s.keys() for s in batch))
+    aligned = [{k: s.get(k, None) for k in all_keys} for s in batch]
+    return default_collate([_sanitize(sample) for sample in aligned])
+
