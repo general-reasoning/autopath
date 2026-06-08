@@ -559,6 +559,11 @@ class BitPathConvLightning(Datablock):
                     # Batch-mean bar charts
                     _tb_ternary_bar(exp, 'Train/Output', preds.float().cpu(), step)
                     _tb_ternary_bar(exp, 'Train/Target', actual.float().cpu(), step)
+                    _tb_bar(
+                        exp, 'Train/Diff',
+                        (preds - actual).float().cpu().mean(dim=0).numpy(),
+                        step, ylim=(-2, 2),
+                    )
                     # 0th-sample bar charts + diff
                     p0 = preds[0].float().cpu()
                     a0 = actual[0].float().cpu()
@@ -605,6 +610,11 @@ class BitPathConvLightning(Datablock):
                 exp.add_scalar('Val/Loss', loss.item(), step)
                 _tb_ternary_bar(exp, 'Val/Output', preds.float().cpu(), step)
                 _tb_ternary_bar(exp, 'Val/Target', actual.float().cpu(), step)
+                _tb_bar(
+                    exp, 'Val/Diff',
+                    (preds - actual).float().cpu().mean(dim=0).numpy(),
+                    step, ylim=(-2, 2),
+                )
                 p0 = preds[0].float().cpu()
                 a0 = actual[0].float().cpu()
                 _tb_bar(exp, 'Val/Sample/Output', p0,      step, ylim=(-1, 1))
