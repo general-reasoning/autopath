@@ -33,6 +33,7 @@ autopath.stills.pipelines.bitpath_conv_still( \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
     max_steps=10000, \
+    max_epochs=100, \
     ckpt_every_n_steps=1000, \
     n_devices=3, \
 ).build_tree()"
