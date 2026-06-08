@@ -712,11 +712,18 @@ class ValidateTileFeatureZipStreamingDataset:
 # ═══════════════════════════════════════════════════════════════════════
 
 def _sanitize(obj):
-    """Recursively replace ``None`` with ``{}`` in nested dicts/lists."""
+    """Replace un-batchable values with safe empty placeholders.
+
+    - ``None`` → ``{}``
+    - ``dict`` → ``{}``  (nested dicts like ``annotations`` have inconsistent
+      keys across samples and cannot be stacked into tensors)
+    - ``list`` → recurse element-wise
+    - anything else → unchanged
+    """
     if obj is None:
         return {}
     if isinstance(obj, dict):
-        return {k: _sanitize(v) for k, v in obj.items()}
+        return {}
     if isinstance(obj, list):
         return [_sanitize(v) for v in obj]
     return obj
