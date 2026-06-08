@@ -324,9 +324,31 @@ def _bitpath_collate(batch):
 
 
 
-# ═══════════════════════════════════════════════════════════════════════
-#  BitPathDataloaderBuilder (Datablock)
-# ═══════════════════════════════════════════════════════════════════════
+def _tb_ternary_image(writer, tag, vectors, step, *, row_height=4, max_rows=32):
+    """Visualise a batch of ternary {-1, 0, +1} vectors as a colour image.
+
+    Each column is a feature dimension (width = D), each row is one batch
+    sample (height = max_rows * row_height).  Colour encoding:
+
+    * **+1** → red  (220, 30, 30)
+    *  **0** → grey (160, 160, 160)
+    * **-1** → blue ( 30, 30, 220)
+
+    :func:`SummaryWriter.add_image` records one frame per global step so
+    TensorBoard's *Images* tab shows the full step slider.
+    """
+    import numpy as np
+    arr = vectors.numpy()[:max_rows]          # (N, D)
+    N, D = arr.shape
+    r = np.where(arr > 0, 220, np.where(arr == 0, 160,  30)).astype(np.uint8)
+    g = np.where(arr == 0, 160,                           30 ).astype(np.uint8)
+    b = np.where(arr < 0, 220, np.where(arr == 0, 160,  30)).astype(np.uint8)
+    img = np.stack([r, g, b], axis=2)         # (N, D, 3)
+    img = np.repeat(img, row_height, axis=0)  # (N*row_height, D, 3)
+    writer.add_image(tag, img, step, dataformats='HWC')
+
+
+
 
 
 class BitPathDataloaderBuilder(Datablock):
@@ -524,8 +546,8 @@ class BitPathConvLightning(Datablock):
                     actual = targets - 1
                     acc = (preds == actual).float().mean()
                     exp.add_scalar('Train/Accuracy', acc.item(), step)
-                    exp.add_histogram('Train/Output', preds.float().cpu(), step)
-                    exp.add_histogram('Train/Target', actual.float().cpu(), step)
+                    _tb_ternary_image(exp, 'Train/Output', preds.float().cpu(), step)
+                    _tb_ternary_image(exp, 'Train/Target', actual.float().cpu(), step)
 
                     scheduler = self.lr_schedulers()
                     if scheduler is not None:
@@ -561,8 +583,11 @@ class BitPathConvLightning(Datablock):
             if batch_idx == 0 and self.trainer.is_global_zero:
                 step = self.global_step
                 exp = self.logger.experiment
-                exp.add_histogram('Val/Output', preds.float().cpu(), step)
-                exp.add_histogram('Val/Target', actual.float().cpu(), step)
+                # Loss preview: epoch-level log only fires after the full val
+                # epoch, so also emit a step-level scalar immediately.
+                exp.add_scalar('Val/Loss', loss.item(), step)
+                _tb_ternary_image(exp, 'Val/Output', preds.float().cpu(), step)
+                _tb_ternary_image(exp, 'Val/Target', actual.float().cpu(), step)
 
         def configure_optimizers(self):
             optimizer = torch.optim.AdamW(
