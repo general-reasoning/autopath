@@ -827,12 +827,14 @@ class BitPathConvStill(Datablock):
 
     @property
     def _local_logs_dir(self):
-        """Where TensorBoard logs are written.
+        """Where TensorBoard events are written.
 
         * **Local**: directly ``self.dirpath('logs')`` — no staging needed.
+          :meth:`linklogs` will symlink ``logsroot/<tag>`` here so
+          TensorBoard still discovers it from the standard location.
         * **Remote**: ``<tmpdir>/bitpath_still/<anchorkey>/logs/`` —
-          synced to remote (when ``save_remote_logs`` is set) at end of
-          / on exception from ``__build__``.
+          synced to remote Datablock storage (when ``save_remote_logs``
+          is set) at the end of / on exception from :meth:`__build__`.
         """
         if self._is_remote():
             base = os.path.join(

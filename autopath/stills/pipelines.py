@@ -20,6 +20,12 @@ from autopath.stills.bitpath import (
 )
 
 
+# Default root directory where TensorBoard discovers training logs.
+# Each still writes events into /tmp and symlinks the run dir here so
+# TensorBoard can be pointed at this single location for all stills.
+DEFAULT_LOGSROOT = os.path.join(os.environ['HOME'], 'autopath', 'tensorboard')
+
+
 # ═══════════════════════════════════════════════════════════════════════
 #  BitPath conv still
 # ═══════════════════════════════════════════════════════════════════════
@@ -84,7 +90,7 @@ def bitpath_conv_still(
     n_workers: int = 1,
     parallelization: str | None = None,
     url: str | None = None,
-    logsroot: str | None = None,
+    logsroot: str = DEFAULT_LOGSROOT,
 ) -> 'BitPathConvStill':
     """Create a :class:`BitPathConvStill` for BitNet1.58b distillation.
 
@@ -232,10 +238,6 @@ def bitpath_conv_still(
         still.build_tree()
     """
 
-    if logsroot is None:
-        logsroot = os.path.join(
-            os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard',
-        )
 
     # Strip any known split suffix so the user can pass either the base
     # name or a fully-qualified split name.
