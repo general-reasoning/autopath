@@ -143,11 +143,14 @@ def bitpath_conv_still(
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     cfg_log_every_n_steps : int
         How often (in training steps) to write TensorBoard scalars and images
-        (default 20).
+        (default 20).  Goes into **both** ``BitPathConvLightning.spec`` and
+        ``BitPathConvStill.spec`` directly.
     cfg_val_every_n_steps : int
         Run a validation pass every this many training steps (default 100).
+        Goes directly into ``BitPathConvStill.spec``.
     cfg_limit_val_batches : int
         Maximum number of validation batches per check (default 200).
+        Goes directly into ``BitPathConvStill.spec``.
 
     Dataloader (all affect hash)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -303,24 +306,26 @@ def bitpath_conv_still(
     )
 
     # 4. Assemble the still
+    # Every key in spec= goes into the content-hash of the still.
+    # Reproduce ALL of these exactly when constructing the still for evaluation.
     return BitPathConvStill(
         url=url,
         spec=dict(
-            lightning=dbx.quote(lightning),
-            dataloader=dbx.quote(train_dataloader_builder),
-            val_dataloader=dbx.quote(val_dataloader_builder),
-            max_epochs=max_epochs,
-            max_steps=max_steps,
-            log_every_n_steps=cfg_log_every_n_steps,
-            val_every_n_steps=cfg_val_every_n_steps,
-            limit_val_batches=cfg_limit_val_batches,
-            gradient_clip_val=gradient_clip_val,
-            ckpt_every_n_steps=ckpt_every_n_steps,
-            precision=precision,
+            lightning=dbx.quote(lightning),            # AFFECTS HASH — carries all cfg_n_blocks/lr/scheduler/... via lightning hash
+            dataloader=dbx.quote(train_dataloader_builder),   # AFFECTS HASH — carries cfg_batch_size/shuffle/seed/num_workers
+            val_dataloader=dbx.quote(val_dataloader_builder), # AFFECTS HASH — same as dataloader but val clip
+            max_epochs=max_epochs,                     # AFFECTS HASH
+            max_steps=max_steps,                       # AFFECTS HASH
+            log_every_n_steps=cfg_log_every_n_steps,   # AFFECTS HASH (also in lightning spec)
+            val_every_n_steps=cfg_val_every_n_steps,   # AFFECTS HASH
+            limit_val_batches=cfg_limit_val_batches,   # AFFECTS HASH
+            gradient_clip_val=gradient_clip_val,       # AFFECTS HASH
+            ckpt_every_n_steps=ckpt_every_n_steps,     # AFFECTS HASH
+            precision=precision,                       # AFFECTS HASH
         ),
-        n_devices=n_devices,
-        devices=devices,
-        logsroot=logsroot,
+        n_devices=n_devices,   # hash-neutral
+        devices=devices,       # hash-neutral
+        logsroot=logsroot,     # hash-neutral
     )
 
 
