@@ -354,12 +354,12 @@ def bitconv_deep_feature_clip(
     url : str | None
         Datablock URL for relocatability.
     n_devices : int | None
-        Shorthand: evaluate on *n* CPU workers (or GPU if overridden via
-        *devices*).  Ignored when *devices* is provided explicitly.
+        Shorthand: use *n* CUDA devices (``['cuda:0', ..., 'cuda:{n-1}']``).
+        Ignored when *devices* is provided explicitly.
     devices : list | None
-        Explicit device list (e.g. ``["cpu", "cpu", "cpu"]`` for three
-        parallel CPU workers).  Overrides *n_devices*.  Defaults to
-        ``["cpu"]``.
+        Explicit device list (e.g. ``['cuda:0', 'cuda:1']`` or ``['cpu']``
+        for single-CPU inference).  Overrides *n_devices*.  Defaults to
+        ``['cpu']`` when neither is set.
     cpu_batch_size : int
         Number of tiles processed in a single forward pass (default 256).
         Larger values increase memory usage but reduce overhead.
@@ -368,11 +368,12 @@ def bitconv_deep_feature_clip(
         ``'multiprocessing'``, ``'ray'``).  Defaults to
         ``'multiprocessing'`` when multiple devices are used.
     """
-    # Resolve devices (default to CPU).
+    # Resolve devices — mirrors gigapath_deep_feature_clip:
+    # explicit devices wins; n_devices → cuda:0..n-1; default → ['cpu'].
     if devices is not None:
         pass
     elif n_devices is not None:
-        devices = ['cpu'] * n_devices
+        devices = [f'cuda:{i}' for i in range(n_devices)]
     else:
         devices = ['cpu']
 
