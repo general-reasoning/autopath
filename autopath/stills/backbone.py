@@ -288,5 +288,4 @@ class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
 # ── Backwards compatibility aliases ────────────────────────────────────
 # These were the names used before the rename; kept so that any
 # serialised dbx.quote references still resolve.
-BitPathConvDeepBackboneEvaluator = BitConvDeepBackboneEvaluator
-BitPathConvDeepBackboneEvaluatorFactory = BitConvDeepBackboneEvaluatorFactory
+BitPathConvDeepBackboneEvaluator = BitConvDee
