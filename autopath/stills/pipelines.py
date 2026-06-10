@@ -312,7 +312,7 @@ autopath.stills.pipelines.bitconv_deep_feature_clip( \
         cfg_shard_size=64, \
     ), \
     cfg_shard_size=64, \
-    n_devices=32, \
+    n_devices=3, \
     parallelization='multiprocessing', \
 ).build_tree()"
 """
@@ -379,7 +379,7 @@ def bitconv_deep_feature_clip(
     if parallelization is None and len(devices) > 1:
         parallelization = 'multiprocessing'
 
-    factory = bitconv_deep_backbone_evaluator_factory(still, url=url)
+    evaluator_factory = bitconv_deep_backbone_evaluator_factory(still, url=url)
 
     # Resolve the underlying tile-bag clip, mirroring gigapath_deep_feature_clip.
     # Strip 'BITCONV_DEEP_CPTAC' and re-prepend 'CPTAC_' for fold names so that
@@ -399,7 +399,7 @@ def bitconv_deep_feature_clip(
         url=url,
         spec=dict(
             tilebagclip=tilebagclip,
-            evaluator_factory=dbx.quote(factory),
+            evaluator_factory=dbx.quote(evaluator_factory),
             shard_size=cfg_shard_size,
         ),
         gpu_batch_size=cpu_batch_size,
