@@ -70,12 +70,15 @@ def bitpath_conv_still(
     cfg_capture_outputs: bool = True,
     cfg_cls_token_only: bool = False,
     cfg_shard_size: int = 64,
-    # Still params (non-CONFIG)
+    # Training-schedule params — go into BitPathConvStill.spec and AFFECT THE HASH.
+    # Always include these explicitly when constructing a still for evaluation
+    # so that the hash matches the training still and the right checkpoint is found.
     max_epochs: int = 1,
     max_steps: int = 10000,
     gradient_clip_val: float = 1.0,
     ckpt_every_n_steps: int | None = None,
     precision: str | None = None,
+    # Build/execution params — do NOT go into spec and do NOT affect the hash.
     n_devices: int = 1,
     devices: list | None = None,
     n_workers: int = 1,
@@ -163,9 +166,10 @@ def bitpath_conv_still(
             cfg_layer='output',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
-            max_steps=10000,
-            ckpt_every_n_steps=1000,
-            n_devices=3,
+            max_epochs=100,          # goes into spec → affects hash
+            max_steps=10000,         # goes into spec → affects hash
+            ckpt_every_n_steps=1000, # goes into spec → affects hash
+            n_devices=3,             # NOT in spec, hash-neutral
         )
         still.build_tree()
     """
