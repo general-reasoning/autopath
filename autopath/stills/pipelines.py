@@ -313,6 +313,7 @@ autopath.stills.pipelines.bitconv_deep_feature_clip( \
     ), \
     cfg_shard_size=64, \
     n_devices=3, \
+    batch_size=32,\
     parallelization='multiprocessing', \
 ).build_tree()"
 """
@@ -324,7 +325,7 @@ def bitconv_deep_feature_clip(
     url: str | None = None,
     n_devices: int | None = None,
     devices: list | None = None,
-    cpu_batch_size: int = 256,
+    batch_size: int = 64,
     parallelization: str | None = None,
 ) -> DeepFeatureClip:
     """Create a :class:`~autopath.deep.features.DeepFeatureClip` backed by a trained BitConv still.
@@ -403,7 +404,7 @@ def bitconv_deep_feature_clip(
             evaluator_factory=dbx.quote(evaluator_factory),
             shard_size=cfg_shard_size,
         ),
-        gpu_batch_size=cpu_batch_size,
+        gpu_batch_size=batch_size,
         devices=devices,
         n_workers=len(devices),
         parallelization=parallelization,
