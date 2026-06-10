@@ -310,6 +310,7 @@ autopath.stills.pipelines.bitconv_deep_feature_clip( \
         cfg_layer='output', \
         cfg_cls_token_only=True, \
         cfg_shard_size=64, \
+        ckpt_every_n_steps=1000,\
     ), \
     cfg_shard_size=64, \
     n_devices=3, \
