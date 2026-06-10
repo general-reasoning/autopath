@@ -91,6 +91,23 @@ def bitpath_conv_still(
     Trains a ternary convolutional network to predict bipolar features
     directly from raw tiles, distilling the Gigapath backbone.
 
+    .. note::
+        **Hash-affecting parameters**: every argument that ends up in any
+        Datablock ``spec=dict(...)`` (directly or transitively) changes the
+        content-hash of the still and all its dependants.  When reusing a
+        trained still for evaluation you must reproduce **all** hash-affecting
+        arguments exactly; otherwise ``still.ckpt()`` will look in a
+        different directory and find no checkpoint.
+
+        * **All** ``cfg_*`` parameters affect the hash.
+        * Among the non-``cfg_`` parameters, only the training-schedule
+          group (``max_epochs``, ``max_steps``, ``gradient_clip_val``,
+          ``ckpt_every_n_steps``, ``precision``) affect the hash because
+          they are forwarded into ``BitPathConvStill.spec``.
+        * ``n_devices``, ``devices``, ``n_workers``, ``parallelization``,
+          ``url``, and ``logsroot`` are **hash-neutral** — they control
+          how the build is executed, not what it produces.
+
     Parameters
     ----------
     name : str
@@ -98,63 +115,105 @@ def bitpath_conv_still(
         ``"GIGAPATH_DEEP_CPTAC_602020"``.  Any trailing ``_TRAIN``,
         ``_TEST``, or ``_CALIBRATE`` suffix is stripped automatically.
         Training uses ``<name>_TRAIN``; validation uses ``<name>_TEST``.
-    cfg_log_every_n_steps : int
-        How often (in training steps) to write TensorBoard scalars and
-        images.  Stored in the Lightning module CONFIG (affects hash).
-    cfg_val_every_n_steps : int
-        Run a validation pass every this many training steps (default 200).
-    cfg_limit_val_batches : int
-        Maximum number of validation batches per check (default 200,
-        = 200 * batch_size tiles).  Keeps each val pass quick even when
-        the validation dataset is large.
+        **Affects hash** (propagates through train/val clip hashes).
+
+    Architecture (all affect hash)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     cfg_n_blocks : int
-        Number of residual BitBlocks.
+        Number of residual BitBlocks (default 6).
     cfg_hidden_channels : int
-        Base channel width of the conv network.
+        Base channel width of the conv network (default 128).
     cfg_output_dim : int
-        Output dimension (Gigapath feature dim, default 1536).
+        Output dimension — Gigapath feature dim (default 1536).
     cfg_n_classes : int
-        Number of classes per feature dim (3 for ternary).
+        Number of classes per feature dim (default 3, for ternary).
     cfg_activation_bits : int
-        Activation quantization precision.
+        Activation quantization precision (default 8).
+
+    Training hyper-parameters (all affect hash)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     cfg_learning_rate : float
-        Learning rate for AdamW.
+        Learning rate for AdamW (default 1e-3).
     cfg_weight_decay : float
-        Weight decay for AdamW.
+        Weight decay for AdamW (default 0.01).
     cfg_scheduler : str
-        LR scheduler name (``'cosine'`` or ``'onecyclelr'``).
+        LR scheduler name — ``'cosine'`` or ``'onecyclelr'`` (default ``'cosine'``).
+
+    Logging / validation schedule (all affect hash)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    cfg_log_every_n_steps : int
+        How often (in training steps) to write TensorBoard scalars and images
+        (default 20).
+    cfg_val_every_n_steps : int
+        Run a validation pass every this many training steps (default 100).
+    cfg_limit_val_batches : int
+        Maximum number of validation batches per check (default 200).
+
+    Dataloader (all affect hash)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     cfg_batch_size : int
-        Batch size for the DataLoader.
+        Batch size for the DataLoader (default 64).
     cfg_shuffle : bool
-        Whether to shuffle the dataset.
+        Whether to shuffle the dataset (default ``True``).
     cfg_dataloader_seed : int | None
-        Random seed for reproducibility.
+        Random seed for reproducibility (default ``None``).
     cfg_num_workers : int
-        Number of DataLoader workers.
+        Number of DataLoader workers (default 4).
+
+    Bipolar clip params (all affect hash)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     cfg_layer : str
-        Which capture key to bipolarize.
+        Which Gigapath capture key to bipolarize (default ``'output'``).
     cfg_bag_aggregation_threshold : float
-        Threshold for bag-level bipolar aggregation.
+        Threshold for bag-level bipolar aggregation (default 0.5).
     cfg_ternarize_tiles : bool
-        Zero out tile dimensions where the bag disagrees.
+        Zero out tile dimensions where the bag-level sign disagrees
+        (default ``False``).
     cfg_stats_probe_name : str | None
-        Stats probe name (defaults to CALIBRATE fold).
+        Name for the stats probe clip used for per-dimension median
+        computation.  Defaults to the CALIBRATE fold of the same partition.
+    cfg_capture_blocks : list | None
+        Which residual blocks to capture intermediate activations from.
+    cfg_capture_layers : list | None
+        Sub-layer names within each block to capture.
+    cfg_capture_outputs : bool
+        Whether to capture block output activations (default ``True``).
+    cfg_cls_token_only : bool
+        Use only the CLS token from the Gigapath backbone (default ``False``).
+    cfg_shard_size : int
+        Samples per MDS shard for the bipolar clip (default 64).
+
+    Training-schedule params — **AFFECT HASH** (go into BitPathConvStill.spec)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     max_epochs : int
-        Number of training epochs.
+        Number of training epochs (default 1).  **Affects hash.**
     max_steps : int
-        Max batches per epoch.
+        Max training steps per epoch (default 10000).  **Affects hash.**
+    gradient_clip_val : float
+        Gradient clipping value for Lightning (default 1.0).  **Affects hash.**
+    ckpt_every_n_steps : int | None
+        Save a checkpoint every N steps (default ``None`` = end-of-epoch only).
+        **Affects hash.**
+    precision : str | None
+        PyTorch Lightning precision setting (e.g. ``'16-mixed'``).
+        **Affects hash.**
+
+    Build/execution params — **hash-neutral** (not in any spec)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     n_devices : int
-        Number of GPUs.
+        Number of GPUs for distributed training (default 1).
     devices : list | None
-        Specific GPU device IDs.
+        Specific GPU device IDs (e.g. ``[0, 1, 2]``).
     n_workers : int
-        Workers for parallel bipolar bag building.
+        Parallel workers for bipolar clip building (default 1).
     parallelization : str | None
-        Parallelization strategy for bipolar clip building.
+        Parallelization strategy for clip building
+        (``'multiprocessing'``, ``'multithreading'``, ``'inline'``).
     url : str | None
-        Datablock URL.
+        Datablock storage URL (determines where artifacts are written,
+        not what they contain).
     logsroot : str | None
-        Root directory for TensorBoard log symlinks.
+        Root directory for local TensorBoard log symlinks.
 
     Examples
     --------
@@ -166,10 +225,10 @@ def bitpath_conv_still(
             cfg_layer='output',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
-            max_epochs=100,          # goes into spec → affects hash
-            max_steps=10000,         # goes into spec → affects hash
-            ckpt_every_n_steps=1000, # goes into spec → affects hash
-            n_devices=3,             # NOT in spec, hash-neutral
+            max_epochs=100,          # AFFECTS HASH — include in eval call too
+            max_steps=10000,         # AFFECTS HASH — include in eval call too
+            ckpt_every_n_steps=1000, # AFFECTS HASH — include in eval call too
+            n_devices=3,             # hash-neutral
         )
         still.build_tree()
     """
