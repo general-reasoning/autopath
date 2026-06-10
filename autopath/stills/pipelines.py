@@ -32,9 +32,9 @@ autopath.stills.pipelines.bitpath_conv_still( \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    max_steps=10000, \
-    max_epochs=100, \
-    ckpt_every_n_steps=1000, \
+    cfg_max_steps=10000, \
+    cfg_max_epochs=100, \
+    cfg_ckpt_every_n_steps=1000, \
     n_devices=3, \
 ).build_tree()"
 """
@@ -73,11 +73,11 @@ def bitpath_conv_still(
     # Training-schedule params — go into BitPathConvStill.spec and AFFECT THE HASH.
     # Always include these explicitly when constructing a still for evaluation
     # so that the hash matches the training still and the right checkpoint is found.
-    max_epochs: int = 1,
-    max_steps: int = 10000,
-    gradient_clip_val: float = 1.0,
-    ckpt_every_n_steps: int | None = None,
-    precision: str | None = None,
+    cfg_max_epochs: int = 1,
+    cfg_max_steps: int = 10000,
+    cfg_gradient_clip_val: float = 1.0,
+    cfg_ckpt_every_n_steps: int | None = None,
+    cfg_precision: str | None = None,
     # Build/execution params — do NOT go into spec and do NOT affect the hash.
     n_devices: int = 1,
     devices: list | None = None,
@@ -99,11 +99,9 @@ def bitpath_conv_still(
         arguments exactly; otherwise ``still.ckpt()`` will look in a
         different directory and find no checkpoint.
 
-        * **All** ``cfg_*`` parameters affect the hash.
-        * Among the non-``cfg_`` parameters, only the training-schedule
-          group (``max_epochs``, ``max_steps``, ``gradient_clip_val``,
-          ``ckpt_every_n_steps``, ``precision``) affect the hash because
-          they are forwarded into ``BitPathConvStill.spec``.
+        * **All** ``cfg_*`` parameters affect the hash — including
+          ``cfg_max_epochs``, ``cfg_max_steps``, ``cfg_gradient_clip_val``,
+          ``cfg_ckpt_every_n_steps``, and ``cfg_precision``.
         * ``n_devices``, ``devices``, ``n_workers``, ``parallelization``,
           ``url``, and ``logsroot`` are **hash-neutral** — they control
           how the build is executed, not what it produces.
@@ -188,18 +186,16 @@ def bitpath_conv_still(
 
     Training-schedule params — **AFFECT HASH** (go into BitPathConvStill.spec)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    max_epochs : int
-        Number of training epochs (default 1).  **Affects hash.**
-    max_steps : int
-        Max training steps per epoch (default 10000).  **Affects hash.**
-    gradient_clip_val : float
-        Gradient clipping value for Lightning (default 1.0).  **Affects hash.**
-    ckpt_every_n_steps : int | None
+    cfg_max_epochs : int
+        Number of training epochs (default 1).
+    cfg_max_steps : int
+        Max training steps per epoch (default 10000).
+    cfg_gradient_clip_val : float
+        Gradient clipping value for Lightning (default 1.0).
+    cfg_ckpt_every_n_steps : int | None
         Save a checkpoint every N steps (default ``None`` = end-of-epoch only).
-        **Affects hash.**
-    precision : str | None
+    cfg_precision : str | None
         PyTorch Lightning precision setting (e.g. ``'16-mixed'``).
-        **Affects hash.**
 
     Build/execution params — **hash-neutral** (not in any spec)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -228,10 +224,10 @@ def bitpath_conv_still(
             cfg_layer='output',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
-            max_epochs=100,          # AFFECTS HASH — include in eval call too
-            max_steps=10000,         # AFFECTS HASH — include in eval call too
-            ckpt_every_n_steps=1000, # AFFECTS HASH — include in eval call too
-            n_devices=3,             # hash-neutral
+            cfg_max_epochs=100,          # AFFECTS HASH — include in eval call too
+            cfg_max_steps=10000,         # AFFECTS HASH — include in eval call too
+            cfg_ckpt_every_n_steps=1000, # AFFECTS HASH — include in eval call too
+            n_devices=3,                 # hash-neutral
         )
         still.build_tree()
     """
@@ -314,14 +310,14 @@ def bitpath_conv_still(
             lightning=dbx.quote(lightning),            # AFFECTS HASH — carries all cfg_n_blocks/lr/scheduler/... via lightning hash
             dataloader=dbx.quote(train_dataloader_builder),   # AFFECTS HASH — carries cfg_batch_size/shuffle/seed/num_workers
             val_dataloader=dbx.quote(val_dataloader_builder), # AFFECTS HASH — same as dataloader but val clip
-            max_epochs=max_epochs,                     # AFFECTS HASH
-            max_steps=max_steps,                       # AFFECTS HASH
-            log_every_n_steps=cfg_log_every_n_steps,   # AFFECTS HASH (also in lightning spec)
-            val_every_n_steps=cfg_val_every_n_steps,   # AFFECTS HASH
-            limit_val_batches=cfg_limit_val_batches,   # AFFECTS HASH
-            gradient_clip_val=gradient_clip_val,       # AFFECTS HASH
-            ckpt_every_n_steps=ckpt_every_n_steps,     # AFFECTS HASH
-            precision=precision,                       # AFFECTS HASH
+            max_epochs=cfg_max_epochs,                     # AFFECTS HASH
+            max_steps=cfg_max_steps,                       # AFFECTS HASH
+            log_every_n_steps=cfg_log_every_n_steps,       # AFFECTS HASH (also in lightning spec)
+            val_every_n_steps=cfg_val_every_n_steps,       # AFFECTS HASH
+            limit_val_batches=cfg_limit_val_batches,       # AFFECTS HASH
+            gradient_clip_val=cfg_gradient_clip_val,       # AFFECTS HASH
+            ckpt_every_n_steps=cfg_ckpt_every_n_steps,     # AFFECTS HASH
+            precision=cfg_precision,                       # AFFECTS HASH
         ),
         n_devices=n_devices,   # hash-neutral
         devices=devices,       # hash-neutral
@@ -378,9 +374,9 @@ autopath.stills.pipelines.bitconv_deep_feature_clip( \
         cfg_layer='output', \
         cfg_cls_token_only=True, \
         cfg_shard_size=64, \
-        max_steps=10000, \
-        max_epochs=100, \
-        ckpt_every_n_steps=1000,\
+        cfg_max_steps=10000, \
+        cfg_max_epochs=100, \
+        cfg_ckpt_every_n_steps=1000,\
     ), \
     cfg_shard_size=64, \
     n_devices=3, \
