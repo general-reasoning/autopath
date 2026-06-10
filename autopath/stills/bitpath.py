@@ -810,13 +810,13 @@ class BitPathConvStill(Datablock):
         """Where Lightning writes checkpoints.
 
         * **Local**: directly ``self.dirpath('ckpts')`` — no staging needed.
-        * **Remote**: ``<tmpdir>/bitpath_still/<anchorkey>/ckpts/`` —
+        * **Remote**: ``<tmpdir>/datalake/<anchorkey>/ckpts/`` —
           synced to remote at the end of / on exception from ``__build__``.
         """
         if self._is_remote():
             base = os.path.join(
                 tempfile.gettempdir(),
-                'bitpath_still',
+                'datalake',
                 self.anchorkey,
                 'ckpts',
             )
@@ -832,14 +832,14 @@ class BitPathConvStill(Datablock):
         * **Local**: directly ``self.dirpath('logs')`` — no staging needed.
           :meth:`linklogs` will symlink ``logsroot/<tag>`` here so
           TensorBoard still discovers it from the standard location.
-        * **Remote**: ``<tmpdir>/bitpath_still/<anchorkey>/logs/`` —
+        * **Remote**: ``<tmpdir>/datalake/<anchorkey>/logs/`` —
           synced to remote Datablock storage (when ``save_remote_logs``
           is set) at the end of / on exception from :meth:`__build__`.
         """
         if self._is_remote():
             base = os.path.join(
                 tempfile.gettempdir(),
-                'bitpath_still',
+                'datalake',
                 self.anchorkey,
                 'logs',
             )
