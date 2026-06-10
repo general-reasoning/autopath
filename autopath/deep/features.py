@@ -68,10 +68,14 @@ class DeepFeatureBag(Bag):
         Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, device=device, **kwargs)
 
     def __post_init__(self):
-        # Compute feature names from factory config (no model load needed).
+        # Compute feature names without loading the model.
+        # Priority:
+        #   1. factory.layer_names  — cheap property, no model load (preferred)
+        #   2. factory.cfg          — derive from config fields
+        #   3. factory.evaluator()  — last resort: instantiates the model
         factory = self.cfg.evaluator_factory
-        if hasattr(factory, 'evaluator'):
-            self._feature_names = factory.evaluator(log=self.log).layer_names
+        if hasattr(factory, 'layer_names'):
+            self._feature_names = list(factory.layer_names)
         elif hasattr(factory, 'cfg'):
             names = []
             for block in getattr(factory.cfg, 'capture_blocks', []):
@@ -81,6 +85,9 @@ class DeepFeatureBag(Bag):
             if getattr(factory.cfg, 'capture_outputs', True):
                 names.append('output')
             self._feature_names = names
+        elif hasattr(factory, 'evaluator'):
+            # Last resort — loads the model; avoid if factory has layer_names.
+            self._feature_names = factory.evaluator(log=self.log).layer_names
         else:
             self._feature_names = []
         return self

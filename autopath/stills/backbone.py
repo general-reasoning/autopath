@@ -209,6 +209,16 @@ class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
 
     # ── Public API ─────────────────────────────────────────────────────
 
+    @property
+    def layer_names(self) -> list:
+        """Layer names produced by this evaluator factory.
+
+        Returns ``['output']`` without loading the model, allowing
+        :meth:`~autopath.deep.features.DeepFeatureBag.__post_init__`
+        to determine the MDS column schema cheaply.
+        """
+        return ['output']
+
     def evaluator(
         self,
         *,
