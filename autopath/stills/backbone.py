@@ -275,9 +275,11 @@ class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
             model.load_state_dict(model_state)
             log.info('BitConvDeepBackboneEvaluatorFactory: checkpoint loaded')
         else:
-            log.warning(
-                'BitConvDeepBackboneEvaluatorFactory: no checkpoint found '
-                'for the provided still — evaluator will use random weights'
+            raise FileNotFoundError(
+                f'BitConvDeepBackboneEvaluatorFactory: no checkpoint found '
+                f'for still {still!r} '
+                f'(looked in {still._local_ckpts_dir!r}). '
+                f'Run the still\'s build() before evaluating.'
             )
 
         return BitConvDeepBackboneEvaluator(model=model, device=device, log=log)
