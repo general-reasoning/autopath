@@ -13,6 +13,7 @@ import functools
 import glob
 import os
 import re
+import tempfile
 
 import torch
 import torch.nn as nn
@@ -796,28 +797,54 @@ class BitPathConvStill(Datablock):
             self.max_steps = self.cfg.max_steps
 
     # -- local working directory -------------------------------------------
-
-    @property
-    def _local_workdir(self):
-        """Local directory for training artifacts (logs, ckpts).
-
-        Uses ``~/autopath/tensorboard/<anchorkey>`` so that TensorBoard
-        can discover the logs locally even when the Datablock URL is
-        remote.
-        """
-        base = os.path.join(
-            os.environ.get('HOME', '/tmp'), 'autopath', 'tensorboard',
-        )
-        os.makedirs(base, exist_ok=True)
-        return os.path.join(base, self.anchorkey)
-
-    @property
-    def _local_logs_dir(self):
-        return os.path.join(self._local_workdir, 'logs')
+    #
+    # Rule:
+    #   * local filesystem  → write directly to the Datablock path (no temp)
+    #   * remote filesystem → write to a stable per-anchorkey dir under /tmp
+    #     and sync to remote in the finally block of __build__.
+    #
+    # _local_workdir is GONE — never hardcode paths under HOME.
 
     @property
     def _local_ckpts_dir(self):
-        return os.path.join(self._local_workdir, 'ckpts')
+        """Where Lightning writes checkpoints.
+
+        * **Local**: directly ``self.dirpath('ckpts')`` — no staging needed.
+        * **Remote**: ``<tmpdir>/bitpath_still/<anchorkey>/ckpts/`` —
+          synced to remote at the end of / on exception from ``__build__``.
+        """
+        if self._is_remote():
+            base = os.path.join(
+                tempfile.gettempdir(),
+                'bitpath_still',
+                self.anchorkey,
+                'ckpts',
+            )
+        else:
+            base = self.dirpath('ckpts', ensure=True)
+        os.makedirs(base, exist_ok=True)
+        return base
+
+    @property
+    def _local_logs_dir(self):
+        """Where TensorBoard logs are written.
+
+        * **Local**: directly ``self.dirpath('logs')`` — no staging needed.
+        * **Remote**: ``<tmpdir>/bitpath_still/<anchorkey>/logs/`` —
+          synced to remote (when ``save_remote_logs`` is set) at end of
+          / on exception from ``__build__``.
+        """
+        if self._is_remote():
+            base = os.path.join(
+                tempfile.gettempdir(),
+                'bitpath_still',
+                self.anchorkey,
+                'logs',
+            )
+        else:
+            base = self.dirpath('logs', ensure=True)
+        os.makedirs(base, exist_ok=True)
+        return base
 
     # -- remote helpers ----------------------------------------------------
 
@@ -871,19 +898,14 @@ class BitPathConvStill(Datablock):
     def linklogs(self):
         """Create a symlink so TensorBoard discovers the logs directory.
 
-        If the Datablock storage is local, the symlink points directly
-        to ``self.dirpath('logs')``.  If remote, it points to the local
-        proxy directory.
+        Points to ``_local_logs_dir``, which is either the Datablock
+        local path (local FS) or the staging dir under ``/tmp`` (remote).
         """
         logslink = self._logslink
         if logslink is None:
             return self
 
-        if self._is_remote():
-            logs_dir = self._local_logs_dir
-            os.makedirs(logs_dir, exist_ok=True)
-        else:
-            logs_dir = self.dirpath('logs', ensure=True)
+        logs_dir = self._local_logs_dir  # already branched on _is_remote()
 
         os.makedirs(os.path.dirname(logslink), exist_ok=True)
 
