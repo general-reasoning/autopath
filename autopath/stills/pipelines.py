@@ -302,11 +302,18 @@ def bitconv_deep_backbone_evaluator_factory(
 
 """
 ### CPTAC 60/20/20 — BitConv feature extraction (CPU, multiprocessing)
-git commit -am 'stills: bitconv_deep_feature_clip: BUILD' > /dev/null || true; dbx.pprint "\\
-autopath.stills.pipelines.bitconv_deep_feature_clip( \\
-    'BITCONV_DEEP_CPTAC_602020_TRAIN', \\
-    still=autopath.stills.pipelines.bitpath_conv_still('GIGAPATH_DEEP_CPTAC_602020'), \\
-    cfg_shard_size=64, \\
+git commit -am 'stills: bitconv_deep_feature_clip: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.stills.pipelines.bitconv_deep_feature_clip( \
+    'BITCONV_DEEP_CPTAC_602020_TEST', \
+    still=autopath.stills.pipelines.bitpath_conv_still( \
+        'GIGAPATH_DEEP_CPTAC_602020', \
+        cfg_layer='output', \
+        cfg_cls_token_only=True, \
+        cfg_shard_size=64, \
+    ), \
+    cfg_shard_size=64, \
+    n_devices=32, \
+    parallelization='multiprocessing', \
 ).build_tree()"
 """
 def bitconv_deep_feature_clip(
@@ -374,18 +381,19 @@ def bitconv_deep_feature_clip(
 
     factory = bitconv_deep_backbone_evaluator_factory(still, url=url)
 
-    # Resolve the underlying tile-bag clip by stripping the BITCONV_DEEP_ prefix.
-    _PREFIX = 'BITCONV_DEEP_'
-    if not name.startswith(_PREFIX):
-        raise ValueError(
-            f"bitconv_deep_feature_clip: name must start with {_PREFIX!r}, got {name!r}"
-        )
-    tile_name = name[len(_PREFIX):]   # e.g. 'CPTAC' or 'CPTAC_602020_TRAIN'
-
-    if tile_name == 'CPTAC':
+    # Resolve the underlying tile-bag clip, mirroring gigapath_deep_feature_clip.
+    # Strip 'BITCONV_DEEP_CPTAC' and re-prepend 'CPTAC_' for fold names so that
+    # 'BITCONV_DEEP_CPTAC_602020_TRAIN' → pancan_tile_fold('CPTAC_602020_TRAIN').
+    if name == 'BITCONV_DEEP_CPTAC':
         tilebagclip = dbx.quote(pancan_tile_clip, 'CPTAC')
+    elif name.startswith('BITCONV_DEEP_CPTAC_'):
+        fold_name = 'CPTAC_' + name[len('BITCONV_DEEP_CPTAC_'):]
+        tilebagclip = dbx.quote(pancan_tile_fold, fold_name)
     else:
-        tilebagclip = dbx.quote(pancan_tile_fold, f'CPTAC_{tile_name}')
+        raise ValueError(
+            f"bitconv_deep_feature_clip: unsupported name {name!r}. "
+            f"Expected 'BITCONV_DEEP_CPTAC' or 'BITCONV_DEEP_CPTAC_<fold>'."
+        )
 
     return DeepFeatureClip(
         url=url,
