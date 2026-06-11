@@ -13,6 +13,7 @@ import os
 import dbx
 
 from autopath.deep.pipelines import gigapath_bipolar_deep_feature_clip
+from autopath.deep.probes import DeepFeatureAffineLogisticProbe
 from autopath.stills.bitpath import (
     BitPathDataloaderBuilder,
     BitPathConvLightning,
@@ -480,3 +481,120 @@ def bitconv_deep_feature_clip(
         keyby='tag_version_hash',
     )
 
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitConv affine logistic probe
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### CPTAC 60/20/20 — BitConv logistic probe on train fold
+git commit -am 'stills: bitconv_deep_feature_affine_logistic_probe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.stills.pipelines.bitconv_deep_feature_affine_logistic_probe( \
+    'BITCONV_DEEP_CPTAC_602020_TRAIN', \
+    still=autopath.stills.pipelines.bitpath_conv_still( \
+        'GIGAPATH_DEEP_CPTAC_602020', \
+        cfg_layer='output', \
+        cfg_cls_token_only=True, \
+        cfg_shard_size=64, \
+        cfg_max_steps=10000, \
+        cfg_max_epochs=100, \
+        cfg_ckpt_every_n_steps=1000, \
+    ), \
+    cfg_shard_size=64, \
+).build_tree()"
+"""
+def bitconv_deep_feature_affine_logistic_probe(
+    name: str,
+    still: 'BitPathConvStill',
+    *,
+    cfg_annotation_key: str | None = None,
+    cfg_fit_intercept: bool = True,
+    cfg_evaluation_fraction: float = 0.8,
+    cfg_normalize: str | None = None,
+    cfg_shard_size: int = 64,
+    batch_size: int = 32,
+    n_devices: int | None = None,
+    devices: list | None = None,
+    parallelization: str | None = None,
+    url: str | None = None,
+) -> 'DeepFeatureAffineLogisticProbe':
+    """Create a :class:`~autopath.deep.probes.DeepFeatureAffineLogisticProbe`
+    on BitConv deep features.
+
+    Fits a logistic regression classifier on bag-level mean features
+    from the ``'output'`` layer of a trained
+    :class:`~autopath.stills.bitpath.BitPathConvStill`, persisting the
+    fitted model's ``coef_``, ``intercept_``, and ``classes_`` arrays.
+
+    Parameters
+    ----------
+    name : str
+        Named fold configuration accepted by
+        :func:`bitconv_deep_feature_clip` (e.g.
+        ``"BITCONV_DEEP_CPTAC_602020_TRAIN"``).
+    still : BitPathConvStill
+        Trained BitPath still whose checkpoint is used as the backbone.
+        Its spec hash is propagated into the probe's lineage.
+    cfg_annotation_key : str | None
+        Dotted path into the annotation dict for label extraction
+        (e.g. ``"cohort"``).  ``None`` falls back to
+        ``tilebag.label``.
+    cfg_fit_intercept : bool
+        Whether to fit an intercept term in the logistic regression.
+    cfg_evaluation_fraction : float
+        Fraction of bags used for training (rest for evaluation).
+    cfg_normalize : str | None
+        Feature normalization mode:
+        ``None`` — raw features,
+        ``'l2'`` — L2-normalise,
+        ``'corner-l1'`` / ``'corner-l2'`` — snap to ``{-1,+1}^d``,
+        ``'corner-linfty'`` — axis-aligned vertex.
+    cfg_shard_size : int
+        Forwarded to :func:`bitconv_deep_feature_clip`.
+    batch_size : int
+        GPU batch size forwarded to :func:`bitconv_deep_feature_clip`.
+    n_devices, devices, parallelization
+        Device/worker config forwarded to :func:`bitconv_deep_feature_clip`.
+    url : str | None
+        Datablock URL.
+
+    Examples
+    --------
+    ::
+
+        probe = bitconv_deep_feature_affine_logistic_probe(
+            'BITCONV_DEEP_CPTAC_602020_TRAIN',
+            still=bitpath_conv_still(
+                'GIGAPATH_DEEP_CPTAC_602020',
+                cfg_layer='output',
+                cfg_cls_token_only=True,
+                cfg_shard_size=64,
+                cfg_max_steps=10000,
+                cfg_max_epochs=100,
+                cfg_ckpt_every_n_steps=1000,
+            ),
+            cfg_shard_size=64,
+        )
+        probe.build_tree()
+    """
+    clip = bitconv_deep_feature_clip(
+        name,
+        still=still,
+        cfg_shard_size=cfg_shard_size,
+        batch_size=batch_size,
+        n_devices=n_devices,
+        devices=devices,
+        parallelization=parallelization,
+        url=url,
+    )
+    return DeepFeatureAffineLogisticProbe(
+        url=url,
+        spec=dict(
+            clip=dbx.quote(clip),
+            layer='output',
+            annotation_key=cfg_annotation_key,
+            fit_intercept=cfg_fit_intercept,
+            evaluation_fraction=cfg_evaluation_fraction,
+            normalize=cfg_normalize,
+        ),
+    )
