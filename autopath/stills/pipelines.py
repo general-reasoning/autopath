@@ -333,7 +333,7 @@ def bitpath_conv_still(
 #  BitConv evaluator factory
 # ═══════════════════════════════════════════════════════════════════════
 
-from autopath.stills.bitpath import (       # noqa: E402
+from autopath.stills.backbone import (       # noqa: E402 — hash-stable FQCN
     BitConvDeepBackboneEvaluator,
     BitConvDeepBackboneEvaluatorFactory,
 )
