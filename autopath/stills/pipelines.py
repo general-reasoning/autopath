@@ -12,8 +12,17 @@ import os
 
 import dbx
 
+from autopath.deep.features import DeepFeatureClip
 from autopath.deep.pipelines import gigapath_bipolar_deep_feature_clip
 from autopath.deep.probes import DeepFeatureAffineLogisticProbe
+from autopath.pancan.pipelines import (
+    pancan_tile_clip,
+    pancan_tile_fold,
+)
+from autopath.stills.backbone import (
+    BitConvDeepBackboneEvaluator,
+    BitConvDeepBackboneEvaluatorFactory,
+)
 from autopath.stills.bitpath import (
     BitPathDataloaderBuilder,
     BitPathConvLightning,
@@ -332,16 +341,6 @@ def bitpath_conv_still(
 # ═══════════════════════════════════════════════════════════════════════
 #  BitConv evaluator factory
 # ═══════════════════════════════════════════════════════════════════════
-
-from autopath.stills.backbone import (       # noqa: E402 — hash-stable FQCN
-    BitConvDeepBackboneEvaluator,
-    BitConvDeepBackboneEvaluatorFactory,
-)
-from autopath.deep.features import DeepFeatureClip  # noqa: E402
-from autopath.pancan.pipelines import (             # noqa: E402
-    pancan_tile_clip,
-    pancan_tile_fold,
-)
 
 
 def bitconv_deep_backbone_evaluator_factory(
