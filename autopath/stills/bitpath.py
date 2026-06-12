@@ -10,13 +10,11 @@ import atexit
 from dataclasses import dataclass
 from datetime import datetime
 import functools
-import gc
 import glob
 import io
 import os
 import re
 import tempfile
-from typing import Dict, List
 
 import torch
 import torch.nn as nn
@@ -26,13 +24,11 @@ import lightning as L
 import lightning.pytorch.loggers
 
 import dbx
-from dbx import Datablock, Logger
+from dbx import Datablock
 
 from streaming import Stream, StreamingDataset
 
 from autopath.autobits import (
-    DeepBackboneEvaluator,
-    DeepBackboneEvaluatorFactory,
     ZipStreamingDataset,
     sanitize_collate,
 )
@@ -1244,236 +1240,6 @@ class BitPathConvStill(Datablock):
             torch.set_float32_matmul_precision(original_precision)
 
         return self
-
-
-# ═══════════════════════════════════════════════════════════════════════
-#  BitConv-specific backbone evaluation (moved from backbone.py)
-# ═══════════════════════════════════════════════════════════════════════
-#
-# backbone.py is kept as a backward-compatibility shim that re-exports
-# everything from this module.
-
-
-# ─── Tile preprocessing ────────────────────────────────────────────────
-
-def bitconv_tile_transform(x: torch.Tensor) -> torch.Tensor:
-    """Minimal preprocessing: permute HWC → CHW and cast to float.
-
-    The :class:`BitPathConvNet` expects ``(B, 3, H, W)`` float tensors
-    in the raw pixel-value range (no ImageNet normalisation).
-
-    Parameters
-    ----------
-    x : Tensor
-        Tile batch of shape ``(B, H, W, 3)`` (channel-last, uint8 or
-        float) *or* already ``(B, 3, H, W)`` (channel-first).
-
-    Returns
-    -------
-    Tensor
-        Float tensor of shape ``(B, 3, H, W)``.
-    """
-    if x.ndim == 4 and x.shape[-1] == 3:
-        x = x.permute(0, 3, 1, 2).contiguous()
-    return x.float()
-
-
-# keep old name as alias for any code that already imported it
-bitpath_tile_transform = bitconv_tile_transform
-
-
-# ─── Evaluator ────────────────────────────────────────────────────────
-
-class BitConvDeepBackboneEvaluator(DeepBackboneEvaluator):
-    """Evaluator that wraps a trained :class:`BitPathConvNet`.
-
-    On each forward call, runs the network and converts the per-class
-    logits to ternary predictions via::
-
-        preds = logits.argmax(dim=1) - 1   # ∈ {-1, 0, +1}, shape (B, D)
-
-    The result is returned as float32 for compatibility with the MDS
-    writer used by :class:`~autopath.deep.features.DeepFeatureBag`.
-
-    Default device is ``"cpu"`` because the network uses simulated
-    float32 quantization (not hardware integer ops) and is small enough
-    that CPU throughput is acceptable.
-
-    Parameters
-    ----------
-    model : BitPathConvNet
-        Network with weights already loaded (or random for testing).
-    device : str
-        Target compute device.  Defaults to ``"cpu"``.
-    log : Logger
-        Logger instance.
-    """
-
-    def __init__(
-        self,
-        model: 'BitPathConvNet',
-        *,
-        device: str = 'cpu',
-        log: Logger = Logger(),
-    ):
-        super().__init__(device=device, log=log)
-        self._model = model.eval().to(device)
-        self._last_features: Dict[str, torch.Tensor] = {}
-
-    # ── Interface ──────────────────────────────────────────────────────
-
-    @property
-    def layer_names(self) -> List[str]:
-        """Returns ``['output']`` — the single ternary feature layer."""
-        return ['output']
-
-    def __call__(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        """Run a forward pass and return ternary predictions.
-
-        Parameters
-        ----------
-        x : Tensor
-            Tile batch, shape ``(B, H, W, 3)`` or ``(B, 3, H, W)``.
-
-        Returns
-        -------
-        dict[str, Tensor]
-            ``{'output': Tensor}`` where the tensor has shape
-            ``(B, output_dim)`` and dtype float32 with values in
-            ``{-1.0, 0.0, +1.0}``.
-        """
-        x = bitconv_tile_transform(x.to(self.device))
-        with torch.no_grad():
-            logits = self._model(x)          # (B, n_classes, D)
-            preds = (logits.argmax(dim=1) - 1).float()  # (B, D)
-        self._last_features = {'output': preds.cpu()}
-        return dict(self._last_features)
-
-    @property
-    def layer_features(self) -> Dict[str, torch.Tensor]:
-        """Most recently computed ternary features (read-only snapshot)."""
-        return dict(self._last_features)
-
-    def clear(self):
-        """Release cached tensors."""
-        self._last_features.clear()
-        gc.collect()
-        return self
-
-
-# ─── Factory ──────────────────────────────────────────────────────────
-
-class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
-    """Factory that loads a trained :class:`BitPathConvNet` from a still.
-
-    Participates in spec-based hash / lineage tracking in exactly the
-    same way as
-    :class:`~autopath.gigapath.backbone.GigapathDeepBackboneEvaluatorFactory`.
-    The factory's hash is derived from the still's hash, so any change
-    to the training configuration or checkpoint is automatically
-    reflected in the hashes of downstream
-    :class:`~autopath.deep.features.DeepFeatureBag` and
-    :class:`~autopath.deep.features.DeepFeatureClip` instances.
-
-    Parameters
-    ----------
-    still : BitPathConvStill
-        Quoted reference to a trained still.  Its latest local checkpoint
-        is loaded when :meth:`evaluator` is first called.
-    """
-
-    @dataclass
-    class CONFIG:
-        still: object  # BitPathConvStill (quoted)
-
-    # ── Public API ─────────────────────────────────────────────────────
-
-    @property
-    def layer_names(self) -> list:
-        """Layer names produced by this factory — ``['output']``.
-
-        Returned without loading the model, allowing
-        :meth:`~autopath.deep.features.DeepFeatureBag.__post_init__`
-        to determine the MDS column schema cheaply.
-        """
-        return ['output']
-
-    def evaluator(
-        self,
-        *,
-        device: str = 'cpu',
-        log: Logger = None,
-    ) -> 'BitConvDeepBackboneEvaluator':
-        """Return a live :class:`BitConvDeepBackboneEvaluator`.
-
-        The model is built from the still's architecture config and
-        weights are loaded from its latest local checkpoint on the first
-        call.  The result is cached per device so that repeated calls
-        with the same *device* return the same instance.
-
-        Parameters
-        ----------
-        device : str
-            Target compute device.  Defaults to ``"cpu"``.
-        log : Logger | None
-            Logger; falls back to ``self.log`` when ``None``.
-        """
-        if not hasattr(self, '_evaluators'):
-            self._evaluators = {}
-        if device not in self._evaluators:
-            log = log or self.log
-            self._evaluators[device] = self._build_evaluator(device=device, log=log)
-        return self._evaluators[device]
-
-    # ── Private helpers ────────────────────────────────────────────────
-
-    def _build_evaluator(
-        self,
-        device: str,
-        log: Logger,
-    ) -> 'BitConvDeepBackboneEvaluator':
-        """Instantiate model, load checkpoint, return wrapped evaluator."""
-        still = self.cfg.still
-        lm_cfg = still.cfg.lightning.cfg
-
-        model = BitPathConvNet(
-            n_blocks=lm_cfg.n_blocks,
-            hidden_channels=lm_cfg.hidden_channels,
-            output_dim=lm_cfg.output_dim,
-            n_classes=lm_cfg.n_classes,
-            activation_bits=lm_cfg.activation_bits,
-        )
-
-        ckpt_path = still.ckpt()
-        if ckpt_path is not None:
-            log.info(
-                f'BitConvDeepBackboneEvaluatorFactory: '
-                f'loading checkpoint {ckpt_path}'
-            )
-            state = torch.load(ckpt_path, map_location='cpu', weights_only=False)
-            model_state = {
-                k[len('model.'):]: v
-                for k, v in state['state_dict'].items()
-                if k.startswith('model.')
-            }
-            model.load_state_dict(model_state)
-            log.info('BitConvDeepBackboneEvaluatorFactory: checkpoint loaded')
-        else:
-            raise FileNotFoundError(
-                f'BitConvDeepBackboneEvaluatorFactory: no checkpoint found '
-                f'for still {still!r} '
-                f'(looked in {still._local_ckpts_dir!r}). '
-                f"Run the still's build() before evaluating."
-            )
-
-        return BitConvDeepBackboneEvaluator(model=model, device=device, log=log)
-
-
-# ── Backward-compatibility aliases ─────────────────────────────────────
-# These were the names used before the rename; kept so that any
-# serialised dbx.quote references still resolve.
-BitPathConvDeepBackboneEvaluator = BitConvDeepBackboneEvaluator
-BitPathConvDeepBackboneEvaluatorFactory = BitConvDeepBackboneEvaluatorFactory
 
 
 # ═══════════════════════════════════════════════════════════════════════
