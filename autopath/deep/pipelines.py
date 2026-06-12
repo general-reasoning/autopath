@@ -427,13 +427,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
 
 """
 ### CPTAC 60/20/20 — no normalization
-git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; dbx.pprint "\
-autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='output', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-).build_tree()"
+git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; ç
 
 ### CPTAC 60/20/20 — L2-normalised features
 git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
@@ -843,6 +837,14 @@ autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
     cfg_normalize='l2', \
+).build_tree()"
+git commit -am 'deep: bipolar logistic probe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    cfg_ternarize_tiles=True, \
 ).build_tree()"
 ### CPTAC 60/20/20 — bipolar logistic probe
 git commit -am 'deep: bipolar logistic probe: BUILD' > /dev/null || true; dbx.pprint "\
