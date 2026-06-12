@@ -429,7 +429,9 @@ ternary convolutions).
 
 ## Results
 
-### June 12, 2026 — AffineLogisticProbe on CPTAC 60/20/20
+### June 12, 2026
+
+#### AffineLogisticProbe on CPTAC 60/20/20
 
 All probes use `cfg_layer='output'`, `cfg_cls_token_only=True`, `cfg_shard_size=64` on the CPTAC 60/20/20 split.  Evaluation is on the 20% test fold (n=444 slides, 10 cancer types).
 
@@ -437,7 +439,7 @@ All probes use `cfg_layer='output'`, `cfg_cls_token_only=True`, `cfg_shard_size=
 
 ---
 
-#### Gigapath real-valued features (`gigapath_deep_feature_affine_logistic_probe`)
+##### Gigapath real-valued features (`gigapath_deep_feature_affine_logistic_probe`)
 
 | Normalization | Accuracy | Macro F1 | Weighted F1 | Mean Asphericity |
 |---|---|---|---|---|
@@ -516,7 +518,7 @@ Asphericity: BRCA=0.180, CCRCC=0.052, COAD=0.137, GBM=0.083, HNSCC=0.260, LSCC=0
 
 ---
 
-#### Gigapath bipolar features (`gigapath_bipolar_deep_feature_affine_logistic_probe`)
+##### Gigapath bipolar features (`gigapath_bipolar_deep_feature_affine_logistic_probe`)
 
 | Variant | Accuracy | Macro F1 | Weighted F1 | Mean Asphericity |
 |---|---|---|---|---|
@@ -586,7 +588,7 @@ L2 projection onto the unit sphere destroys the hypercube-corner geometry of bip
 
 ---
 
-#### Key takeaways
+##### Key takeaways
 
 - **Best normalization for Gigapath real features**: `corner-l1` — same accuracy as no-norm (0.97) but higher macro F1 (0.96 vs 0.93) and lowest asphericity (0.015).
 - **Avoid `corner-linfty`**: Completely degenerate (0.56 accuracy); 4/10 cancer types collapse.
@@ -594,15 +596,13 @@ L2 projection onto the unit sphere destroys the hypercube-corner geometry of bip
 - **Bipolar features match real features**: 0.97 accuracy at no normalization despite extreme discretization.
 - **Ternarizing tiles at probe time is safe**: `ternarize_tiles=True` preserves 0.97 accuracy.
 
----
-
-### June 12, 2026 — BitPathConv Training
+#### BitPathConv Training
 
 Training of `BitPathConvStill` (ternary convolutional distillation of Gigapath bipolar features)
 on the CPTAC 60/20/20 training set.  The network predicts per-tile bipolar features `{-1, +1}`
 across all 1536 Gigapath output dimensions directly from raw 256x256 RGB tiles.
 
-#### Training curves
+##### Training curves
 
 **Train/Loss** — converges from ~1.4 to a plateau around **0.43** by ~10k steps, stable for the remainder of the 36k-step run.
 
@@ -616,7 +616,7 @@ across all 1536 Gigapath output dimensions directly from raw 256x256 RGB tiles.
 
 ![Val/Accuracy](docs/README/results/June-12-2026/images/bitpath-conv-val-accuracy.png)
 
-#### Sample predictions at step 35,992
+##### Sample predictions at step 35,992
 
 The panels below show, for a single validation tile, the 1536-dimensional bipolar feature vector.
 Red = +1, Blue = -1.
@@ -639,7 +639,7 @@ sign pattern of the Gigapath feature space from raw pixels alone.
 Non-zero spikes (|diff| = 2, i.e. a sign flip) are visible but sparse.  By step 10k the error
 pattern is already substantially sparser than at initialization, consistent with the ~0.75 per-dimension accuracy.
 
-#### Summary
+##### Summary
 
 | Metric | Value |
 |---|---|
@@ -651,9 +651,7 @@ pattern is already substantially sparser than at initialization, consistent with
 
 A per-dimension accuracy of 0.75 means the ternary network correctly predicts the sign of **3 out of every 4 Gigapath feature dimensions** from a raw tile — with no access to the Gigapath backbone at inference time.  This establishes a viable distillation baseline; further gains are expected from longer training, larger models, or data augmentation.
 
----
-
-### June 12, 2026 — BitConv Feature Probe vs Gigapath
+#### BitConv Feature Probe vs Gigapath
 
 `bitconv_deep_feature_affine_logistic_probe('BITCONV_DEEP_CPTAC_602020_TEST', still=bitpath_conv_still(..., cfg_max_steps=10000), cfg_shard_size=64)`
 
@@ -661,7 +659,7 @@ This probe fits an affine logistic classifier on top of the **BitPathConv-extrac
 
 > **Note on comparability**: The Gigapath probes above (n=444) evaluated on the 20% test fold of `GIGAPATH_DEEP_CPTAC_602020_TRAIN`.  The BitConv probe below (n=148) evaluates on the separate `BITCONV_DEEP_CPTAC_602020_TEST` set.  The two evaluation sets are not identical, so differences in class balance and support affect the comparison.
 
-#### Summary comparison
+##### Summary comparison
 
 | Feature source | Accuracy | Macro F1 | Weighted F1 | Mean Asphericity | n |
 |---|---|---|---|---|---|
@@ -672,7 +670,7 @@ This probe fits an affine logistic classifier on top of the **BitPathConv-extrac
 
 The BitConv probe achieves **0.92 accuracy** with features extracted entirely from raw tiles by a ternary network — 5pp below Gigapath on a comparable but separate test set.  The asphericity (0.057) falls between Gigapath real (0.020) and bipolar (0.436), reflecting the mixed real/discrete nature of the learned representation.
 
-#### Per-class results (BitConv, accuracy 0.92)
+##### Per-class results (BitConv, accuracy 0.92)
 
 | Cancer type | Precision | Recall | F1 | n |
 |---|---|---|---|---|
