@@ -435,7 +435,7 @@ ternary convolutions).
 
 All probes use `cfg_layer='output'`, `cfg_cls_token_only=True`, `cfg_shard_size=64` on the CPTAC 60/20/20 split.  Evaluation is on the 20% test fold (n=444 slides, 10 cancer types).
 
-**Asphericity** measures how elongated per-class feature clusters are.  Values near 0 = spherical; near 1 = highly elongated.
+**Asphericity** is defined as the mean `|intercept / coefficient|` ratio across feature dimensions in the per-class affine logistic classifier.  A value near 0 means the classifier's decision boundary passes close to the origin in feature space (the class cluster is approximately origin-centred); larger values indicate the boundary is offset — the class occupies a region far from zero in that feature.
 
 ---
 
@@ -543,7 +543,7 @@ Asphericity: BRCA=0.180, CCRCC=0.052, COAD=0.137, GBM=0.083, HNSCC=0.260, LSCC=0
 | UCEC | 0.99 | 0.97 | 0.98 | 70 |
 
 Asphericity: BRCA=0.554, CCRCC=0.243, COAD=0.582, GBM=0.216, HNSCC=0.510, LSCC=0.689, LUAD=0.665, OV=0.594, PDA=0.261, UCEC=0.045.
-High asphericity is expected for ternary/bipolar features (hypercube corners). 0.97 accuracy confirms the discrete structure is highly linearly separable.
+High asphericity is expected for bipolar features: the logistic classifier needs a large intercept relative to its weight to place the decision boundary at a hypercube corner, far from the origin. 0.97 accuracy confirms the discrete structure is highly linearly separable.
 </details>
 
 <details>
@@ -668,7 +668,7 @@ This probe fits an affine logistic classifier on top of the **BitPathConv-extrac
 | **BitPathConv (10k steps)** | **0.92** | **0.81** | **0.91** | **0.057** | **148** |
 | Bipolar (no norm) | 0.97 | 0.96 | 0.97 | 0.436 | 444 |
 
-The BitConv probe achieves **0.92 accuracy** with features extracted entirely from raw tiles by a ternary network — 5pp below Gigapath on a comparable but separate test set.  The asphericity (0.057) falls between Gigapath real (0.020) and bipolar (0.436), reflecting the mixed real/discrete nature of the learned representation.
+The BitConv probe achieves **0.92 accuracy** with features extracted entirely from raw tiles by a ternary network — 5pp below Gigapath on a comparable but separate test set.  The asphericity (0.057) falls between Gigapath real (0.020) and bipolar (0.436), reflecting that the BitConv feature distribution is more offset from the origin than real Gigapath features but far less so than discrete bipolar ones.
 
 ##### Per-class results (BitConv, accuracy 0.92)
 
