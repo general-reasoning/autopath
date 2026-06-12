@@ -937,16 +937,13 @@ class BitPathConvStill(Datablock):
     # -- validity ----------------------------------------------------------
 
     def valid(self):
-        """Return True when a ``_COMPLETE`` marker is present."""
-        local_marker = os.path.join(self._local_ckpts_dir, '_COMPLETE')
-        if os.path.exists(local_marker):
-            return True
-        # Fall back to remote check
-        try:
-            remote_ckpts = self.dirpath('ckpts')
-            return self.fs.exists(os.path.join(remote_ckpts, '_COMPLETE'))
-        except Exception:
-            return False
+        """Return ``True`` when at least one checkpoint is present.
+
+        Delegates to :meth:`ckpt` — if it returns a path the still has
+        produced usable weights and is considered valid regardless of
+        whether training completed fully.
+        """
+        return self.ckpt() is not None
 
     def __pre_build__(self):
         super().__pre_build__()
