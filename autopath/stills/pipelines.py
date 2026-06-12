@@ -618,7 +618,7 @@ autopath.stills.pipelines.bitpath_conv_still_probe( \
         cfg_max_epochs=100, \
         cfg_ckpt_every_n_steps=1000, \
     ), \
-).build_tree()"
+).build()"
 """
 def bitpath_conv_still_probe(
     still: 'BitPathConvStill',
