@@ -1,115 +1,426 @@
-# env 
-conda create -n autopath
-conda activate autopath
+# BitPath: BitNet1.58b Distillation of Gigapath
 
+**Goal**: Train a lightweight ternary convolutional network (BitNet1.58b-style)
+that predicts bipolar features `{−1, 0, +1}` directly from raw pathology tiles,
+bypassing the heavyweight Gigapath backbone at inference time.
 
-# dbx
-cd ~/dbx
-pip install -e .
+---
 
+## 1  High-Level Pipeline
 
-# dinov2
-cd ~/dinov2
-# set dependencies in ~/dinov2/requirements.txt as follows (to comport with what's below; 
-# removing the troublesome cuml-cu11):
-    --extra-index-url https://download.pytorch.org/whl/cu124
-    torch==2.6.0+cu124
-    torchvision==0.21.0+cu124
-    omegaconf
-    torchmetrics==1.8.0
-    fvcore
-    iopath
-    xformers==0.0.29.post3
-    submitit
-    --extra-index-url https://pypi.nvidia.com
-    ##cuml-cu11
-# remove conda.yaml and conda-extras.yaml
-pip install -e .
+```mermaid
+flowchart LR
+    subgraph Training Data
+        BC["BipolarDeepFeatureClip<br/>.dataset(include_tiles=True)"]
+    end
 
-    # dependencies (in addition to or overriding those in the env, slideflow and autopath)
-    # TODO: incorporate into the appropriate requirements file
-    # N.B.: some of these packages may cause conflicts with those already in the env.
-    #   In part this is why they are being installed later
-    pip install jupyterlab==4.4.3
-    pip install timm==1.0.15
-    pip install xformers==0.0.20
-    pip install dinov2 --extra-index-url https://pypi.nvidia.com # import dinov2 fails
-    pip install omegaconf==2.3.0
-    pip install fvcore==0.1.5.post20221221
+    subgraph BitPathNet
+        T["Raw Tile<br/>256×256×3"] --> CONV["BitConv2d158<br/>blocks ×N"]
+        CONV --> GAP["Global Avg Pool"]
+        GAP --> FC["BitLinear158<br/>→ 3×1536 logits"]
+    end
 
-    # for ImageNet
-    pip install --upgrade torchvision=0.20.0 # implies torch==2.5.0, incompatible with xformers==0.0.20, fastai
-    ### PROBLEM with xformers:
-    ```
-    NotImplementedError: No operator found for `memory_efficient_attention_forward` with inputs:
-        query       : shape=(128, 197, 24, 64) (torch.float32)
-        key         : shape=(128, 197, 24, 64) (torch.float32)
-        value       : shape=(128, 197, 24, 64) (torch.float32)
-        attn_bias   : <class 'NoneType'>
-        p           : 0.0
-    `flshattF` is not supported because:
-        xFormers wasn't build with CUDA support
-        dtype=torch.float32 (supported: {torch.bfloat16, torch.float16})
-        Operator wasn't built - see `python -m xformers.info` for more info
-    `tritonflashattF` is not supported because:
-        xFormers wasn't build with CUDA support
-        dtype=torch.float32 (supported: {torch.bfloat16, torch.float16})
-        Only work on pre-MLIR triton for now
-    `cutlassF` is not supported because:
-        xFormers wasn't build with CUDA support
-        Operator wasn't built - see `python -m xformers.info` for more info
-    `smallkF` is not supported because:
-        xFormers wasn't build with CUDA support
-        max(query.shape[-1] != value.shape[-1]) > 32
-        Operator wasn't built - see `python -m xformers.info` for more info
-        unsupported embed per head: 64
-    ```
-    ### Potential FIX (Gemini):
-    Reinstall xformers with CUDA-enabled PyTorch:
-    Ensure you have the correct PyTorch version installed that's compatible with your desired CUDA version (e.g., CUDA 11.8 or 12.1), according to Stack Overflow.
-    Uninstall your existing xformers installation: pip uninstall xformers.
-    Install xformers using the appropriate PyTorch CUDA wheel: pip3 install -U xformers --index-url https://download.pytorch.org/whl/cu118 (for CUDA 11.8) or pip3 install -U xformers --index-url https://download.pytorch.org/whl/cu124 (for CUDA 12.4), according to Reddit.
-    Verify the installation by checking if torch.cuda.is_available() returns True
-    ### IMPL:
-    * check cuda version
-    import torch
-    torch.version.cuda
-    '12.4'
-    * uninstall xformers
-    pip uninstall xformers
-    * reinstall xformers
-    pip install -U xformers --index-url https://download.pytorch.org/whl/cu124
-    #### this will reinstall torch to 2.5.0, among other things, 
-    #### and seems to mess with torchvision, so
-    pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
+    subgraph Loss
+        FC --> CE["Cross-Entropy Loss<br/>per feature dimension"]
+        BC --> |"tile_bipolar_features<br/>{−1,+1} → class idx"| CE
+    end
+```
 
+Each training sample from `BipolarDeepFeatureClip.dataset(include_tiles=True)`
+contains:
 
-# autopath
-cd ~/autopath
-pip install -e .
+| Field | Type | Shape | Description |
+|-------|------|-------|-------------|
+| `tile` | `uint8` ndarray | `(256, 256, 3)` | Raw RGB tile from the slide |
+| `tile_bipolar_features` | `int8` ndarray | `(1536,)` | Bipolar features: values in `{−1, +1}` |
+| `tile_index` | `int32` | scalar | Tile index within the bag |
+| `bag_index` | `int32` | scalar | Which bag this tile belongs to |
 
-# jupyter
-cd $HOME/autopath
-nohup jupyter lab --ip=0.0.0.0 --ServerApp.token='' --ServerApp.password='' --ServerApp.root_dir=$PWD > $PWD/jupyter.out &
-# locally
-ssh -L 8888:127.0.0.1:8888 wheelbarrow
+The network outputs `(B, 3, 1536)` logits — **3 classes per feature dimension** —
+and the loss is per-dimension cross-entropy against the target class index
+derived from the bipolar value.
 
+### Target Encoding
 
+```
+Bipolar value    Class index
+─────────────    ───────────
+     −1      →       0
+      0      →       1       (bag-level only; tiles are always ±1)
+     +1      →       2
+```
 
-# tensorboard
-conda activate autopath
-tmux # tensorboard
-cd $HOME/autopath/tensorboard
-export TENSORBOARD_LOGDIR=$HOME/autopath/tensorboard
-nohup tensorboard --logdir=$TENSORBOARD_LOGDIR --port 7007 > tensorboard.out &
-# from a remote terminal
-ssh -L 7007:127.0.0.1:7007 wheelbarrow
+At tile level the targets are always `{−1, +1}` → classes `{0, 2}`.
+The 3-class setup future-proofs for bag-level supervision if desired.
 
-# detectron2
-    #pip install detectron2 -f https://dl.fbaipublicfiles.com/detectron2/wheels/cu118/torch2.1/index.html # Example for CUDA 11.8 and PyTorch 2.1
-    # Therefore, taking into account torch==2.6.0+cu124
-    # pip install detectron2 -f https://dl.fbaipublicfiles.com/detectron2/wheels/cu124/torch2.6/index.html # Example for CUDA 12.4 and PyTorch 2.6
-    # the above fails, so installing from source:
-    pip install 'git+https://github.com/facebookresearch/detectron2.git'
-    # Verify:
-    python -m detectron2.utils.collect_env
+---
+
+## 2  BitNet 1.58b: Ternary Weight Quantization
+
+BitNet 1.58b ([Ma et al., 2024](https://arxiv.org/abs/2402.17764)) constrains
+every weight to `{−1, 0, +1}`, reducing multiply-accumulate operations to
+additions and subtractions. The name "1.58 bits" comes from
+`log₂(3) ≈ 1.585` — each weight carries ~1.58 bits of information.
+
+### 2.1  Absmean Quantization
+
+Given a real-valued weight tensor `W`, the ternary approximation `W̃` is:
+
+```
+α = mean(|W|)                          # per-tensor scale factor
+W̃ = round(clip(W / α, −1, +1))        # quantize to {−1, 0, +1}
+```
+
+```mermaid
+flowchart LR
+    W["W<br/>(full precision)"] --> ABS["α = mean │W│"]
+    W --> SCALE["W / α"]
+    SCALE --> CLIP["clip(·, −1, +1)"]
+    CLIP --> ROUND["round(·)"]
+    ROUND --> WQ["W̃ ∈ {−1, 0, +1}"]
+    ABS -.->|"scale factor"| SCALE
+```
+
+**Why absmean?**  It's parameter-free, cheap to compute, and adapts to the
+weight distribution automatically.  Weights near zero get snapped to `0`
+(pruned), while large-magnitude weights keep their sign.
+
+### 2.2  Straight-Through Estimator (STE)
+
+Quantization (`round`, `clip`) is non-differentiable.  During backpropagation
+we use the **Straight-Through Estimator**: pretend the quantization function
+is the identity for gradient purposes.
+
+```mermaid
+flowchart TB
+    subgraph Forward Pass
+        W1["W (latent)"] --> Q["quantize(W)"] --> WQ1["W̃ (ternary)"]
+        WQ1 --> MM["matmul(x, W̃ᵀ)"]
+    end
+
+    subgraph Backward Pass
+        dL["∂L/∂W̃"] --> |"STE: treat quantize<br/>as identity"| dW["∂L/∂W ≈ ∂L/∂W̃"]
+    end
+```
+
+In PyTorch this is implemented as:
+
+```python
+# Forward: use quantized weights for computation
+# Backward: gradients flow through to the latent (full-precision) weights
+W_quant = quantize(W)
+W_ste = W + (W_quant - W).detach()   # forward = W_quant, backward ∂/∂W = I
+output = F.linear(x, W_ste, bias)
+```
+
+The optimizer updates `W` (full precision).  At the start of each forward pass,
+`W` is re-quantized on the fly.  The latent weights slowly drift under gradient
+pressure, and the quantized snapshot changes discretely.
+
+### 2.3  Activation Quantization (Optional)
+
+BitNet 1.58b also quantizes activations to 8-bit before each linear/conv layer
+using **absmax** quantization:
+
+```
+γ = max(|x|)
+Q_b = 2^(b−1)                        # e.g. 128 for 8-bit
+x̃ = clip(round(x × Q_b / γ), −Q_b + 1, Q_b − 1)
+```
+
+This is applied *after* layer normalisation (RMSNorm in the original paper),
+so the activation distribution is well-behaved.
+
+---
+
+## 3  BitConv2d158 — Ternary Convolution Layer
+
+A drop-in replacement for `nn.Conv2d` with BitNet 1.58b quantization.
+
+```mermaid
+flowchart TB
+    subgraph BitConv2d158
+        X["Input x<br/>(B, C_in, H, W)"] --> RMS["RMSNorm<br/>(per-channel)"]
+        RMS --> AQ["Activation Quant<br/>(absmax, 8-bit)"]
+        AQ --> CONV["F.conv2d(x̃, W̃, ...)"]
+
+        W["Weight W<br/>(C_out, C_in, kH, kW)"] --> WQ["Absmean Quant<br/>→ {−1,0,+1}"]
+        WQ --> CONV
+
+        CONV --> SCALE2["× α<br/>(rescale output)"]
+        SCALE2 --> OUT["Output<br/>(B, C_out, H', W')"]
+    end
+```
+
+### Forward pass pseudocode
+
+```python
+def forward(self, x):
+    # 1. Normalise activations
+    x = self.rms_norm(x)
+
+    # 2. Quantize activations (absmax, 8-bit)
+    gamma = x.abs().max()
+    Qb = 2 ** (self.activation_bits - 1)
+    x_quant = (x * Qb / gamma).round().clamp(-Qb + 1, Qb - 1)
+
+    # 3. Quantize weights (absmean → ternary)
+    alpha = self.weight.abs().mean()
+    w_scaled = self.weight / (alpha + eps)
+    w_quant = w_scaled.clamp(-1, 1).round()
+    w_ste = self.weight + (w_quant * alpha - self.weight).detach()
+
+    # 4. Convolution with quantized operands
+    #    (in practice x_quant × w_ste, so matmuls become adds/subs)
+    return F.conv2d(x_quant, w_ste, self.bias,
+                    self.stride, self.padding, self.dilation, self.groups)
+```
+
+### Key properties
+
+| Property | Value |
+|----------|-------|
+| Weight values | `{−1, 0, +1} × α` |
+| Activation precision | 8-bit symmetric |
+| Normalization | RMSNorm (per-channel, before quant) |
+| Gradient flow | STE through both weight and activation quantization |
+| Memory savings | ~16× vs FP32 weights (1.58 bits per weight) |
+| Compute savings | Multiply → add/subtract (ternary matmul) |
+
+---
+
+## 4  BitPathNet — Full Network Architecture
+
+```mermaid
+flowchart TB
+    INPUT["Input Tile<br/>(B, 3, 256, 256)"] --> STEM
+
+    subgraph STEM ["Stem (full-precision)"]
+        S1["Conv2d 3→C, 7×7, stride 2<br/>(B, C, 128, 128)"]
+        S1 --> BN0["BatchNorm + ReLU"]
+    end
+
+    BN0 --> B1
+
+    subgraph B1 ["BitBlock 1"]
+        BC1["BitConv2d158 C→C, 3×3"]
+        BC1 --> BN1["BatchNorm + ReLU"]
+        BN1 --> BC2["BitConv2d158 C→C, 3×3"]
+        BC2 --> BN2["BatchNorm + ReLU + residual"]
+    end
+
+    B1 --> |"stride-2 downsample"| B2
+
+    subgraph B2 ["BitBlock 2"]
+        BC3["BitConv2d158 C→2C, 3×3"]
+        BC3 --> BN3["BatchNorm + ReLU"]
+        BN3 --> BC4["BitConv2d158 2C→2C, 3×3"]
+        BC4 --> BN4["BatchNorm + ReLU + residual"]
+    end
+
+    B2 --> |"stride-2 downsample"| MORE["... BitBlocks 3–N<br/>(channel doubling, spatial halving)"]
+
+    MORE --> GAP["Global Average Pool<br/>(B, C_final)"]
+    GAP --> FC["BitLinear158<br/>C_final → 3×1536"]
+    FC --> RESHAPE["Reshape → (B, 3, 1536)"]
+```
+
+### Design choices
+
+- **Stem is full-precision**: The first conv uses standard `nn.Conv2d` because
+  the input (RGB pixels) has very low entropy and quantizing 3-channel inputs
+  to ternary weights loses too much information.
+
+- **Residual connections**: Each BitBlock uses a skip connection around the two
+  `BitConv2d158` layers.  When channel dimensions change, a 1×1 projection
+  adapts the shortcut.
+
+- **No pooling layers**: Spatial reduction is done via stride-2 convolutions
+  (integrated into the first conv of each block), preserving information
+  better than max/avg pooling.
+
+- **Global average pool → linear head**: After the conv blocks, spatial
+  dimensions are collapsed and a single `BitLinear158` layer produces the
+  3×1536 output logits.
+
+### Default configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_blocks` | 6 | Number of residual BitBlocks |
+| `hidden_channels` | 128 | Base channel width (doubles each block) |
+| `output_dim` | 1536 | Gigapath feature dimension |
+| `n_classes` | 3 | `{−1, 0, +1}` |
+| `activation_bits` | 8 | Activation quantization precision |
+| `stem_channels` | `hidden_channels` | Stem output channels |
+
+### Parameter count estimate
+
+With `hidden_channels=128` and `n_blocks=6`:
+- Stem: ~18K params
+- BitBlocks: channels go 128→128→256→256→512→512→... ≈ 4–8M params
+- Head: `C_final × 3×1536` ≈ 4.7M (if C_final=1024)
+- **Total**: ~10–15M parameters (all ternary except stem)
+
+---
+
+## 5  Training Process
+
+```mermaid
+sequenceDiagram
+    participant DL as DataLoader
+    participant Net as BitPathNet
+    participant Loss as CrossEntropy
+    participant Opt as Adam
+
+    loop Each batch
+        DL->>Net: tiles (B, 3, 256, 256)
+        Note over Net: Forward pass with<br/>STE-quantized weights
+        Net->>Loss: logits (B, 3, 1536)
+        DL->>Loss: bipolar targets (B, 1536)<br/>mapped to class indices
+        Loss->>Opt: dL/dW (via STE)
+        Opt->>Net: Update latent weights W<br/>(full precision)
+    end
+```
+
+### Loss function
+
+Per-dimension cross-entropy, averaged over all 1536 feature dimensions:
+
+```python
+# logits: (B, 3, 1536)  — 3-class logits per feature dim
+# targets: (B, 1536)    — class indices in {0, 1, 2}
+loss = F.cross_entropy(
+    logits.permute(0, 2, 1).reshape(-1, 3),  # (B*1536, 3)
+    targets.reshape(-1),                      # (B*1536,)
+)
+```
+
+The target mapping is:
+- `tile_bipolar_features == -1` → class `0`
+- `tile_bipolar_features ==  0` → class `1`
+- `tile_bipolar_features == +1` → class `2`
+
+### Optimizer & scheduler
+
+- **Optimizer**: AdamW with `weight_decay` (default 0.01)
+- **LR scheduler**: Cosine annealing with warmup
+- **Gradient clipping**: By norm (default 1.0)
+- **Precision**: `bf16-mixed` for speed on A100/H100
+
+### Multi-GPU training
+
+Lightning `Trainer` with `strategy='ddp'` when `n_devices > 1`.
+The `BitPathStill` constructor accepts `n_devices` or `devices` list.
+
+---
+
+## 6  Datablock Hierarchy
+
+```mermaid
+classDiagram
+    class BitPathStill {
+        CONFIG
+        +lightning: BitPathLightning
+        +dataloader: BitPathDataloaderBuilder
+        +max_epochs: int
+        +max_steps: int
+        +gradient_clip_val: float
+        +ckpt_every_n_steps: int
+        __build__()
+        ckpt()
+        valid()
+    }
+
+    class BitPathLightning {
+        CONFIG
+        +n_blocks: int
+        +hidden_channels: int
+        +output_dim: int
+        +n_classes: int
+        +activation_bits: int
+        +learning_rate: float
+        +scheduler: str
+        +weight_decay: float
+        lightning_module
+    }
+
+    class BitPathDataloaderBuilder {
+        CONFIG
+        +clip: BipolarDeepFeatureClip
+        +batch_size: int
+        +shuffle: bool
+        +seed: int?
+        +num_workers: int
+        dataloader()
+    }
+
+    class BipolarDeepFeatureClip {
+        dataset(include_tiles=True)
+    }
+
+    BitPathStill --> BitPathLightning : cfg.lightning
+    BitPathStill --> BitPathDataloaderBuilder : cfg.dataloader
+    BitPathDataloaderBuilder --> BipolarDeepFeatureClip : cfg.clip
+```
+
+### CONFIG boundaries
+
+Only parameters that affect the **output** of training go in CONFIG
+(so the Datablock hash changes when results would change):
+
+| Datablock | CONFIG params | Non-CONFIG params |
+|-----------|--------------|-------------------|
+| `BitPathDataloaderBuilder` | `clip`, `batch_size`, `shuffle`, `seed`, `num_workers` | — |
+| `BitPathLightning` | `n_blocks`, `hidden_channels`, `output_dim`, `n_classes`, `activation_bits`, `learning_rate`, `scheduler`, `weight_decay` | — |
+| `BitPathStill` | `lightning`, `dataloader`, `max_epochs`, `max_steps`, `gradient_clip_val`, `ckpt_every_n_steps`, `precision` | `n_devices`, `devices`, `logsroot` |
+
+---
+
+## 7  Pipeline: `bitpath_still()`
+
+```python
+from autopath.deep.pipelines import bitpath_still
+
+still = bitpath_still(
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+    cfg_layer='output',
+    cfg_cls_token_only=True,
+    cfg_shard_size=64,
+    cfg_batch_size=64,
+    cfg_n_blocks=6,
+    cfg_hidden_channels=128,
+    cfg_learning_rate=1e-3,
+    max_steps=10000,
+    n_devices=4,
+)
+still.build_tree()
+```
+
+The pipeline:
+1. Constructs a `BipolarDeepFeatureClip` (via `bipolar_deep_feature_clip()`)
+2. Wraps it in a `BitPathDataloaderBuilder`
+3. Creates a `BitPathLightning` with architecture params
+4. Assembles `BitPathStill` with the lightning + dataloader + training params
+5. Returns the still, ready for `.build_tree()`
+
+---
+
+## 8  Inference (Post-Training)
+
+After training, the model's ternary weights can be extracted and stored
+compactly.  Inference on a new tile:
+
+```python
+still = bitpath_still('GIGAPATH_DEEP_CPTAC_602020_TRAIN', ...)
+model = still.cfg.lightning.lightning_module
+model.eval()
+
+tile = torch.randn(1, 3, 256, 256)  # preprocessed tile
+logits = model(tile)                  # (1, 3, 1536)
+predicted_bipolar = logits.argmax(dim=1) - 1  # class {0,1,2} → {-1,0,+1}
+```
+
+The predicted bipolar features should approximate the Gigapath-derived
+bipolar features but computed ~100–1000× faster (no ViT backbone, only
+ternary convolutions).
