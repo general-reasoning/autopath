@@ -593,3 +593,60 @@ L2 projection onto the unit sphere destroys the hypercube-corner geometry of bip
 - **Avoid `l2` for both feature types**: Degrades performance in both real (0.97 -> 0.90) and bipolar (0.97 -> 0.89) settings.
 - **Bipolar features match real features**: 0.97 accuracy at no normalization despite extreme discretization.
 - **Ternarizing tiles at probe time is safe**: `ternarize_tiles=True` preserves 0.97 accuracy.
+
+---
+
+### June 12, 2026 — BitPathConv Training
+
+Training of `BitPathConvStill` (ternary convolutional distillation of Gigapath bipolar features)
+on the CPTAC 60/20/20 training set.  The network predicts per-tile bipolar features `{-1, +1}`
+across all 1536 Gigapath output dimensions directly from raw 256x256 RGB tiles.
+
+#### Training curves
+
+**Train/Loss** — converges from ~1.4 to a plateau around **0.43** by ~10k steps, stable for the remainder of the 36k-step run.
+
+![Train/Loss](docs/README/results/June-12-2026/images/bitpath-conv-train-loss.png)
+
+**Train/Accuracy** — rises rapidly to ~0.75 within the first 2k steps, plateaus around **0.78**.
+
+![Train/Accuracy](docs/README/results/June-12-2026/images/bitpath-conv-train-accuracy.png)
+
+**Val/Accuracy** — more oscillatory than train (evaluated on held-out shard), converges to **~0.75**.  The ~3-point train/val gap indicates mild overfitting but no collapse.
+
+![Val/Accuracy](docs/README/results/June-12-2026/images/bitpath-conv-val-accuracy.png)
+
+#### Sample predictions at step 35,992
+
+The panels below show, for a single validation tile, the 1536-dimensional bipolar feature vector.
+Red = +1, Blue = -1.
+
+**Target** (Gigapath-derived ground truth):
+
+![Val/Sample/Target](docs/README/results/June-12-2026/images/bitpath-conv-val-sample-target.png)
+
+**Output** (BitPathConv prediction):
+
+![Val/Sample/Output](docs/README/results/June-12-2026/images/bitpath-conv-val-sample-output.png)
+
+The coarse red/blue structure is faithfully reproduced.  The network has learned the dominant
+sign pattern of the Gigapath feature space from raw pixels alone.
+
+**Diff** (output - target, shown at step 10,512 for clarity):
+
+![Val/Sample/Diff](docs/README/results/June-12-2026/images/bitpath-conv-val-sample-diff.png)
+
+Non-zero spikes (|diff| = 2, i.e. a sign flip) are visible but sparse.  By step 10k the error
+pattern is already substantially sparser than at initialization, consistent with the ~0.75 per-dimension accuracy.
+
+#### Summary
+
+| Metric | Value |
+|---|---|
+| Steps trained | ~36k |
+| Train loss (final) | ~0.43 |
+| Train accuracy (final) | ~0.78 |
+| Val accuracy (final) | ~0.75 |
+| Train/val gap | ~3 pp |
+
+A per-dimension accuracy of 0.75 means the ternary network correctly predicts the sign of **3 out of every 4 Gigapath feature dimensions** from a raw tile — with no access to the Gigapath backbone at inference time.  This establishes a viable distillation baseline; further gains are expected from longer training, larger models, or data augmentation.
