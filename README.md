@@ -424,3 +424,172 @@ predicted_bipolar = logits.argmax(dim=1) - 1  # class {0,1,2} → {-1,0,+1}
 The predicted bipolar features should approximate the Gigapath-derived
 bipolar features but computed ~100–1000× faster (no ViT backbone, only
 ternary convolutions).
+
+---
+
+## Results
+
+### June 12, 2026 — AffineLogisticProbe on CPTAC 60/20/20
+
+All probes use `cfg_layer='output'`, `cfg_cls_token_only=True`, `cfg_shard_size=64` on the CPTAC 60/20/20 split.  Evaluation is on the 20% test fold (n=444 slides, 10 cancer types).
+
+**Asphericity** measures how elongated per-class feature clusters are.  Values near 0 = spherical; near 1 = highly elongated.
+
+---
+
+#### Gigapath real-valued features (`gigapath_deep_feature_affine_logistic_probe`)
+
+| Normalization | Accuracy | Macro F1 | Weighted F1 | Mean Asphericity |
+|---|---|---|---|---|
+| none | **0.97** | 0.93 | 0.97 | 0.020 |
+| `corner-l1` | **0.97** | **0.96** | **0.97** | **0.015** |
+| `l2` | 0.90 | 0.88 | 0.89 | 0.087 |
+| `corner-linfty` | 0.56 | 0.36 | 0.53 | 0.140 |
+
+<details>
+<summary>Per-class — gigapath, no normalization (accuracy 0.97)</summary>
+
+BRCA–OV rows not captured (output truncated at collection time).
+Known: PDA P=0.98/R=0.98/F1=0.98 (n=49), UCEC P=1.00/R=0.97/F1=0.99 (n=68). Macro F1=0.93, weighted F1=0.97.
+
+Asphericity: BRCA=0.021, CCRCC=0.018, COAD=0.028, GBM=0.025, HNSCC=0.026, LSCC=0.019, LUAD=0.012, OV=0.021, PDA=0.005, UCEC=0.022.
+</details>
+
+<details>
+<summary>Per-class — gigapath, corner-l1 (accuracy 0.97) ← best normalization</summary>
+
+| Cancer type | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| BRCA | 1.00 | 0.85 | 0.92 | 13 |
+| CCRCC | 1.00 | 1.00 | 1.00 | 60 |
+| COAD | 1.00 | 1.00 | 1.00 | 21 |
+| GBM | 0.98 | 1.00 | 0.99 | 57 |
+| HNSCC | 0.79 | 0.92 | 0.85 | 12 |
+| LSCC | 0.95 | 0.95 | 0.95 | 76 |
+| LUAD | 0.97 | 0.96 | 0.97 | 72 |
+| OV | 0.83 | 1.00 | 0.91 | 5 |
+| PDA | 0.98 | 1.00 | 0.99 | 51 |
+| UCEC | 1.00 | 0.97 | 0.99 | 77 |
+
+Asphericity: BRCA=0.015, CCRCC=0.018, COAD=0.019, GBM=0.021, HNSCC=0.023, LSCC=0.016, LUAD=0.005, OV=0.015, PDA=0.005, UCEC=0.014.
+</details>
+
+<details>
+<summary>Per-class — gigapath, l2 (accuracy 0.90)</summary>
+
+| Cancer type | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| BRCA | 1.00 | 1.00 | 1.00 | 13 |
+| CCRCC | 0.95 | 0.94 | 0.94 | 63 |
+| COAD | 0.90 | 1.00 | 0.95 | 9 |
+| GBM | 1.00 | 1.00 | 1.00 | 60 |
+| **HNSCC** | 1.00 | **0.27** | **0.42** | 15 |
+| LSCC | 0.75 | 0.89 | 0.81 | 74 |
+| LUAD | 0.87 | 0.88 | 0.88 | 78 |
+| OV | 1.00 | 0.83 | 0.91 | 6 |
+| PDA | 0.94 | 0.94 | 0.94 | 47 |
+| UCEC | 0.92 | 0.89 | 0.90 | 79 |
+
+Asphericity: BRCA=0.111, CCRCC=0.078, COAD=0.127, GBM=0.094, HNSCC=0.109, LSCC=0.070, LUAD=0.011, OV=0.202, PDA=0.002, UCEC=0.066.
+L2 collapses HNSCC recall to 0.27 and raises mean asphericity from 0.020 to 0.087.
+</details>
+
+<details>
+<summary>Per-class — gigapath, corner-linfty (accuracy 0.56) ← degenerate</summary>
+
+| Cancer type | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| **BRCA** | **0.00** | **0.00** | **0.00** | 14 |
+| CCRCC | 0.93 | 0.71 | 0.81 | 56 |
+| **COAD** | **0.00** | **0.00** | **0.00** | 16 |
+| GBM | 1.00 | 0.48 | 0.65 | 58 |
+| **HNSCC** | **0.00** | **0.00** | **0.00** | 13 |
+| LSCC | 0.38 | 0.76 | 0.51 | 79 |
+| LUAD | 0.50 | 0.71 | 0.58 | 80 |
+| **OV** | **0.00** | **0.00** | **0.00** | 9 |
+| PDA | 0.71 | 0.32 | 0.44 | 47 |
+| UCEC | 0.61 | 0.67 | 0.64 | 72 |
+
+Asphericity: BRCA=0.180, CCRCC=0.052, COAD=0.137, GBM=0.083, HNSCC=0.260, LSCC=0.105, LUAD=0.075, OV=0.371, PDA=0.034, UCEC=0.099.
+4 of 10 cancer types collapse to zero. `corner-linfty` is degenerate on this feature space.
+</details>
+
+---
+
+#### Gigapath bipolar features (`gigapath_bipolar_deep_feature_affine_logistic_probe`)
+
+| Variant | Accuracy | Macro F1 | Weighted F1 | Mean Asphericity |
+|---|---|---|---|---|
+| none | **0.97** | **0.96** | **0.97** | 0.436 |
+| `ternarize_tiles=True` | **0.97** | 0.94 | **0.97** | 0.390 |
+| `normalize='l2'` | 0.89 | 0.77 | 0.88 | 0.095 |
+
+<details>
+<summary>Per-class — bipolar, no normalization (accuracy 0.97)</summary>
+
+| Cancer type | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| BRCA | 0.94 | 0.88 | 0.91 | 17 |
+| CCRCC | 0.96 | 1.00 | 0.98 | 44 |
+| COAD | 0.95 | 1.00 | 0.98 | 21 |
+| GBM | 1.00 | 1.00 | 1.00 | 60 |
+| HNSCC | 0.91 | 0.91 | 0.91 | 11 |
+| LSCC | 0.95 | 0.98 | 0.96 | 91 |
+| LUAD | 0.99 | 0.95 | 0.97 | 87 |
+| OV | 1.00 | 0.80 | 0.89 | 5 |
+| PDA | 1.00 | 1.00 | 1.00 | 38 |
+| UCEC | 0.99 | 0.97 | 0.98 | 70 |
+
+Asphericity: BRCA=0.554, CCRCC=0.243, COAD=0.582, GBM=0.216, HNSCC=0.510, LSCC=0.689, LUAD=0.665, OV=0.594, PDA=0.261, UCEC=0.045.
+High asphericity is expected for ternary/bipolar features (hypercube corners). 0.97 accuracy confirms the discrete structure is highly linearly separable.
+</details>
+
+<details>
+<summary>Per-class — bipolar, ternarize_tiles=True (accuracy 0.97)</summary>
+
+| Cancer type | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| BRCA | 0.95 | 0.95 | 0.95 | 19 |
+| CCRCC | 1.00 | 1.00 | 1.00 | 59 |
+| COAD | 1.00 | 1.00 | 1.00 | 19 |
+| GBM | 1.00 | 1.00 | 1.00 | 49 |
+| HNSCC | 0.78 | 0.64 | 0.70 | 11 |
+| LSCC | 0.93 | 0.94 | 0.93 | 82 |
+| LUAD | 0.99 | 0.98 | 0.98 | 87 |
+| OV | 0.89 | 0.89 | 0.89 | 9 |
+| PDA | 1.00 | 1.00 | 1.00 | 43 |
+| UCEC | 0.96 | 0.98 | 0.97 | 66 |
+
+Asphericity: BRCA=0.512, CCRCC=0.235, COAD=0.506, GBM=0.212, HNSCC=0.451, LSCC=0.618, LUAD=0.548, OV=0.612, PDA=0.166, UCEC=0.039.
+Ternarizing input tiles at probe evaluation time preserves 0.97 accuracy and slightly reduces asphericity (0.436 -> 0.390), previewing what to expect from the BitPath distillation pipeline.
+</details>
+
+<details>
+<summary>Per-class — bipolar, normalize=l2 (accuracy 0.89)</summary>
+
+| Cancer type | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| BRCA | 0.67 | 0.93 | 0.78 | 15 |
+| CCRCC | 0.97 | 0.87 | 0.91 | 68 |
+| COAD | 0.86 | 1.00 | 0.93 | 19 |
+| GBM | 1.00 | 1.00 | 1.00 | 53 |
+| HNSCC | 1.00 | 0.33 | 0.50 | 9 |
+| LSCC | 0.80 | 0.92 | 0.86 | 71 |
+| LUAD | 0.87 | 0.90 | 0.88 | 77 |
+| **OV** | **0.00** | **0.00** | **0.00** | 12 |
+| PDA | 0.90 | 0.98 | 0.94 | 48 |
+| UCEC | 0.94 | 0.94 | 0.94 | 72 |
+
+Asphericity: BRCA=0.148, CCRCC=0.044, COAD=0.135, GBM=0.017, HNSCC=0.064, LSCC=0.096, LUAD=0.102, OV=0.273, PDA=0.022, UCEC=0.047.
+L2 projection onto the unit sphere destroys the hypercube-corner geometry of bipolar features: OV collapses to zero, macro F1 drops 0.96 -> 0.77.
+</details>
+
+---
+
+#### Key takeaways
+
+- **Best normalization for Gigapath real features**: `corner-l1` — same accuracy as no-norm (0.97) but higher macro F1 (0.96 vs 0.93) and lowest asphericity (0.015).
+- **Avoid `corner-linfty`**: Completely degenerate (0.56 accuracy); 4/10 cancer types collapse.
+- **Avoid `l2` for both feature types**: Degrades performance in both real (0.97 -> 0.90) and bipolar (0.97 -> 0.89) settings.
+- **Bipolar features match real features**: 0.97 accuracy at no normalization despite extreme discretization.
+- **Ternarizing tiles at probe time is safe**: `ternarize_tiles=True` preserves 0.97 accuracy.
