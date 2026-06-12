@@ -18,6 +18,7 @@ from autopath.stills.bitpath import (
     BitPathDataloaderBuilder,
     BitPathConvLightning,
     BitPathConvStill,
+    BitPathConvStillProbe,
 )
 
 
@@ -597,4 +598,68 @@ def bitconv_deep_feature_affine_logistic_probe(
             evaluation_fraction=cfg_evaluation_fraction,
             normalize=cfg_normalize,
         ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  BitConv still probe
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+### Connectivity plot for a trained BitPathConvStill
+git commit -am 'stills: bitpath_conv_still_probe: BUILD' > /dev/null || true; dbx.pprint "\
+autopath.stills.pipelines.bitpath_conv_still_probe( \
+    still=autopath.stills.pipelines.bitpath_conv_still( \
+        'GIGAPATH_DEEP_CPTAC_602020', \
+        cfg_layer='output', \
+        cfg_cls_token_only=True, \
+        cfg_shard_size=64, \
+        cfg_max_steps=10000, \
+        cfg_max_epochs=100, \
+        cfg_ckpt_every_n_steps=1000, \
+    ), \
+).build_tree()"
+"""
+def bitpath_conv_still_probe(
+    still: 'BitPathConvStill',
+    *,
+    url: str | None = None,
+) -> 'BitPathConvStillProbe':
+    """Create a :class:`~autopath.stills.bitpath.BitPathConvStillProbe`.
+
+    Loads the latest checkpoint from *still*, extracts the ternary
+    (``{-1, 0, +1}``) weights from every ``BitConv2d158`` and
+    ``BitLinear158`` layer, and writes a connectivity PNG to the
+    Datablock's ``'connectivity_plot'`` topic file.
+
+    Parameters
+    ----------
+    still : BitPathConvStill
+        Trained BitPath still to visualise.  Its spec hash is included
+        in the probe's lineage so any change to training config
+        invalidates the cached plot.
+    url : str | None
+        Datablock storage URL.  Defaults to the dbx workspace default.
+
+    Examples
+    --------
+    ::
+
+        probe = bitpath_conv_still_probe(
+            still=bitpath_conv_still(
+                'GIGAPATH_DEEP_CPTAC_602020',
+                cfg_layer='output',
+                cfg_cls_token_only=True,
+                cfg_shard_size=64,
+                cfg_max_steps=10000,
+                cfg_max_epochs=100,
+                cfg_ckpt_every_n_steps=1000,
+            ),
+        )
+        probe.build()                        # writes connectivity_plot.png
+        print(probe.path('connectivity_plot'))  # full path to the PNG
+    """
+    return BitPathConvStillProbe(
+        url=url,
+        spec=dict(still=dbx.quote(still)),
     )
