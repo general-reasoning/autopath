@@ -332,7 +332,7 @@ def bitpath_conv_still(
 #  BitConv evaluator factory
 # ═══════════════════════════════════════════════════════════════════════
 
-from autopath.stills.backbone import (      # noqa: E402 (local import avoids circular dep at module load)
+from autopath.stills.bitpath import (       # noqa: E402
     BitConvDeepBackboneEvaluator,
     BitConvDeepBackboneEvaluatorFactory,
 )
@@ -348,7 +348,7 @@ def bitconv_deep_backbone_evaluator_factory(
     *,
     url: str | None = None,
 ) -> BitConvDeepBackboneEvaluatorFactory:
-    """Create a :class:`~autopath.stills.backbone.BitConvDeepBackboneEvaluatorFactory`.
+    """Create a :class:`~autopath.stills.bitpath.BitConvDeepBackboneEvaluatorFactory`.
 
     Parameters
     ----------
@@ -490,7 +490,7 @@ def bitconv_deep_feature_clip(
 ### CPTAC 60/20/20 — BitConv logistic probe on train fold
 git commit -am 'stills: bitconv_deep_feature_affine_logistic_probe: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.stills.pipelines.bitconv_deep_feature_affine_logistic_probe( \
-    'BITCONV_DEEP_CPTAC_602020_TRAIN', \
+    'BITCONV_DEEP_CPTAC_602020_TEST', \
     still=autopath.stills.pipelines.bitpath_conv_still( \
         'GIGAPATH_DEEP_CPTAC_602020', \
         cfg_layer='output', \
@@ -531,7 +531,7 @@ def bitconv_deep_feature_affine_logistic_probe(
     name : str
         Named fold configuration accepted by
         :func:`bitconv_deep_feature_clip` (e.g.
-        ``"BITCONV_DEEP_CPTAC_602020_TRAIN"``).
+        ``"BITCONV_DEEP_CPTAC_602020_TEST"``).
     still : BitPathConvStill
         Trained BitPath still whose checkpoint is used as the backbone.
         Its spec hash is propagated into the probe's lineage.
@@ -563,7 +563,7 @@ def bitconv_deep_feature_affine_logistic_probe(
     ::
 
         probe = bitconv_deep_feature_affine_logistic_probe(
-            'BITCONV_DEEP_CPTAC_602020_TRAIN',
+            'BITCONV_DEEP_CPTAC_602020_TEST',
             still=bitpath_conv_still(
                 'GIGAPATH_DEEP_CPTAC_602020',
                 cfg_layer='output',
