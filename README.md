@@ -650,3 +650,73 @@ pattern is already substantially sparser than at initialization, consistent with
 | Train/val gap | ~3 pp |
 
 A per-dimension accuracy of 0.75 means the ternary network correctly predicts the sign of **3 out of every 4 Gigapath feature dimensions** from a raw tile — with no access to the Gigapath backbone at inference time.  This establishes a viable distillation baseline; further gains are expected from longer training, larger models, or data augmentation.
+
+---
+
+### June 12, 2026 — BitConv Feature Probe vs Gigapath
+
+`bitconv_deep_feature_affine_logistic_probe('BITCONV_DEEP_CPTAC_602020_TEST', still=bitpath_conv_still(..., cfg_max_steps=10000), cfg_shard_size=64)`
+
+This probe fits an affine logistic classifier on top of the **BitPathConv-extracted features** (i.e. the 1536-dim bipolar feature vector predicted by the ternary network from raw tiles) and evaluates on the held-out test set.  It measures how much cancer-type discriminative information survives the pixel → ternary-conv → bipolar-feature pipeline.
+
+> **Note on comparability**: The Gigapath probes above (n=444) evaluated on the 20% test fold of `GIGAPATH_DEEP_CPTAC_602020_TRAIN`.  The BitConv probe below (n=148) evaluates on the separate `BITCONV_DEEP_CPTAC_602020_TEST` set.  The two evaluation sets are not identical, so differences in class balance and support affect the comparison.
+
+#### Summary comparison
+
+| Feature source | Accuracy | Macro F1 | Weighted F1 | Mean Asphericity | n |
+|---|---|---|---|---|---|
+| Gigapath (no norm) | 0.97 | 0.93 | 0.97 | 0.020 | 444 |
+| Gigapath (corner-l1) | 0.97 | **0.96** | 0.97 | 0.015 | 444 |
+| **BitPathConv (10k steps)** | **0.92** | **0.81** | **0.91** | **0.057** | **148** |
+| Bipolar (no norm) | 0.97 | 0.96 | 0.97 | 0.436 | 444 |
+
+The BitConv probe achieves **0.92 accuracy** with features extracted entirely from raw tiles by a ternary network — 5pp below Gigapath on a comparable but separate test set.  The asphericity (0.057) falls between Gigapath real (0.020) and bipolar (0.436), reflecting the mixed real/discrete nature of the learned representation.
+
+#### Per-class results (BitConv, accuracy 0.92)
+
+| Cancer type | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| BRCA | 0.60 | 1.00 | 0.75 | 3 |
+| CCRCC | 1.00 | 0.88 | 0.94 | 26 |
+| COAD | 0.80 | 1.00 | 0.89 | 8 |
+| GBM | 0.88 | 1.00 | 0.93 | 14 |
+| HNSCC | 0.83 | 0.83 | 0.83 | 6 |
+| LSCC | 0.88 | 0.91 | 0.89 | 23 |
+| LUAD | 1.00 | 0.90 | 0.95 | 31 |
+| **OV** | **0.00** | **0.00** | **0.00** | 2 |
+| PDA | 0.93 | 1.00 | 0.97 | 14 |
+| UCEC | 0.95 | 0.95 | 0.95 | 21 |
+
+Asphericity: BRCA=0.064, CCRCC=0.090, COAD=0.090, GBM=0.032, HNSCC=0.068, LSCC=0.058, LUAD=0.059, OV=0.091, PDA=0.003, UCEC=0.012.
+
+OV collapses (n=2; too few support slides).  BRCA (n=3) achieves perfect recall but imprecise.  All well-supported classes (CCRCC, LUAD, PDA, UCEC) exceed F1=0.90.
+
+---
+
+## Next Steps
+
+### 1  CPU-only fast feature extraction and classification
+
+The end goal of the distillation pipeline is inference without a GPU or the Gigapath ViT backbone.  Because BitPathConvNet uses only ternary weights, all multiply-accumulate operations reduce to additions and subtractions, making the network suitable for CPU-only deployment.  Downstream classification then operates on the predicted bipolar feature vector, which fits entirely in cache and supports fast Hamming-distance lookups.
+
+### 2  Data/model "tomography" via binary network connectivity
+
+The ternary weight matrices of BitPathConvNet are unusually amenable to intrinsic analysis because their values are exactly in {-1, 0, +1} — small enough to reason about combinatorially.
+
+**Estimates of latent dimension.**  The effective rank of each layer's weight matrix (fraction of non-zero singular values, or participation ratio of the weight spectrum) gives a lower bound on the information-carrying capacity of that layer.  Comparing effective ranks across layers reveals where the network bottlenecks information.
+
+**Entropy production between layers.**  For a fixed input distribution, each layer maps one random variable (activations) to another.  The change in activation entropy across layers measures how much the network compresses or expands the representation — analogous to entropy production in a thermodynamic system.
+
+**Mutual information and hierarchy between layers.**  Pairs of layers can be compared by their shared mutual information (how much knowing one layer's activations tells you about another's).  Layers with high mutual information are functionally redundant; low mutual information indicates that the later layer has synthesised genuinely new information.  This is closely related to notions of causal hierarchy and synergy.
+
+> **Challenge**: reading these quantities from the weight matrices alone is insufficient because non-linear activations (ReLU, RMSNorm) gate information flow.  The connectivity plot below shows the *structural* (weight-level) connectivity — each panel is one convolutional layer of BitPathConvNet, with output channels on top and input channels on bottom.  Red = +1, blue = -1, white = 0 (absent connection).  The progressive specialisation from early uniform connectivity to late structured/sparse patterns is visible, but the functional information flow requires activation-level statistics in addition.
+
+![BitPathConvNet — Ternary Weight Connectivity](docs/README/results/June-12-2026/images/bitpath-conv-connectivity-plot.png)
+
+### 3  "Nearby" image lookup and cancer-space navigation
+
+Because the predicted bipolar feature vector lives in {-1, +1}^1536, similarity between tiles is naturally measured by **Hamming distance** — computable with a single XOR + popcount operation per pair, with no floating-point arithmetic.  This enables:
+
+- **Fast nearest-neighbour lookup**: given a query tile, retrieve the K most similar tiles from a reference library in microseconds on CPU, using bit-packed vectors and SIMD popcount.
+- **Cancer-space navigation**: the binary feature space partitions slides into a discrete graph; edges connect tiles whose features differ by at most d bits.  Traversing this graph reveals morphological transitions between cancer types and grades.
+- **Anomaly detection**: tiles whose nearest neighbours in feature space all belong to a different cancer type are candidates for ambiguous or mixed pathology.
