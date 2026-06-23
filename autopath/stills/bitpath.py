@@ -1390,7 +1390,7 @@ class BitPathConvStillProbe(Datablock):
         Quoted reference to a trained still.
     """
 
-    TOPICFILES = {'connectivity_plot': 'connectivity_plot.png'}
+    TOPICS = {'connectivity_plot': 'connectivity_plot.png'}
 
     @dataclass
     class CONFIG:

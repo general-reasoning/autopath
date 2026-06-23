@@ -230,7 +230,7 @@ class LogisticFeatureBagProber(FeatureBagProber):
 
 
 class LogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
-    TOPICFILES = {
+    TOPICS = {
         'bag_labels': 'bag_labels.npz',
         'bag_features': 'bag_features.npy',
         'discretized_bag_features': 'discretized_bag_features.npy',
@@ -322,7 +322,7 @@ class AffineLogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
     - ``classes``             — ordered class labels from the fitted model
     """
 
-    TOPICFILES = {
+    TOPICS = {
         'bag_labels':         'bag_labels.npz',
         'bag_features':       'bag_features.npy',
         'evaluation_report':  'evaluation_report.pkl',
@@ -417,7 +417,7 @@ class AffineLogisticFeatureBagProbe(Datablock, LogisticFeatureBagProber):
         return result
 
 class FeatureBagMedianProbe(Datablock):
-    TOPICFILES = {
+    TOPICS = {
         'median': 'median.npz',
         'min': 'min.npz',
         'max': 'max.npz',
@@ -477,7 +477,7 @@ class FeatureBagMedianProbe(Datablock):
     
 class BipolarFeatureBagProbe(Datablock):
     VERSION = 1
-    TOPICFILES = {
+    TOPICS = {
         'labels': 'labels.npz',
         'bags': 'bags.npz',
         'tile_labels': 'tile_labels.npz',
@@ -1070,7 +1070,7 @@ class BipolarFeatureBagProbe(Datablock):
 
 class FeaturePairwiseDistancesBlock(Datablock):
     VERSION = 5
-    TOPICFILES = {
+    TOPICS = {
         'rows': 'rows.npz',
         'cols': 'cols.npz',
         'distances': "distances.pt"
@@ -1135,7 +1135,7 @@ class FeaturePairwiseDistancesBlock(Datablock):
 
 class FeaturePairwiseDistances(Datablock):
     VERSION = 5 
-    TOPICFILES = {
+    TOPICS = {
         "features_shape": "features_shape.npy",
     }
     @dataclass
@@ -1222,7 +1222,7 @@ class FeaturePairwiseDistances(Datablock):
 
 class FeatureSortedDistancesBlock(Datablock):
     VERSION = 5
-    TOPICFILES = {
+    TOPICS = {
         "sorted_distances": "sorted_distances.npy",
         "original_order_indices": "original_order_indices.npy",
     }
@@ -1273,7 +1273,7 @@ class FeatureSortedDistancesBlock(Datablock):
 
 class FeatureSortedDistances(Datablock):
     VERSION = 5
-    TOPICFILE = "breadcrumbs"
+    TOPICS = "breadcrumbs"
 
     @dataclass
     class CONFIG:
@@ -1311,7 +1311,7 @@ class FeatureSortedDistances(Datablock):
     
 
 class Feature2NNDistancesBlock(Datablock):
-    TOPICFILE = "twonn_distances.pt"
+    TOPICS = "twonn_distances.pt"
     @dataclass
     class CONFIG:
         sorted_distshard: FeatureSortedDistancesBlock
@@ -1347,7 +1347,7 @@ class Feature2NNDistancesBlock(Datablock):
     
 
 class Feature2NNDistances(Datablock):
-    TOPICFILES = {
+    TOPICS = {
         "twonn_distances": "twonn_distances.pt", 
     }
     @dataclass
@@ -1396,7 +1396,7 @@ class Feature2NNDistances(Datablock):
                        
 
 class Feature2NNDim(Datablock):
-    TOPICFILES = {
+    TOPICS = {
         "dimension": "dimension.pt",
         "model": "model.pkl",
     }

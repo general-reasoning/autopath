@@ -750,7 +750,7 @@ class HydroStill(Datablock):
     """Full training pipeline for Hydro, similar to VariationalReEncoderDecoderStill."""
     
     VERSION = 1
-    TOPICFILES = {
+    TOPICS = {
         'logs': None,
         'ckpts': None,
     }

@@ -271,7 +271,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
     - ``classes``             — ordered class labels from the fitted model
     """
 
-    TOPICFILES = {
+    TOPICS = {
         'bag_labels':        'bag_labels.npz',
         'bag_annotations':   'bag_annotations.pkl',
         'bag_features':      'bag_features.npy',
@@ -425,7 +425,7 @@ class DeepFeatureStatsProbe(Datablock):
     :class:`~autopath.probes.FeatureBagMedianProbe`.
     """
 
-    TOPICFILES = {
+    TOPICS = {
         'tile_count':           'tile_count.npz',
         'tile_feature_mean':    'tile_feature_mean.npz',
         'tile_feature_std':     'tile_feature_std.npz',
@@ -945,7 +945,7 @@ class DeepFeatureSpectralProbe(Datablock):
     - ``summary``          — pickled per-block aggregate summary
     """
 
-    TOPICFILES = {
+    TOPICS = {
         'bag_labels':       'bag_labels.npz',
         'bag_annotations':  'bag_annotations.pkl',
         'spectral_results': 'spectral_results.pkl',

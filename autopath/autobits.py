@@ -75,7 +75,7 @@ class Clip(Datastack):
 
     v2 = True
     
-    TOPICFILES = {"bag_lens": "bag_lens.npz"}
+    TOPICS = {"bag_lens": "bag_lens.npz"}
 
     def __len__(self):
         return sum(self.bag_lens)
@@ -131,7 +131,7 @@ class Clip(Datastack):
     
 
 class Partition(Datablock):
-    TOPICFILES = {"bag_indices": "bag_indices.npz", 
+    TOPICS = {"bag_indices": "bag_indices.npz", 
                   "bag_lens":    "bag_lens.npz",
     }
     @dataclass

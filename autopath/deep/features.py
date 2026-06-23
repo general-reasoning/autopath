@@ -356,9 +356,9 @@ class DeepFeatureClip(Clip):
     v2 = True
     VERSION = 4
 
-    # Inherits TOPICFILES = {"bag_lens": "bag_lens.npz"} from Clip.
+    # Inherits TOPICS = {"bag_lens": "bag_lens.npz"} from Clip.
     # Do NOT also declare TOPICS — the presence of both causes path()
-    # to take the TOPICFILES branch (appending the filename) while
+    # to take the TOPICS branch (appending the filename) while
     # callers assumed the TOPICS branch (directory-only), resulting in
     # a doubled "bag_lens.npz/bag_lens.npz" path.
 

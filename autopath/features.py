@@ -84,12 +84,12 @@ class FeatureBag(Bag):
                      **kwargs)
 
     def __post_init__(self):
-        self.TOPICFILES = {
+        self.TOPICS = {
             'features': 'features.npy',
         }
         if self.has_sideband:
             for layer in self.cfg.extractor.sideband_layers:
-                self.TOPICFILES[f'sideband_{layer}' ] = \
+                self.TOPICS[f'sideband_{layer}' ] = \
                     f'sideband_{layer}.npy'
         return self
 
@@ -200,7 +200,7 @@ class FeatureBag(Bag):
 
 class FeatureBagClip(Clip):
     VERSION = 1
-    TOPICFILES = {"bag_lens": "bag_lens.npy"}
+    TOPICS = {"bag_lens": "bag_lens.npy"}
     @dataclass
     class CONFIG:
         tilebagclip: Clip
@@ -408,7 +408,7 @@ class BipolarFeatureBag(Bag):
     from autopath.probes import BipolarFeatureBagProbe
 
     VERSION = 1
-    TOPICFILES = {
+    TOPICS = {
         'bipolar_features': 'bipolar_features.npy',
     }
 
@@ -485,7 +485,7 @@ class BipolarFeatureBag(Bag):
 class BipolarFeatureBagClip(Clip):
     VERSION = 3
 
-    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+    TOPICS = {'bag_lens': 'bag_lens.npy'}
     
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -624,7 +624,7 @@ class BipolarSingleFeatureBagClip(Clip):
 
     VERSION = 1
 
-    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+    TOPICS = {'bag_lens': 'bag_lens.npy'}
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -717,7 +717,7 @@ class SphericalFeatureBag(Bag):
     - ``features`` — L2-normalised tile feature matrix ``(n_tiles, d)``
     """
 
-    TOPICFILES = {
+    TOPICS = {
         'features': 'features.npy',
     }
 
@@ -784,7 +784,7 @@ class SphericalFeatureBagClip(Clip):
 
     VERSION = 1
 
-    TOPICFILES = {'bag_lens': 'bag_lens.npy'}
+    TOPICS = {'bag_lens': 'bag_lens.npy'}
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -957,13 +957,13 @@ class SpectralFeatureBag(Bag):
         Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, **kwargs)
 
     def __post_init__(self):
-        self.TOPICFILES = {}
+        self.TOPICS = {}
         for b in self.cfg.extractor.spectral_probe_blocks:
-            self.TOPICFILES[f'spectrum_block_{b}'] = f'spectrum_block_{b}.npz'
+            self.TOPICS[f'spectrum_block_{b}'] = f'spectrum_block_{b}.npz'
         # Composed Jacobian topic (first → last probed block).
         # Always CLS-based, independent of per-block spectral_mode.
-        if len(self.TOPICFILES) >= 2:
-            self.TOPICFILES['spectrum_composed'] = 'spectrum_composed.npz'
+        if len(self.TOPICS) >= 2:
+            self.TOPICS['spectrum_composed'] = 'spectrum_composed.npz'
         return self
 
     @property
@@ -1066,7 +1066,7 @@ class SpectralFeatureBag(Bag):
         return self
 
     def __read__(self, topic: str):
-        keys = list(self.TOPICFILES.keys())
+        keys = list(self.TOPICS.keys())
         if topic not in keys:
             raise ValueError(f"Unknown {topic=}, expected one of {keys}")
         path = self.path(topic)
@@ -1095,7 +1095,7 @@ class SpectralFeatureBagClip(Clip):
     """
 
     VERSION = 1
-    TOPICFILES = {"bag_lens": "bag_lens.npy"}
+    TOPICS = {"bag_lens": "bag_lens.npy"}
 
     @dataclass
     class CONFIG:
