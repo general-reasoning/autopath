@@ -338,14 +338,14 @@ class DeepFeatureBag(Bag):
 
 
 class DeepFeatureClip(Clip):
-    """A clip of :class:`DeepFeatureBag` shards built in parallel via Datastack.
+    """A clip of :class:`DeepFeatureBag` blocks built in parallel via Datastack.
 
     Orchestrates building one :class:`DeepFeatureBag` per tile-bag in the
     source ``tilebagclip``, using the configured
     :class:`DeepBackboneEvaluatorFactory`.
 
     Uses the v2 :class:`Datastack` API: :meth:`__split_v2__` returns
-    device-assigned :class:`ShardMaker` callables and shared state as
+    device-assigned :class:`BlockMaker` callables and shared state as
     ``callable_kwargs``; :meth:`__stack_v2__` persists bag lengths.
 
     All shared state (evaluator, tilebags, evaluator factory) flows
@@ -375,11 +375,11 @@ class DeepFeatureClip(Clip):
         super().__init__(*args, gpu_batch_size=gpu_batch_size, v2=True, **kwargs)
 
     @property
-    def n_shards(self) -> int:
-        return self.cfg.tilebagclip.n_shards
+    def n_blocks(self) -> int:
+        return self.cfg.tilebagclip.n_blocks
 
-    class ShardMaker(Clip.ShardMaker):
-        """Build a single shard using shared state from ``callable_kwargs``.
+    class BlockMaker(Datastack.BlockMaker):
+        """Build a single block using shared state from ``callable_kwargs``.
 
         Carries its assigned ``device`` so the assignment survives
         serialisation across process boundaries.
@@ -387,7 +387,7 @@ class DeepFeatureClip(Clip):
         The ``evaluator_factory`` is received via the executor's
         ``ctx_kwargs``.  The executor ``dbx.eval()``s all ctx kwargs,
         so a quoted factory spec is evaluated once per worker.  The
-        factory caches its evaluator, so all ShardMakers within a
+        factory caches its evaluator, so all BlockMakers within a
         worker share the same evaluator instance.
         """
         def __init__(self, idx: int, *, device: str = "cuda"):
@@ -396,25 +396,25 @@ class DeepFeatureClip(Clip):
 
         def __call__(self, stack, *, build=True,
                      tilebags, evaluator_factory):
-            shard = stack.__shard__(self.idx, device=self.device,
+            block = stack.__block__(self.idx, device=self.device,
                                     tilebag=tilebags[self.idx])
-            shard.keyby = stack.keyby
+            block.keyby = stack.keyby
             if build:
-                shard.build(
+                block.build(
                     evaluator=evaluator_factory.evaluator(
                         device=self.device, log=stack.log,
                     ),
                     tilebag=tilebags[self.idx],
                 )
-            del shard
+            del block
             gc.collect()
 
-    def __shard__(self, idx: int, tilebagclip=None, device: str = "cuda",
+    def __block__(self, idx: int, tilebagclip=None, device: str = "cuda",
                   tilebag=None):
         if tilebag is None:
             if tilebagclip is None:
                 tilebagclip = self.cfg.tilebagclip
-            tilebag = tilebagclip.shard(idx)
+            tilebag = tilebagclip.block(idx)
         return DeepFeatureBag(
             url=self.url,
             spec=dict(
@@ -429,7 +429,7 @@ class DeepFeatureClip(Clip):
         )
 
     def __split__(self, *args, **kwargs):
-        """Precompute tilebags; return device-assigned ShardMakers.
+        """Precompute tilebags; return device-assigned BlockMakers.
 
         All shared state is returned in ``callable_kwargs`` so it
         flows through the executor's ``ctx_kwargs`` mechanism — no
@@ -441,16 +441,16 @@ class DeepFeatureClip(Clip):
 
         Returns
         -------
-        callables : list[ShardMaker]
-            One ShardMaker per shard, each carrying its target device.
+        callables : list[BlockMaker]
+            One BlockMaker per block, each carrying its target device.
         callable_kwargs : dict
-            Shared state forwarded to each ShardMaker.__call__:
+            Shared state forwarded to each BlockMaker.__call__:
             ``build``, ``tilebags``, ``evaluator_factory``.
         """
         devices = self._devices
         # Precompute flat tilebag list to avoid re-forming the fold.
         tilebagclip = self.cfg.tilebagclip
-        tilebags = [tilebagclip.shard(idx) for idx in range(self.n_shards)]
+        tilebags = [tilebagclip.block(idx) for idx in range(self.n_blocks)]
 
         callable_kwargs = dict(
             build=True,
@@ -458,26 +458,26 @@ class DeepFeatureClip(Clip):
             evaluator_factory=self.cfg.evaluator_factory,
         )
         self.log.info(
-            f"Precomputed {self.n_shards} tile-bags; "
+            f"Precomputed {self.n_blocks} tile-bags; "
             f"evaluator_factory passed to executor (devices={devices})"
         )
-        # Assign devices to ShardMakers based on executor chunking.
+        # Assign devices to BlockMakers based on executor chunking.
         # The executor splits callables into contiguous chunks via
         # np.array_split — worker w gets chunk w.  Assign the device
-        # for each shard based on which chunk (worker) it will land in.
+        # for each block based on which chunk (worker) it will land in.
         n_workers = len(devices)
-        chunk_boundaries = np.array_split(range(self.n_shards), n_workers)
-        shard_device = {}
+        chunk_boundaries = np.array_split(range(self.n_blocks), n_workers)
+        block_device = {}
         for worker_idx, chunk in enumerate(chunk_boundaries):
             dev = devices[worker_idx % len(devices)]
             for idx in chunk:
-                shard_device[idx] = dev
+                block_device[idx] = dev
         makers = [
-            self.ShardMaker(idx, device=shard_device[idx])
-            for idx in range(self.n_shards)
+            self.BlockMaker(idx, device=block_device[idx])
+            for idx in range(self.n_blocks)
         ]
         self.log.info(
-            f"Split {self.__class__.__name__}: {len(makers)} shards across "
+            f"Split {self.__class__.__name__}: {len(makers)} blocks across "
             f"{n_workers} workers on devices {devices}"
         )
         return makers, callable_kwargs
@@ -489,9 +489,9 @@ class DeepFeatureClip(Clip):
 
     def __stack__(self, results=None):
         """Persist bag_lens after parallel build."""
-        self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
-        bag_lens = [len(self.shard(i)) for i in tqdm(
-            range(self.n_shards), desc="Stacking bag lens"
+        self.log.info(f"Stacking {self.n_blocks} blocks of {self.__class__.__name__}")
+        bag_lens = [len(self.block(i)) for i in tqdm(
+            range(self.n_blocks), desc="Stacking bag lens"
         )]
         dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         self.log.info(f"Build complete: {self.__class__.__name__}")
@@ -506,12 +506,12 @@ class DeepFeatureClip(Clip):
         if not hasattr(self, '_precomputed_tilebags'):
             tilebagclip = self.cfg.tilebagclip
             self._precomputed_tilebags = [
-                tilebagclip.shard(idx) for idx in range(self.n_shards)
+                tilebagclip.block(idx) for idx in range(self.n_blocks)
             ]
 
-    def shards(self):
+    def blocks(self):
         self._ensure_precomputed_tilebags()
-        return super().shards()
+        return super().blocks()
 
     def dataset(
         self,
@@ -594,7 +594,7 @@ class DeepFeatureClip(Clip):
         shuffle : bool
             Whether to shuffle within both streaming datasets.
         skip_invalid_bags : bool
-            If ``True``, silently skip bags whose feature shards have
+            If ``True``, silently skip bags whose feature blocks have
             not been built yet.
         batch_size : int | None
             Passed to both :class:`StreamingDataset` instances.
@@ -686,7 +686,7 @@ class DeepFeatureClip(Clip):
         Parameters
         ----------
         bag_index : int
-            Which bag (shard) within the clip to probe.
+            Which bag (block) within the clip to probe.
         tile_index : int
             Which tile within that bag to probe.
         n_repeats : int
@@ -701,7 +701,7 @@ class DeepFeatureClip(Clip):
         """
         evaluator = self.cfg.evaluator_factory.evaluator(device=device, log=self.log)
 
-        tilebag = self.cfg.tilebagclip.shard(bag_index)
+        tilebag = self.cfg.tilebagclip.block(bag_index)
         tiles = tilebag.tiles  # NCHW uint8
         tile = tiles[tile_index:tile_index + 1]
         self.log.info(
@@ -1008,7 +1008,7 @@ class BipolarDeepFeatureBag(Bag):
 
 
 class BipolarDeepFeatureClip(Clip):
-    """Clip of :class:`BipolarDeepFeatureBag` shards built in parallel.
+    """Clip of :class:`BipolarDeepFeatureBag` blocks built in parallel.
 
     CONFIG has two main params:
 
@@ -1043,10 +1043,10 @@ class BipolarDeepFeatureClip(Clip):
         return self.cfg.clip
 
     @property
-    def n_shards(self) -> int:
-        return self.feature_clip.n_shards
+    def n_blocks(self) -> int:
+        return self.feature_clip.n_blocks
 
-    def __shard__(self, idx: int, deep_feature_bag=None):
+    def __block__(self, idx: int, deep_feature_bag=None):
         if deep_feature_bag is None:
             deep_feature_bag = self.feature_clip.bag(idx)
         return BipolarDeepFeatureBag(
@@ -1060,18 +1060,18 @@ class BipolarDeepFeatureClip(Clip):
             tag=deep_feature_bag.tag,
         )
 
-    class ShardMaker(Clip.ShardMaker):
-        """Build a single bipolar bag shard."""
+    class BlockMaker(Datastack.BlockMaker):
+        """Build a single bipolar bag block."""
         def __call__(self, stack, *, build=True, median):
-            shard = stack.__shard__(self.idx)
-            shard.keyby = stack.keyby
+            block = stack.__block__(self.idx)
+            block.keyby = stack.keyby
             if build:
-                shard.build(median=median)
-            del shard
+                block.build(median=median)
+            del block
             gc.collect()
 
     def __split__(self, *args, **kwargs):
-        """Precompute median; return ShardMakers."""
+        """Precompute median; return BlockMakers."""
         # Read the median from the stats probe.
         median = self.cfg.stats_probe.tile_feature_median
 
@@ -1080,10 +1080,10 @@ class BipolarDeepFeatureClip(Clip):
             median=median,
         )
         self.log.info(
-            f"Precomputed median for {self.n_shards} shards; "
+            f"Precomputed median for {self.n_blocks} blocks; "
             f"ready for parallel bipolar build"
         )
-        makers = [self.ShardMaker(idx) for idx in range(self.n_shards)]
+        makers = [self.BlockMaker(idx) for idx in range(self.n_blocks)]
         return makers, callable_kwargs
 
     def __read__(self, topic=None):
@@ -1093,9 +1093,9 @@ class BipolarDeepFeatureClip(Clip):
 
     def __stack__(self, results=None):
         """Persist bag_lens after parallel build."""
-        self.log.info(f"Stacking {self.n_shards} shards of {self.__class__.__name__}")
-        bag_lens = [len(self.shard(i)) for i in tqdm(
-            range(self.n_shards), desc="Stacking bipolar bag lens"
+        self.log.info(f"Stacking {self.n_blocks} blocks of {self.__class__.__name__}")
+        bag_lens = [len(self.block(i)) for i in tqdm(
+            range(self.n_blocks), desc="Stacking bipolar bag lens"
         )]
         dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         self.log.info(f"Build complete: {self.__class__.__name__}")

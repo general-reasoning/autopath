@@ -46,7 +46,7 @@ class Bag(Datablock):
 class TileBag(Bag):
     """A bag of image tiles backed by a tensor.
 
-    Combines the former ``TileShard`` (tensor-backed tile storage) and
+    Combines the former ``TileBlock`` (tensor-backed tile storage) and
     ``TileBag`` (Bag subclass) into a single class.
     """
 
@@ -65,8 +65,8 @@ class Clip(Datastack):
 
     Subclasses must implement:
 
-    * ``n_shards``  — number of bags (property)
-    * ``__shard__(idx)`` — return the :class:`Bag` at *idx*
+    * ``n_blocks``  — number of bags (property)
+    * ``__block__(idx)`` — return the :class:`Bag` at *idx*
 
     After all bags are built in parallel, :meth:`__stack__` persists
     ``bag_lens.npz`` so that lengths can be read back without
@@ -83,7 +83,7 @@ class Clip(Datastack):
     def __stack__(self, results=None):
         """Persist bag lengths after all bags have been built."""
         self.log.verbose(f"Stacking bag lens")
-        bag_lens = [len(self.shard(i)) for i in tqdm.tqdm(range(self.n_shards), desc="Stacking bag lens")]
+        bag_lens = [len(self.block(i)) for i in tqdm.tqdm(range(self.n_blocks), desc="Stacking bag lens")]
         dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         return self
 
@@ -98,17 +98,17 @@ class Clip(Datastack):
     # ── Bag-centric aliases ─────────────────────────────────────────
     @property
     def n_bags(self):
-        return self.n_shards
+        return self.n_blocks
 
     def bag(self, idx: int):
-        return self.shard(idx)
+        return self.block(idx)
 
     @property
     def bags(self):
-        return self.shards()
+        return self.blocks()
 
     @property
-    def shard_lens(self):
+    def block_lens(self):
         return self.bag_lens
 
     def validbags(self):
@@ -117,7 +117,7 @@ class Clip(Datastack):
 
 
     def UNSAFE_clear_bags(self, *, OVERRIDE: bool = False):
-        return self.UNSAFE_clear_shards(OVERRIDE=OVERRIDE)
+        return self.UNSAFE_clear_blocks(OVERRIDE=OVERRIDE)
 
     def UNSAFE_copy_from(self, anchorpath: str, bag_anchorpath: str, *, overwrite: bool = False):
         super().UNSAFE_copy_from(anchorpath, overwrite=overwrite)
@@ -185,7 +185,7 @@ class Partition(Datablock):
         return str(idx)
 
     def bags(self, fold):
-        return [self.cfg.clip.shard(i) for i in self.bag_indices(fold)]
+        return [self.cfg.clip.block(i) for i in self.bag_indices(fold)]
     
     def bag_lens(self, fold):
         return self.read("bag_lens")[self._resolve_fold(fold)]
@@ -196,7 +196,7 @@ class Partition(Datablock):
         return self._compute_fold_indices()[self._resolve_fold(fold)]
 
     def bag(self, fold, idx: int):
-        return self.cfg.clip.shard(self.bag_indices(fold)[idx])
+        return self.cfg.clip.block(self.bag_indices(fold)[idx])
 
     def _compute_fold_indices(self):
         """Recompute per-fold bag index arrays from config (same logic as __build__).
@@ -243,10 +243,10 @@ class Fold(Clip):
         return self.cfg.partition.valid()
 
     @property
-    def n_shards(self):
+    def n_blocks(self):
         return self.cfg.partition.n_bags(self.cfg.fold)
 
-    def __shard__(self, idx: int):
+    def __block__(self, idx: int):
         return self.cfg.partition.bag(self.cfg.fold, idx)
 
     def __split_v2__(self, *args, **kwargs):
@@ -551,8 +551,8 @@ class ValidateTileFeatureZipStreamingDataset:
                 "tile_source='tfrecord': will read tiles from source TFRecords"
             )
             self._bag_index = {}
-            for idx in range(tilebagclip.n_shards):
-                bag = tilebagclip.shard(idx)
+            for idx in range(tilebagclip.n_blocks):
+                bag = tilebagclip.block(idx)
                 self._bag_index[bag.name] = bag
             self.log.info(
                 f"Indexed {len(self._bag_index)} tile bags by name"

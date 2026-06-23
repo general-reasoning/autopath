@@ -1068,7 +1068,7 @@ class BipolarFeatureBagProbe(Datablock):
         
 
 
-class FeaturePairwiseDistancesShard(Datablock):
+class FeaturePairwiseDistancesBlock(Datablock):
     VERSION = 5
     TOPICFILES = {
         'rows': 'rows.npz',
@@ -1079,7 +1079,7 @@ class FeaturePairwiseDistancesShard(Datablock):
     @dataclass
     class CONFIG:
         features: FeatureBagClip
-        shard_idx: int
+        block_idx: int
         row_shard_size: int
         col_shard_size: int
         seed: int = 42
@@ -1088,15 +1088,15 @@ class FeaturePairwiseDistancesShard(Datablock):
         rng = np.random.default_rng(self.cfg.seed)
         M = features.shape[0]
         rows = rng.permutation(M)
-        _rows = rows[self.cfg.shard_idx*self.cfg.row_shard_size:min((self.cfg.shard_idx+1)*self.cfg.row_shard_size, M)]
+        _rows = rows[self.cfg.block_idx*self.cfg.row_shard_size:min((self.cfg.block_idx+1)*self.cfg.row_shard_size, M)]
         del rows
         cols = rng.permutation(M)
         col_offset = rng.integers(M-self.cfg.col_shard_size)
         _cols = cols[col_offset:min(col_offset+self.cfg.col_shard_size, M)]
         del cols
-        self.log.detailed(f"Building FeaturePairwiseDistancesShard at index {self.cfg.shard_idx} with rows {_rows} and {len(_cols)} columns on device {features.device}")
+        self.log.detailed(f"Building FeaturePairwiseDistancesBlock at index {self.cfg.block_idx} with rows {_rows} and {len(_cols)} columns on device {features.device}")
         pairwise_distances = torch.cdist(features[_rows], features[_cols]).to('cpu')
-        self.log.debug(f"Built FeaturePairwiseDistancesShard at index {self.cfg.shard_idx} with shape {pairwise_distances.shape} on device {features.device}")
+        self.log.debug(f"Built FeaturePairwiseDistancesBlock at index {self.cfg.block_idx} with shape {pairwise_distances.shape} on device {features.device}")
         write_npz(self.path('rows', ensure_dirpath=True), rows=_rows)
         write_npz(self.path('cols', ensure_dirpath=True), cols=_cols)
         write_tensor(pairwise_distances, self.path('distances', ensure_dirpath=True))
@@ -1141,7 +1141,7 @@ class FeaturePairwiseDistances(Datablock):
     @dataclass
     class CONFIG:
         featurebagclip: FeatureBagClip
-        n_shards: int
+        n_blocks: int
         row_shard_size: int
         col_shard_size: int
         layer: str = None
@@ -1160,34 +1160,34 @@ class FeaturePairwiseDistances(Datablock):
         return self.build()
         
     def features(self):
-        self.log.debug(f"Reading features from layer {self.cfg.layer} of {len(self.cfg.featurebagclip.shards)} feature shards")
+        self.log.debug(f"Reading features from layer {self.cfg.layer} of {len(self.cfg.featurebagclip.blocks)} feature blocks")
         feature_list = []
-        for featureshard in self.cfg.featurebagclip.shards:
-            feature_list.extend(featureshard.layer(self.cfg.layer))
+        for featureblock in self.cfg.featurebagclip.blocks:
+            feature_list.extend(featureblock.layer(self.cfg.layer))
         features = torch.stack(feature_list)
         self.log.debug(f"Combined features: shape: {features.shape}")
         return features
 
     @functools.cached_property
-    def shards(self):
-        return self._shards(self.features_shape)
+    def blocks(self):
+        return self._blocks(self.features_shape)
 
-    def _shards(self, shape):
-        assert self.cfg.n_shards*self.cfg.row_shard_size <= shape[0], f"Too many shards or shards too big for n_features: {shape[0]}"
+    def _blocks(self, shape):
+        assert self.cfg.n_blocks*self.cfg.row_shard_size <= shape[0], f"Too many blocks or blocks too big for n_features: {shape[0]}"
         assert self.cfg.col_shard_size <= shape[0], f"col_shard_size {self.cfg.col_shard_size=} too large for n_features {shape[0]}"
-        return [FeaturePairwiseDistancesShard(spec=dict(
+        return [FeaturePairwiseDistancesBlock(spec=dict(
                     features=self.spec['features'],
-                    shard_idx=i,
+                    block_idx=i,
                     row_shard_size=self.cfg.row_shard_size,
                     col_shard_size=self.cfg.col_shard_size,
                     seed=self.cfg.seed,
                     )) 
-                for i in range(self.cfg.n_shards)
+                for i in range(self.cfg.n_blocks)
             ]
     
     @property
-    def n_shards(self):
-        return self.cfg.n_shards
+    def n_blocks(self):
+        return self.cfg.n_blocks
     
     @functools.cached_property
     def features_shape(self):
@@ -1201,16 +1201,16 @@ class FeaturePairwiseDistances(Datablock):
     def __build__(self):
         self.log.debug("Retrieving features")
         features = self.features()
-        shards = self._shards(features.shape)
-        self.log.debug(f"Forming {self.cfg.n_shards} FeaturePairwiseDistancesShards from features of shape {features.shape}, "
+        blocks = self._blocks(features.shape)
+        self.log.debug(f"Forming {self.cfg.n_blocks} FeaturePairwiseDistancesBlocks from features of shape {features.shape}, "
                        f"row_shard_size {self.cfg.row_shard_size}, col_shard_size: {self.cfg.col_shard_size}"
         )
-        self.log.debug(f"Formed {len(shards)} FeaturePairwiseDistancesShards.  Looking for missing shards")
-        missing_shards = [shard for shard in shards if not shard.valid()]
-        self.log.debug(f"Found {len(missing_shards)} missing shards")
-        self.log.debug(f"Building all missing pairwise feature distance shards")
-        built_shards = TorchMultithreadingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_shards, features)
-        self.log.verbose(f"Built all missing pairwise feature distance shards: {len(built_shards)}")
+        self.log.debug(f"Formed {len(blocks)} FeaturePairwiseDistancesBlocks.  Looking for missing blocks")
+        missing_blocks = [block for block in blocks if not block.valid()]
+        self.log.debug(f"Found {len(missing_blocks)} missing blocks")
+        self.log.debug(f"Building all missing pairwise feature distance blocks")
+        built_blocks = TorchMultithreadingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_blocks, features)
+        self.log.verbose(f"Built all missing pairwise feature distance blocks: {len(built_blocks)}")
         write_tensor(torch.tensor(features.shape), self.path('features_shape', ensure_dirpath=True))
         return self
     
@@ -1220,7 +1220,7 @@ class FeaturePairwiseDistances(Datablock):
         return result
 
 
-class FeatureSortedDistancesShard(Datablock):
+class FeatureSortedDistancesBlock(Datablock):
     VERSION = 5
     TOPICFILES = {
         "sorted_distances": "sorted_distances.npy",
@@ -1229,11 +1229,11 @@ class FeatureSortedDistancesShard(Datablock):
     
     @dataclass
     class CONFIG:
-        distshard: FeaturePairwiseDistancesShard
+        distshard: FeaturePairwiseDistancesBlock
 
     def __build__(self):
         shard = self.cfg.distshard.distances.to(self.device)
-        self.log.debug(f"Sorting pairwise distances in FeaturePairwiseDistancesShard {self.cfg.distshard.hashpath()} of shape {shard.shape} on device {self.device}")
+        self.log.debug(f"Sorting pairwise distances in FeaturePairwiseDistancesBlock {self.cfg.distshard.hashpath()} of shape {shard.shape} on device {self.device}")
         sorted_shard, original_order_indices = torch.sort(shard, dim=-1, descending=False)
         write_tensor(sorted_shard.to('cpu'), self.path('sorted_distances', ensure_dirpath=True))
         write_tensor(original_order_indices.to('cpu'), self.path('original_order_indices', ensure_dirpath=True))
@@ -1241,7 +1241,7 @@ class FeatureSortedDistancesShard(Datablock):
         del sorted_shard
         del original_order_indices
         gc.collect()
-        self.log.debug(f"Built FeatureSortedDistancesShard {self.hashpath()} on device {self.device}")
+        self.log.debug(f"Built FeatureSortedDistancesBlock {self.hashpath()} on device {self.device}")
         return self
     
     def __read__(self, topic):
@@ -1287,53 +1287,53 @@ class FeatureSortedDistances(Datablock):
         return self
 
     def __build__(self):
-        sorted_distshards = self.shards
-        self.log.debug(f"Formed {len(sorted_distshards)} FeatureSortedDistancesShards")
-        missing_sorted_distshards = [shard for shard in sorted_distshards if not shard.valid()]
-        self.log.debug(f"Found among them {len(missing_sorted_distshards)} missing FeatureSortedDistancesShards")
-        self.log.debug(f"Building {len(missing_sorted_distshards)} FeatureSortedDistancesShards")
-        built_sorted_distshards = TorchMultiprocessingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_sorted_distshards)
-        self.log.verbose(f"Built all missing FeatureSortedDistancesShards: {len(built_sorted_distshards)}")
+        sorted_distblocks = self.blocks
+        self.log.debug(f"Formed {len(sorted_distblocks)} FeatureSortedDistancesBlocks")
+        missing_sorted_distblocks = [block for block in sorted_distblocks if not block.valid()]
+        self.log.debug(f"Found among them {len(missing_sorted_distblocks)} missing FeatureSortedDistancesBlocks")
+        self.log.debug(f"Building {len(missing_sorted_distblocks)} FeatureSortedDistancesBlocks")
+        built_sorted_distblocks = TorchMultiprocessingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_sorted_distblocks)
+        self.log.verbose(f"Built all missing FeatureSortedDistancesBlocks: {len(built_sorted_distblocks)}")
         return self
     
-    def UNSAFE_clear_shards(self):
-        for shard in self.shards:
-            shard.UNSAFE_clear()
+    def UNSAFE_clear_blocks(self):
+        for block in self.blocks:
+            block.UNSAFE_clear()
         return self
     
     @functools.cached_property
-    def shards(self):
-        distshards = self.cfg.features_pairwise_distances.shards
-        sorted_distshards = [FeatureSortedDistancesShard(spec=dict(distshard=distshard,),) 
-                            for distshard in distshards
+    def blocks(self):
+        distblocks = self.cfg.features_pairwise_distances.blocks
+        sorted_distblocks = [FeatureSortedDistancesBlock(spec=dict(distshard=distshard,),) 
+                            for distshard in distblocks
         ]
-        return sorted_distshards
+        return sorted_distblocks
     
 
-class Feature2NNDistancesShard(Datablock):
+class Feature2NNDistancesBlock(Datablock):
     TOPICFILE = "twonn_distances.pt"
     @dataclass
     class CONFIG:
-        sorted_distshard: FeatureSortedDistancesShard
+        sorted_distshard: FeatureSortedDistancesBlock
 
     def __build__(self):
         sorted_distshard = self.cfg.sorted_distshard
         sorted_distshard_tensor = sorted_distshard.tensor
-        self.log.debug(f"Locating smallest nonzero pairwise distances in FeatureSortedDistancesShard {sorted_distshard.hashpath()} of shape {sorted_distshard_tensor.shape}")
+        self.log.debug(f"Locating smallest nonzero pairwise distances in FeatureSortedDistancesBlock {sorted_distshard.hashpath()} of shape {sorted_distshard_tensor.shape}")
         firstidx_j = (sorted_distshard_tensor[:, 0] == 0.0).to(int)
         firstidx_i = torch.arange(sorted_distshard_tensor.shape[0])
         firstdist = sorted_distshard_tensor[firstidx_i, firstidx_j]
         if self.debug:
             firstdist_min, firstdist_max = firstdist.min(), firstdist.max()
             self.log.debug(f"firstdist_min: {firstdist_min}, firstdist_max: {firstdist_max}")
-        self.log.debug(f"Locating second smallest pairwise distances in FeatureSortedDistancesShard {sorted_distshard.hashpath()} of shape {sorted_distshard_tensor.shape}")
+        self.log.debug(f"Locating second smallest pairwise distances in FeatureSortedDistancesBlock {sorted_distshard.hashpath()} of shape {sorted_distshard_tensor.shape}")
         seconddist = sorted_distshard_tensor[firstidx_i, firstidx_j+1]
         if self.debug:
             seconddist_min, seconddist_max = seconddist.min(), seconddist.max()
             self.log.debug(f"seconddist_min: {seconddist_min}, seconddist_max: {seconddist_max}")
         del sorted_distshard_tensor
         twonn_distances = torch.stack([firstdist, seconddist], dim=-1)
-        self.log.debug(f"Built Feature2NNDistancesShard {self.hashpath()} with shape {twonn_distances.shape}")
+        self.log.debug(f"Built Feature2NNDistancesBlock {self.hashpath()} with shape {twonn_distances.shape}")
         write_tensor(twonn_distances, self.path(ensure_dirpath=True))
         return self
     
@@ -1361,27 +1361,27 @@ class Feature2NNDistances(Datablock):
         self.devices = [f"cuda:{i}" if self.use_gpus else f"cpu" for i in range(self.n_workers)]
         return self
     
-    def shards(self):
-        sorted_distshards = self.cfg.feature_sorted_distances.shards
-        twonndist_shards = [Feature2NNDistancesShard(spec=dict(sorted_distshard=sorted_distshard)) 
-                            for sorted_distshard in sorted_distshards
+    def blocks(self):
+        sorted_distblocks = self.cfg.feature_sorted_distances.blocks
+        twonndist_blocks = [Feature2NNDistancesBlock(spec=dict(sorted_distshard=sorted_distshard)) 
+                            for sorted_distshard in sorted_distblocks
         ]
-        return twonndist_shards
+        return twonndist_blocks
     
-    def UNSAFE_clear_shards(self):
-        for shard in self.shards():
-            shard.UNSAFE_clear()
+    def UNSAFE_clear_blocks(self):
+        for block in self.blocks():
+            block.UNSAFE_clear()
         return self
 
     def __build__(self):
-        twonndist_shards = self.shards()
-        self.log.debug(f"Formed {len(twonndist_shards)} Feature2NNDistancesShards")
-        missing_twonndist_shards = [shard for shard in twonndist_shards if not shard.valid()]
-        self.log.debug(f"Found {len(missing_twonndist_shards)} missing Feature2NNDistancesShards")
-        self.log.debug(f"Building {len(missing_twonndist_shards)} Feature2NNDistancesShards")
-        built_twonndist_shards = TorchMultiprocessingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_twonndist_shards)
-        self.log.verbose(f"Built all missing Feature2NNDistancesShards: {len(built_twonndist_shards)}")
-        twonndists = torch.cat([shard.tensor for shard in twonndist_shards], dim=0)
+        twonndist_blocks = self.blocks()
+        self.log.debug(f"Formed {len(twonndist_blocks)} Feature2NNDistancesBlocks")
+        missing_twonndist_blocks = [block for block in twonndist_blocks if not block.valid()]
+        self.log.debug(f"Found {len(missing_twonndist_blocks)} missing Feature2NNDistancesBlocks")
+        self.log.debug(f"Building {len(missing_twonndist_blocks)} Feature2NNDistancesBlocks")
+        built_twonndist_blocks = TorchMultiprocessingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_twonndist_blocks)
+        self.log.verbose(f"Built all missing Feature2NNDistancesBlocks: {len(built_twonndist_blocks)}")
+        twonndists = torch.cat([block.tensor for block in twonndist_blocks], dim=0)
         write_tensor(twonndists, self.path('twonn_distances', ensure_dirpath=True))
         return self
     

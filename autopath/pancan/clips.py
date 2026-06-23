@@ -33,7 +33,7 @@ logger = Logger()
 class TileClipDatasetBuilder(Datablock):
     """Factory that builds a PyTorch Dataset from a :class:`PancanTileClip`.
 
-    Uses the Bag/Clip model: the clip is partitioned into bags (shards),
+    	Uses the Bag/Clip model: the clip is partitioned into bags (blocks),
     and the inner :class:`Dataset` lazily indexes into them via
     cumulative-sum bounds.  Supports optional per-sample transforms,
     target transforms, and deterministic bag-order shuffling.
@@ -145,7 +145,7 @@ class PancanTFRecordDataset(TFRecordDataset):
 
 
 class PancanTileBag(TileBag):
-	"""A bag of pathology tiles repacked from TFRecords into MDS shards.
+	"""A bag of pathology tiles repacked from TFRecords into MDS blocks.
 
 	During ``__build__``, reads all tiles from the source TFRecord,
 	duplicates the slide-level label for every tile, and writes them
@@ -497,10 +497,10 @@ class PancanTileClip(Clip):
 		return self
 
 	@property
-	def n_shards(self):
+	def n_blocks(self):
 		return len(self.bagpaths)
 
-	def __shard__(self, idx: int):
+	def __block__(self, idx: int):
 		bagpath = self.bagpaths[idx]
 		relpath = os.path.relpath(bagpath, self.config.source)
 		source_expr = self.spec['source'][1:]  # strip leading '$' from specline
@@ -516,8 +516,8 @@ class PancanTileClip(Clip):
 				debug=self.debug,
 			)
 
-	class ShardMaker(Clip.ShardMaker):
-		"""Build a single PancanTileBag shard.
+	class BlockMaker(Datastack.BlockMaker):
+		"""Build a single PancanTileBag block.
 
 		Carries the bag index. Takes the clip (stack) as the first arg
 		via the executor, instantiates the bag and builds it.
@@ -526,15 +526,15 @@ class PancanTileClip(Clip):
 			super().__init__(idx)
 
 		def __call__(self, stack, *, build=True):
-			shard = stack.__shard__(self.idx)
+			block = stack.__block__(self.idx)
 			if build:
-				shard.build()
-			del shard
+				block.build()
+			del block
 			gc.collect()
 
 	def __split__(self, *args, **kwargs):
-		"""Return one ShardMaker per bag for parallel building."""
-		makers = [self.ShardMaker(idx) for idx in range(self.n_shards)]
+		"""Return one BlockMaker per bag for parallel building."""
+		makers = [self.BlockMaker(idx) for idx in range(self.n_blocks)]
 		callable_kwargs = dict(build=True)
 		self.log.info(
 			f"Split {self.__class__.__name__}: {len(makers)} bags to build"
@@ -543,7 +543,7 @@ class PancanTileClip(Clip):
 
 	def __stack__(self, results=None):
 		"""Persist bag_lens after all parallel bag builds complete."""
-		self.log.info(f"Stacking {self.n_shards} bags of {self.__class__.__name__}")
+		self.log.info(f"Stacking {self.n_blocks} bags of {self.__class__.__name__}")
 		result = super().__stack__(results)
 		self.log.info(f"Build complete: {self.__class__.__name__}")
 		return result
@@ -590,8 +590,8 @@ class PancanTileClip(Clip):
 		streams = []
 		n_skipped = 0
 
-		for i in range(self.n_shards):
-			bag = self.shard(i)
+		for i in range(self.n_blocks):
+			bag = self.block(i)
 			if skip_invalid_bags and not bag.valid():
 				n_skipped += 1
 				continue

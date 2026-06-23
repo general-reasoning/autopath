@@ -336,11 +336,11 @@ class FeatureBagClip(Clip):
         )
         return bag
 
-    def shard(self, idx: int):
+    def block(self, idx: int):
         return self.bag(idx)
     
     @property
-    def shards(self):
+    def blocks(self):
         return self.bags
     
     @property
@@ -348,7 +348,7 @@ class FeatureBagClip(Clip):
         return self.cfg.tilebagclip.n_bags
     
     @property
-    def n_shards(self):
+    def n_blocks(self):
         return self.n_bags
     
     @functools.cached_property
@@ -356,7 +356,7 @@ class FeatureBagClip(Clip):
         return self.read("bag_lens")
     
     @property
-    def shard_lens(self):
+    def block_lens(self):
         return self.bag_lens
     
     def labels(self):
@@ -581,11 +581,11 @@ class BipolarFeatureBagClip(Clip):
         )
         return bag
 
-    def shard(self, idx: int):
+    def block(self, idx: int):
         return self.bag(idx)
     
     @property
-    def shards(self):
+    def blocks(self):
         return self.bags
 
     @functools.cached_property
@@ -597,23 +597,23 @@ class BipolarFeatureBagClip(Clip):
         return len(self.bag_lens)
 
     @property
-    def shard_lens(self):
+    def block_lens(self):
         return self.bag_lens
 
     @property
-    def n_shards(self):
+    def n_blocks(self):
         return self.n_bags
 
-    def UNSAFE_clear_shards(self, OVERRIDE=False):
-        if UNSAFE_allowed('UNSAFE_clear_shards', OVERRIDE=OVERRIDE):
-            super().UNSAFE_clear_shards()
+    def UNSAFE_clear_blocks(self, OVERRIDE=False):
+        if UNSAFE_allowed('UNSAFE_clear_blocks', OVERRIDE=OVERRIDE):
+            super().UNSAFE_clear_blocks()
             if hasattr(self, '_bags'):
                 del self._bags
             self.UNSAFE_clear(OVERRIDE=True)
         return self
 
     def UNSAFE_clear_bags(self, OVERRIDE=False):
-        return self.UNSAFE_clear_shards(OVERRIDE=OVERRIDE)
+        return self.UNSAFE_clear_blocks(OVERRIDE=OVERRIDE)
 
 
 class BipolarSingleFeatureBagClip(Clip):
@@ -671,11 +671,11 @@ class BipolarSingleFeatureBagClip(Clip):
         )
         return bag
 
-    def shard(self, idx: int):
+    def block(self, idx: int):
         return self.bag(idx)
 
     @property
-    def shards(self):
+    def blocks(self):
         return self.bags
 
     @functools.cached_property
@@ -687,11 +687,11 @@ class BipolarSingleFeatureBagClip(Clip):
         return 1
 
     @property
-    def shard_lens(self):
+    def block_lens(self):
         return self.bag_lens
 
     @property
-    def n_shards(self):
+    def n_blocks(self):
         return self.n_bags
 
 
@@ -901,11 +901,11 @@ class SphericalFeatureBagClip(Clip):
         )
         return bag
 
-    def shard(self, idx: int):
+    def block(self, idx: int):
         return self.bag(idx)
 
     @property
-    def shards(self):
+    def blocks(self):
         return self.bags
 
     @functools.cached_property
@@ -917,11 +917,11 @@ class SphericalFeatureBagClip(Clip):
         return self.cfg.featurebagclip.n_bags
 
     @property
-    def shard_lens(self):
+    def block_lens(self):
         return self.bag_lens
 
     @property
-    def n_shards(self):
+    def n_blocks(self):
         return self.n_bags
 
 
@@ -1181,11 +1181,11 @@ class SpectralFeatureBagClip(Clip):
         )
         return bag
 
-    def shard(self, idx: int):
+    def block(self, idx: int):
         return self.bag(idx)
 
     @property
-    def shards(self):
+    def blocks(self):
         return self.bags
 
     @property
@@ -1193,7 +1193,7 @@ class SpectralFeatureBagClip(Clip):
         return self.cfg.tilebagclip.n_bags
 
     @property
-    def n_shards(self):
+    def n_blocks(self):
         return self.n_bags
 
     @functools.cached_property
@@ -1201,7 +1201,7 @@ class SpectralFeatureBagClip(Clip):
         return self.read("bag_lens")
 
     @property
-    def shard_lens(self):
+    def block_lens(self):
         return self.bag_lens
 
 

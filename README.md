@@ -651,6 +651,37 @@ pattern is already substantially sparser than at initialization, consistent with
 
 A per-dimension accuracy of 0.75 means the ternary network correctly predicts the sign of **3 out of every 4 Gigapath feature dimensions** from a raw tile — with no access to the Gigapath backbone at inference time.  This establishes a viable distillation baseline; further gains are expected from longer training, larger models, or data augmentation.
 
+##### BitPathConvNet model size (default config)
+
+`n_blocks=6, hidden_channels=128, output_dim=1536, n_classes=3`
+
+Channel progression across the 6 blocks (doubling every 2 blocks, stride-2 downsample at the same boundary):
+
+| Block | in→out | stride |
+|---|---|---|
+| 0 | 128→128 | 1 |
+| 1 | 128→128 | 1 |
+| 2 | 128→256 | 2 |
+| 3 | 256→256 | 1 |
+| 4 | 256→512 | 2 |
+| 5 | 512→512 | 1 |
+
+Each `BitBlock` contains two `BitConv2d158` layers (each carrying a `3×3` weight tensor + one `RMSNorm2d` scale vector) and two `BatchNorm2d` layers; blocks where channels change also add a plain `1×1` Conv2d shortcut projection.
+
+| Component | Parameters |
+|---|---|
+| Stem (`Conv2d 3→128, 7×7` + `BN2d`) | ~19 K |
+| Block 0 (128→128) | ~296 K |
+| Block 1 (128→128) | ~296 K |
+| Block 2 (128→256, + shortcut) | ~919 K |
+| Block 3 (256→256) | ~886 K |
+| Block 4 (256→512, + shortcut) | ~3,674 K |
+| Block 5 (512→512) | ~3,542 K |
+| Head (`BitLinear158` 512→4608 + `RMSNorm1d`) | ~2,360 K |
+| **Total** | **~12.0 M** |
+
+Stored as float32 during training: **~46 MB**.  At inference the ternary weights can be packed to ~1.58 bits/weight, giving a theoretical minimum of **~2.4 MB** for the conv/linear weight tensors.
+
 #### BitConv Feature Probe vs Gigapath
 
 `bitconv_deep_feature_affine_logistic_probe('BITCONV_DEEP_CPTAC_602020_TEST', still=bitpath_conv_still(..., cfg_max_steps=10000), cfg_shard_size=64)`
