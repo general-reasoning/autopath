@@ -123,7 +123,7 @@ class DeepFeatureBag(Bag):
             )
         return super().validtopic(topic)
 
-    def valid(self, topic=None):
+    def valid(self, topic):
         if topic is not None:
             return self.validtopic(topic)
         return self.validtopics(reduce=True)
@@ -482,7 +482,7 @@ class DeepFeatureClip(Clip):
         )
         return makers, callable_kwargs
 
-    def __read__(self, topic=None):
+    def __read__(self, topic):
         if topic == 'bag_lens':
             return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
         raise ValueError(f"Unknown topic: {topic!r}")
@@ -552,7 +552,7 @@ class DeepFeatureClip(Clip):
         n_skipped = 0
 
         for i, bag in enumerate(self.bags):
-            if skip_invalid_bags and not bag.valid():
+            if skip_invalid_bags and not bag.valid(topic=None):
                 n_skipped += 1
                 continue
             if bag._is_local_fs:
@@ -616,7 +616,7 @@ class DeepFeatureClip(Clip):
         n_skipped = 0
 
         for bag in self.bags:
-            if skip_invalid_bags and not bag.valid():
+            if skip_invalid_bags and not bag.valid(topic=None):
                 n_skipped += 1
                 continue
             # Feature stream
@@ -838,7 +838,7 @@ class BipolarDeepFeatureBag(Bag):
             )
         return super().validtopic(topic)
 
-    def valid(self, topic=None):
+    def valid(self, topic):
         if topic is not None:
             return self.validtopic(topic)
         return self.validtopics(reduce=True)
@@ -1086,7 +1086,7 @@ class BipolarDeepFeatureClip(Clip):
         makers = [self.BlockMaker(idx) for idx in range(self.n_blocks)]
         return makers, callable_kwargs
 
-    def __read__(self, topic=None):
+    def __read__(self, topic):
         if topic == 'bag_lens':
             return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
         raise ValueError(f"Unknown topic: {topic!r}")
@@ -1137,7 +1137,7 @@ class BipolarDeepFeatureClip(Clip):
         n_skipped = 0
 
         for bag in self.bags:
-            if skip_invalid_bags and not bag.valid():
+            if skip_invalid_bags and not bag.valid(topic=None):
                 n_skipped += 1
                 continue
             if bag.is_local_fs:

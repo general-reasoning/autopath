@@ -113,7 +113,7 @@ class Clip(Datastack):
 
     def validbags(self):
         """Return a boolean array indicating which bags are valid."""
-        return np.array([bag.valid() for bag in self.bags])
+        return np.array([bag.valid(topic=None) for bag in self.bags])
 
 
     def UNSAFE_clear_bags(self, *, OVERRIDE: bool = False):
@@ -240,7 +240,7 @@ class Fold(Clip):
         return self
     
     def valid(self):
-        return self.cfg.partition.valid()
+        return self.cfg.partition.valid(topic=None)
 
     @property
     def n_blocks(self):

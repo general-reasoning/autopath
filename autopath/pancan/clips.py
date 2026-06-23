@@ -337,7 +337,7 @@ class PancanTileBag(TileBag):
 			del ds
 			gc.collect()
 
-	def __read__(self, topic=None):
+	def __read__(self, topic):
 		if topic == 'shards':
 			return self.fs.ls(self.path('shards'))
 		raise ValueError(f"Unknown topic: {topic!r}")
@@ -592,7 +592,7 @@ class PancanTileClip(Clip):
 
 		for i in range(self.n_blocks):
 			bag = self.block(i)
-			if skip_invalid_bags and not bag.valid():
+			if skip_invalid_bags and not bag.valid(topic=None):
 				n_skipped += 1
 				continue
 			if bag._is_local_fs:

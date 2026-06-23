@@ -121,14 +121,14 @@ git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "au
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
     gpu_batch_size=1024 \
-    ).build().valid()"
+    ).build().valid(topic=None)"
 ### DEEP layers
 git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=True, \
     cfg_capture_blocks='all', \
     cfg_shard_size=128, \
     gpu_batch_size=128 \
-    ).build().valid()"
+    ).build().valid(topic=None)"
 # [01:09<00:00, 34.52s/batch, VRAM 4.6/42GB (peak 23.6GB)]
 
 git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "\
@@ -137,7 +137,7 @@ autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', 
     cfg_capture_blocks='all', \
     cfg_shard_size=64, \
     gpu_batch_size=1024 \
-    ).build().valid()\
+    ).build().valid(topic=None)\
     "
 git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
@@ -145,7 +145,7 @@ autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', 
     cfg_capture_blocks=[0, 7, 14, 21, 27, 33, 39], \
     cfg_shard_size=128, \
     gpu_batch_size=1024 \
-    ).build().valid()\
+    ).build().valid(topic=None)\
     "
 """
 def gigapath_deep_feature_bag(
@@ -400,7 +400,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         cfg_cls_token_only=cfg_cls_token_only,
         cfg_shard_size=cfg_shard_size,
     )
-    assert clip.valid(), (
+    assert clip.valid(topic=None), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
         f"Build it first with gigapath_deep_feature_clip(...).build()\n"
         f"  validpaths = {clip.validpaths()}\n"
@@ -1006,7 +1006,7 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
         cfg_cls_token_only=cfg_cls_token_only,
         cfg_shard_size=cfg_shard_size,
     )
-    assert clip.valid(), (
+    assert clip.valid(topic=None), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
         f"Build it first with gigapath_deep_feature_clip(...).build()\n"
         f"  validpaths = {clip.validpaths()}\n"
@@ -1122,7 +1122,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
         cfg_shard_size=cfg_shard_size,
         url=url,
     )
-    assert bipolar_clip.valid(), (
+    assert bipolar_clip.valid(topic=None), (
         f"BipolarDeepFeatureClip is not valid (hash={bipolar_clip.hash[:8]}). "
         f"Build it first with gigapath_bipolar_deep_feature_clip(...).build_tree()\n"
         f"  validpaths = {bipolar_clip.validpaths()}\n"
@@ -1245,7 +1245,7 @@ def gigapath_validate_tile_feature_zip_alignment(
         cfg_cls_token_only=cfg_cls_token_only,
         cfg_shard_size=cfg_shard_size,
     )
-    assert clip.valid(), (
+    assert clip.valid(topic=None), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
         f"Build it first with gigapath_deep_feature_clip(...).build_tree()\n"
         f"  validpaths = {clip.validpaths()}\n"
