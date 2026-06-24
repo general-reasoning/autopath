@@ -23,6 +23,7 @@ import dbx
 from tqdm import tqdm
 from dbx import (
     Datablock,
+    Datastack,
 )
 
 from streaming import MDSWriter, Stream, StreamingDataset
