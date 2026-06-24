@@ -1191,7 +1191,7 @@ class FeaturePairwiseDistances(Datablock):
     
     @functools.cached_property
     def features_shape(self):
-        if self.valid(topic=None):
+        if self.valid():
             self.log.debug(f"Reading features_shape from {self.path('features_shape')}")
             return read_tensor(self.path('features_shape'))
         else:
@@ -1206,7 +1206,7 @@ class FeaturePairwiseDistances(Datablock):
                        f"row_shard_size {self.cfg.row_shard_size}, col_shard_size: {self.cfg.col_shard_size}"
         )
         self.log.debug(f"Formed {len(blocks)} FeaturePairwiseDistancesBlocks.  Looking for missing blocks")
-        missing_blocks = [block for block in blocks if not block.valid(topic=None)]
+        missing_blocks = [block for block in blocks if not block.valid()]
         self.log.debug(f"Found {len(missing_blocks)} missing blocks")
         self.log.debug(f"Building all missing pairwise feature distance blocks")
         built_blocks = TorchMultithreadingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_blocks, features)
@@ -1289,7 +1289,7 @@ class FeatureSortedDistances(Datablock):
     def __build__(self):
         sorted_distblocks = self.blocks
         self.log.debug(f"Formed {len(sorted_distblocks)} FeatureSortedDistancesBlocks")
-        missing_sorted_distblocks = [block for block in sorted_distblocks if not block.valid(topic=None)]
+        missing_sorted_distblocks = [block for block in sorted_distblocks if not block.valid()]
         self.log.debug(f"Found among them {len(missing_sorted_distblocks)} missing FeatureSortedDistancesBlocks")
         self.log.debug(f"Building {len(missing_sorted_distblocks)} FeatureSortedDistancesBlocks")
         built_sorted_distblocks = TorchMultiprocessingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_sorted_distblocks)
@@ -1376,7 +1376,7 @@ class Feature2NNDistances(Datablock):
     def __build__(self):
         twonndist_blocks = self.blocks()
         self.log.debug(f"Formed {len(twonndist_blocks)} Feature2NNDistancesBlocks")
-        missing_twonndist_blocks = [block for block in twonndist_blocks if not block.valid(topic=None)]
+        missing_twonndist_blocks = [block for block in twonndist_blocks if not block.valid()]
         self.log.debug(f"Found {len(missing_twonndist_blocks)} missing Feature2NNDistancesBlocks")
         self.log.debug(f"Building {len(missing_twonndist_blocks)} Feature2NNDistancesBlocks")
         built_twonndist_blocks = TorchMultiprocessingDatablocksBuilder(devices=self.devices, log=self.log).build_blocks(missing_twonndist_blocks)

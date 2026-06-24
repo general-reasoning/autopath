@@ -236,7 +236,7 @@ class FeatureBagClip(Clip):
     def __build__(self):
         bags = self.bags
         self.log.verbose(f"Formed {len(bags)} FeatureBags.  Looking for missing bags.")
-        missing_bags = [bag for bag in bags if not bag.valid(topic=None)]
+        missing_bags = [bag for bag in bags if not bag.valid()]
         self.log.verbose(f"Found {len(missing_bags)} missing bags")
         self.log.verbose(f"Building {len(missing_bags)} missing features bags using devices {self.devices} and device_batch_size {self.device_batch_size}")
         built_bags = self.builder_cls(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)
@@ -528,7 +528,7 @@ class BipolarFeatureBagClip(Clip):
             else:
                 bagitor = bags
             for bag in bagitor:
-                if not bag.valid(topic=None):
+                if not bag.valid():
                     missing_bags.append(bag)
                 bag_lens.append(len(bag))
         else:
@@ -639,7 +639,7 @@ class BipolarSingleFeatureBagClip(Clip):
         idx = self.cfg.idx
         self.log.verbose(f"BUILDING single BipolarFeatureBag {repr(idx)} from {self.cfg.probe}: BEGIN")
         bag = self.bag(0)
-        if not bag.valid(topic=None):
+        if not bag.valid():
             bag.__build__(probe=self.cfg.probe)
         bag_lens = [len(bag)]
         self.log.verbose(f"BUILDING single BipolarFeatureBag {repr(idx)} from {self.cfg.probe}: END")
@@ -834,7 +834,7 @@ class SphericalFeatureBagClip(Clip):
             else:
                 bagitor = bags
             for bag in bagitor:
-                if not bag.valid(topic=None):
+                if not bag.valid():
                     missing_bags.append(bag)
                 bag_lens.append(len(bag))
         else:
@@ -1134,7 +1134,7 @@ class SpectralFeatureBagClip(Clip):
     def __build__(self):
         bags = self.bags
         self.log.verbose(f"Formed {len(bags)} SpectralFeatureBags.  Looking for missing bags.")
-        missing_bags = [bag for bag in bags if not bag.valid(topic=None)]
+        missing_bags = [bag for bag in bags if not bag.valid()]
         self.log.verbose(f"Found {len(missing_bags)} missing bags")
         self.log.verbose(f"Building {len(missing_bags)} missing spectral bags using devices {self.devices} and device_batch_size {self.device_batch_size}")
         built_bags = self.builder_cls(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)

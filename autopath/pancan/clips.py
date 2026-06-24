@@ -592,7 +592,7 @@ class PancanTileClip(Clip):
 
 		for i in range(self.n_blocks):
 			bag = self.block(i)
-			if skip_invalid_bags and not bag.valid(topic=None):
+			if skip_invalid_bags and not bag.valid():
 				n_skipped += 1
 				continue
 			if bag._is_local_fs:

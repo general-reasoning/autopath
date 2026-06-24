@@ -408,7 +408,7 @@ class BitPathDataloaderBuilder(Datablock):
         n_skipped_mismatch = 0
 
         for bag in bipolar_clip.bags:
-            if not bag.valid(topic=None):
+            if not bag.valid():
                 n_skipped_invalid += 1
                 continue
 

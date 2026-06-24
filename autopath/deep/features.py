@@ -549,7 +549,7 @@ class DeepFeatureClip(Clip):
         n_skipped = 0
 
         for i, bag in enumerate(self.bags):
-            if skip_invalid_bags and not bag.valid(topic=None):
+            if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
                 continue
             if bag._is_local_fs:
@@ -613,7 +613,7 @@ class DeepFeatureClip(Clip):
         n_skipped = 0
 
         for bag in self.bags:
-            if skip_invalid_bags and not bag.valid(topic=None):
+            if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
                 continue
             # Feature stream
@@ -835,9 +835,7 @@ class BipolarDeepFeatureBag(Bag):
             )
         return super().validtopic(topic)
 
-    def valid(self, topic):
-        if topic is not None:
-            return self.validtopic(topic)
+    def valid(self):
         return self.validtopics(reduce=True)
 
     # ── Build ───────────────────────────────────────────────────────
@@ -1134,7 +1132,7 @@ class BipolarDeepFeatureClip(Clip):
         n_skipped = 0
 
         for bag in self.bags:
-            if skip_invalid_bags and not bag.valid(topic=None):
+            if skip_invalid_bags and not bag.valid():
                 n_skipped += 1
                 continue
             if bag.is_local_fs:
