@@ -206,15 +206,14 @@ def gigapath_deep_feature_bag(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-### CPTAC: OUTPUT-ONLY|CLS-ONLY
+###! CPTAC: OUTPUT-ONLY|CLS-ONLY
 ## 1 device
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    n_devices=1,\
-    device_batch_size=512, \
+    n_devices=1, device_batch_size=512, \
 ).build_tree()"
 ## 3 devices
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
