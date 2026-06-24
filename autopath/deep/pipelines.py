@@ -230,18 +230,21 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
+    n_devices=1, device_batch_size=512, \
 ).build_tree()"
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
+    n_devices=1, device_batch_size=512, \
 ).build_tree()"
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
+    n_devices=1, device_batch_size=512, \
 ).build_tree()"
 """
 def gigapath_deep_feature_clip(
