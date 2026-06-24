@@ -34,8 +34,11 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
         raise ValueError(f"Unknown tile_bag: {name}")
 
 """
-git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build().valid(topic=None)"
-git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC', n_workers=8).build().valid(topic=None)"
+git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build().valid()"
+
+git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC', n_workers=8).build().valid()"
 """
 def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | None = None) -> PancanTileClip:
     if parallelization is None and n_workers > 1:
