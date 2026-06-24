@@ -225,7 +225,7 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     device_batch_size=512, \
     n_devices=3, parallelization='multiprocessing', work_stealing=True,\
 ).build_tree()"
-### CPTAC_602020_TRAIN|CALIBRATE|TEST: OUTPUT-ONLY|ALL_HEADS
+### CPTAC_602020_TRAIN|CALIBRATE|TEST: OUTPUT-ONLY|CLS-ONLY
 ## piggyback on CPTAC clip
 git commit -am 'deep: DeepFeatureClip: BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
