@@ -23,7 +23,7 @@ git commit -am "gigaq: PancanTileBag: READ SHARDS" >/dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('shards')"
 
 git commit -am "gigaq: PancanTileBag: DATASET" >/dev/null || true; \
-dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').data()"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').data()[0]"
 """
 def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
