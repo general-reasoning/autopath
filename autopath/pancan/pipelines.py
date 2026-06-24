@@ -13,10 +13,17 @@ from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTileParti
 from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RESOLUTION
 
 """
-git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().valid(topic=None)"
-git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().paths()"
-git commit -am "gigaq: PancanTileBag: READ SHARDS" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('shards')"
-git commit -am "gigaq: PancanTileBag: DATASET" >/dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').dataset()[0]"
+git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; \
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().valid()"
+
+git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; \
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().paths()"
+
+git commit -am "gigaq: PancanTileBag: READ SHARDS" >/dev/null || true; \
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('shards')"
+
+git commit -am "gigaq: PancanTileBag: DATASET" >/dev/null || true; \
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').dataset()[0]"
 """
 def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
