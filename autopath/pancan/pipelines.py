@@ -14,7 +14,7 @@ from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RE
 
 """
 git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; \
-dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().valid()"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().valid(topic=None)"
 
 git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().paths()"
