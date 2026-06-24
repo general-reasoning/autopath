@@ -58,14 +58,29 @@ def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | No
 
 
 """
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree()"
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_9802').build_tree()"
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build_tree()"
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_602020').build_tree()"
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_200179').build_tree()"
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_305020').build_tree()"
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree()"
+#
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_9802').build_tree()"
+#
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build_tree()"
+#
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
+#
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_602020').build_tree()"
+#
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
+#
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_200179').build_tree()"
+#
+git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_305020').build_tree()"
 """
 def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = None) -> PancanTilePartition:
     if name is None:
