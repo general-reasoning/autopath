@@ -960,7 +960,7 @@ class DeepFeatureSpectralProbe(Datablock):
         annotation_key: str | None = None
         mode: str = 'cls'              # 'cls', 'full', or 'both'
         k: int = 10                    # top/bottom-k for full mode
-        gpu_batch_size: int = 64       # tiles per forward pass
+        device_batch_size: int = 64       # tiles per forward pass
         n_sample_bags: int | None = None  # probe only first N bags (None = all)
 
     def __init__(self, *args, device: str = "cuda", **kwargs):
@@ -1024,7 +1024,7 @@ class DeepFeatureSpectralProbe(Datablock):
             # Run forward pass in batches, collecting block activations.
             # For spectral probing we only need one representative batch
             # (the Jacobian at a single point), so use the first batch.
-            batch_size = min(self.cfg.gpu_batch_size, n_tiles)
+            batch_size = min(self.cfg.device_batch_size, n_tiles)
             batch = tiles_tensor[:batch_size].to(self.device)
 
             # Run the evaluator (which registers hooks internally).

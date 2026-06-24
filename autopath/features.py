@@ -77,10 +77,10 @@ class FeatureBag(Bag):
         tilebag: TileBag
         extractor: Callable
 
-    def __init__(self, *args, gpu_batch_size: int = 16, **kwargs):
+    def __init__(self, *args, device_batch_size: int = 16, **kwargs):
         Datablock.__init__(self, 
                      *args, 
-                     gpu_batch_size=gpu_batch_size, 
+                     device_batch_size=device_batch_size, 
                      **kwargs)
 
     def __post_init__(self):
@@ -116,9 +116,9 @@ class FeatureBag(Bag):
         feature_list = []
         sideband_list = []
         n_tiles = len(tilebag.tiles)
-        for k in range(math.ceil(len(tilebag.tiles)/self.gpu_batch_size)):
-            m = k*self.gpu_batch_size
-            n = min((k+1)*self.gpu_batch_size, n_tiles)
+        for k in range(math.ceil(len(tilebag.tiles)/self.device_batch_size)):
+            m = k*self.device_batch_size
+            n = min((k+1)*self.device_batch_size, n_tiles)
             batch = tilebag.tiles[m:n].to(self.device)
             self.log.verbose(f"Evaluating batch {k}: {m}:{n} out of {n_tiles} on device: {self.device}")
             feature = extractor(batch)
@@ -214,7 +214,7 @@ class FeatureBagClip(Clip):
         def __repr__(self):
             return f"FeatureBagLengthComputer({self.featurebag})"
 
-    def __init__(self, *, tag: str | None = None, n_workers: int = 1, devices: list[str] = ["cuda"], gpu_batch_size: int = 16, cpu_batch_size: int|None = None, skip_unreadable: bool = True, 
+    def __init__(self, *, tag: str | None = None, n_workers: int = 1, devices: list[str] = ["cuda"], device_batch_size: int = 16, cpu_batch_size: int|None = None, skip_unreadable: bool = True, 
                  gpu_parallelization: str = 'multithreading', 
                  cpu_parallelization: str|None = None, 
                  bag_n_workers: int = 1,
@@ -222,7 +222,7 @@ class FeatureBagClip(Clip):
                  bag_cpu_parallelization: str|None = None,
                  **kwargs
     ):
-        super().__init__(n_workers=n_workers, devices=devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, tag=tag, **kwargs)
+        super().__init__(n_workers=n_workers, devices=devices, device_batch_size=device_batch_size, cpu_batch_size=cpu_batch_size, skip_unreadable=skip_unreadable, gpu_parallelization=gpu_parallelization, cpu_parallelization=cpu_parallelization, tag=tag, **kwargs)
         self.bag_n_workers = bag_n_workers
         self.bag_cpu_batch_size = bag_cpu_batch_size
         self.bag_cpu_parallelization = bag_cpu_parallelization
@@ -238,7 +238,7 @@ class FeatureBagClip(Clip):
         self.log.verbose(f"Formed {len(bags)} FeatureBags.  Looking for missing bags.")
         missing_bags = [bag for bag in bags if not bag.valid(topic=None)]
         self.log.verbose(f"Found {len(missing_bags)} missing bags")
-        self.log.verbose(f"Building {len(missing_bags)} missing features bags using devices {self.devices} and gpu_batch_size {self.gpu_batch_size}")
+        self.log.verbose(f"Building {len(missing_bags)} missing features bags using devices {self.devices} and device_batch_size {self.device_batch_size}")
         built_bags = self.builder_cls(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)
         self.log.verbose(f"Built {len(built_bags)} missing features bags")
         self.log.verbose(f"Building {len(bags)} bag_lens using {self.cpu_parallelization} parallelization with {self.n_workers} workers: BEGIN")
@@ -330,7 +330,7 @@ class FeatureBagClip(Clip):
         bag = FeatureBag(
             root=self._root_, 
             spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor'],),
-            gpu_batch_size=self.gpu_batch_size,
+            device_batch_size=self.device_batch_size,
             revision=self.revision,
             tag=self.tag,
         )
@@ -953,8 +953,8 @@ class SpectralFeatureBag(Bag):
         tilebag: TileBag
         extractor: Callable   # must be a SpectralBackboneEvaluator
 
-    def __init__(self, *args, gpu_batch_size: int = 16, **kwargs):
-        Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, **kwargs)
+    def __init__(self, *args, device_batch_size: int = 16, **kwargs):
+        Datablock.__init__(self, *args, device_batch_size=device_batch_size, **kwargs)
 
     def __post_init__(self):
         self.TOPICS = {}
@@ -997,9 +997,9 @@ class SpectralFeatureBag(Bag):
         accumulated = {b: [] for b in extractor.spectral_probe_blocks}
         accumulated_composed = []
 
-        for k in range(math.ceil(n_tiles / self.gpu_batch_size)):
-            m = k * self.gpu_batch_size
-            n = min((k + 1) * self.gpu_batch_size, n_tiles)
+        for k in range(math.ceil(n_tiles / self.device_batch_size)):
+            m = k * self.device_batch_size
+            n = min((k + 1) * self.device_batch_size, n_tiles)
             batch = tilebag.tiles[m:n].to(self.device)
             self.log.verbose(f"Evaluating batch {k}: {m}:{n} out of {n_tiles} on device: {self.device}")
 
@@ -1104,7 +1104,7 @@ class SpectralFeatureBagClip(Clip):
 
     def __init__(self, *, tag: str | None = None, n_workers: int = 1,
                  devices: list[str] = ["cuda"],
-                 gpu_batch_size: int = 16,
+                 device_batch_size: int = 16,
                  cpu_batch_size: int | None = None,
                  skip_unreadable: bool = True,
                  gpu_parallelization: str = 'multithreading',
@@ -1115,7 +1115,7 @@ class SpectralFeatureBagClip(Clip):
                  **kwargs):
         super().__init__(
             n_workers=n_workers, devices=devices,
-            gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size,
+            device_batch_size=device_batch_size, cpu_batch_size=cpu_batch_size,
             skip_unreadable=skip_unreadable,
             gpu_parallelization=gpu_parallelization,
             cpu_parallelization=cpu_parallelization,
@@ -1136,7 +1136,7 @@ class SpectralFeatureBagClip(Clip):
         self.log.verbose(f"Formed {len(bags)} SpectralFeatureBags.  Looking for missing bags.")
         missing_bags = [bag for bag in bags if not bag.valid(topic=None)]
         self.log.verbose(f"Found {len(missing_bags)} missing bags")
-        self.log.verbose(f"Building {len(missing_bags)} missing spectral bags using devices {self.devices} and gpu_batch_size {self.gpu_batch_size}")
+        self.log.verbose(f"Building {len(missing_bags)} missing spectral bags using devices {self.devices} and device_batch_size {self.device_batch_size}")
         built_bags = self.builder_cls(devices=self.devices, log=self.log).build_blocks(missing_bags, self.cfg.extractor)
         self.log.verbose(f"Built {len(built_bags)} missing spectral bags")
         self.log.verbose(f"Building {len(bags)} bag_lens: BEGIN")
@@ -1175,7 +1175,7 @@ class SpectralFeatureBagClip(Clip):
         bag = SpectralFeatureBag(
             root=self._root_,
             spec=dict(tilebag=dbx.quote(tilebag), extractor=self.spec['extractor']),
-            gpu_batch_size=self.gpu_batch_size,
+            device_batch_size=self.device_batch_size,
             revision=self.revision,
             tag=self.tag,
         )

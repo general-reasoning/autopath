@@ -121,7 +121,7 @@ def gigapath_deep_backbone_evaluator_factory(
 git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    gpu_batch_size=1024 \
+    device_batch_size=1024 \
     ).build().valid(topic=None)"
 ### ALL DEEP layers
 ## CLS-only
@@ -129,7 +129,7 @@ git commit -am 'deep: DeepFeatureBag: BUILD' > /dev/null || true; dbx.pprint "au
     cfg_cls_token_only=True, \
     cfg_capture_blocks='all', \
     cfg_shard_size=128, \
-    gpu_batch_size=128 \
+    device_batch_size=128 \
     ).build().valid(topic=None)"
 # [01:09<00:00, 34.52s/batch, VRAM 4.6/42GB (peak 23.6GB)]
 ## CLS + PATCH tokens
@@ -138,7 +138,7 @@ autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', 
     cfg_cls_token_only=False, \
     cfg_capture_blocks='all', \
     cfg_shard_size=64, \
-    gpu_batch_size=1024 \
+    device_batch_size=1024 \
     ).build().valid(topic=None)\
     "
 ### SOME DEEP layers
@@ -148,7 +148,7 @@ autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', 
     cfg_cls_token_only=True, \
     cfg_capture_blocks=[0, 7, 14, 21, 27, 33, 39], \
     cfg_shard_size=128, \
-    gpu_batch_size=1024 \
+    device_batch_size=1024 \
     ).build().valid(topic=None)\
     "
 """
@@ -160,7 +160,7 @@ def gigapath_deep_feature_bag(
     cfg_capture_outputs: bool = True,
     cfg_cls_token_only: bool = False,
     cfg_shard_size: int = 1024,
-    gpu_batch_size: int = 64,
+    device_batch_size: int = 64,
     url: str | None = None,
 ) -> DeepFeatureBag:
     """Create a single :class:`DeepFeatureBag`.
@@ -175,7 +175,7 @@ def gigapath_deep_feature_bag(
     cfg_shard_size : int
         Number of samples written per MDS shard file for streaming
         reads.
-    gpu_batch_size : int
+    device_batch_size : int
         Number of tiles sent to the GPU in a single forward pass.
         Controls VRAM usage.  Runtime parameter (not part of the
         config hash).
@@ -197,8 +197,7 @@ def gigapath_deep_feature_bag(
             evaluator_factory=dbx.quote(factory),
             shard_size=cfg_shard_size,
         ),
-        gpu_batch_size=gpu_batch_size,
-        keyby='tag_version_hash',
+        device_batch_size=device_batch_size,
     )
 
 
@@ -214,7 +213,7 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    gpu_batch_size=512, \
+    device_batch_size=512, \
     n_devices=1,\
 ).build_tree()"
 ## 3 devices
@@ -223,7 +222,7 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-    gpu_batch_size=512, \
+    device_batch_size=512, \
     n_devices=3, parallelization='multiprocessing', work_stealing=True,\
 ).build_tree()"
 ### CPTAC_602020_TRAIN|CALIBRATE|TEST: OUTPUT-ONLY|ALL_HEADS
@@ -258,8 +257,9 @@ def gigapath_deep_feature_clip(
     url: str | None = None,
     n_devices: int | None = None,
     devices: list | None = None,
-    gpu_batch_size: int = 64,
+    device_batch_size: int = 64,
     parallelization: str | None = None,
+    work_stealing: bool = False,
 ) -> DeepFeatureClip:
     """Create a :class:`DeepFeatureClip` over a named tile-bag clip.
 
@@ -282,7 +282,7 @@ def gigapath_deep_feature_clip(
     devices : list | None
         Explicit list of CUDA devices (e.g. ``["cuda:0", "cuda:1"]``).
         Overrides *n_devices*.  Defaults to ``["cuda"]``.
-    gpu_batch_size : int
+    device_batch_size : int
         Number of tiles sent to the GPU in a single forward pass.
     parallelization : str | None
         Parallelization strategy (``'inline'``, ``'multithreading'``,
@@ -319,11 +319,11 @@ def gigapath_deep_feature_clip(
             evaluator_factory=dbx.quote(factory),
             shard_size=cfg_shard_size,
         ),
-        gpu_batch_size=gpu_batch_size,
+        device_batch_size=device_batch_size,
         devices=devices,
         n_workers=len(devices),
         parallelization=parallelization,
-        keyby='tag_version_hash',
+        work_stealing=work_stealing,
     )
 
 
@@ -1275,7 +1275,7 @@ def gigapath_validate_tile_feature_zip_alignment(
         tile_source=tile_source,
         tilebagclip=clip.cfg.tilebagclip,
         n_repeats=n_repeats,
-        gpu_batch_size=clip.gpu_batch_size,
+        device_batch_size=clip.device_batch_size,
         atol=atol,
         rtol=rtol,
     )

@@ -103,7 +103,7 @@ def gigapath_backbone_evaluator(name, *, device: str = 'cuda',):
     else:
         raise ValueError(f"Unknown backbone evaluator: {name}")
 
-# git commit -am "gigaq: FeatureBag: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag('GIGAPATH_BASELINE_CPTAC_SAMPLE').set(device='cuda', gpu_batch_size=1024).build()"
+# git commit -am "gigaq: FeatureBag: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag('GIGAPATH_BASELINE_CPTAC_SAMPLE').set(device='cuda', device_batch_size=1024).build()"
 def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
     if name is None:
         return FeatureBag
@@ -117,7 +117,7 @@ def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
     else:
         raise ValueError(f"Unknown feature shard: {name}")
 
-# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC', n_devices=2, n_workers=16).set(gpu_batch_size=1024).build()"
+# git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC', n_devices=2, n_workers=16).set(device_batch_size=1024).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_9802_TEST', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_workers=16).build()"
 # git commit -am "gigaq: FeatureBagClip: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_8020_TEST', n_workers=16).build()"
@@ -136,7 +136,7 @@ def gigapath_feature_bag(name: str = None, *, root: str = None) -> FeatureBag:
 # git commit -am "gigaq: FeatureBagClip: BUILD" > /dev/null || true; DBX_USE_WORK_REPO=True dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bag_clip('GIGAPATH_BASELINE_CPTAC_200179_TEST', n_workers=16, cpu_parallelization='ray').build()"
 
 @tagged
-def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:str = None, n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, cpu_batch_size: int = None,
+def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:str = None, n_workers: int = 1, n_devices: int = 1, device_batch_size: int = 1024, cpu_batch_size: int = None,
                                  gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'multithreading', 
                                  cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'ray',
                                  bag_n_workers: int = 1,
@@ -193,7 +193,7 @@ def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:s
         ), 
         n_workers=n_workers,
         devices=devices, 
-        gpu_batch_size=gpu_batch_size,
+        device_batch_size=device_batch_size,
         cpu_batch_size=cpu_batch_size,
         gpu_parallelization=gpu_parallelization,
         cpu_parallelization=cpu_parallelization,
@@ -219,20 +219,20 @@ def gigapath_feature_bag_clip(name:str = None, *, tag: str | None = None, root:s
 # git commit -am "gigaq: featurebag_dataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_200179_TEST')[0]"
 #
 def gigapath_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None, 
-                              n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, cpu_batch_size: int = None,
+                              n_workers: int = 1, n_devices: int = 1, device_batch_size: int = 1024, cpu_batch_size: int = None,
                               cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
     ) -> torch.utils.data.Dataset:
-    featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
+    featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, device_batch_size=device_batch_size, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     dbx.Logger().debug(f"===================> {featureclip=}\nquoted featureclip={dbx.quote(featureclip)}")
     return featurebag_dataset(dbx.quote(featureclip), bags_shuffle_seed=shuffle_bags_seed)
 
 
 def gigapath_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, 
-                                          n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024, cpu_batch_size: int = None,
+                                          n_workers: int = 1, n_devices: int = 1, device_batch_size: int = 1024, cpu_batch_size: int = None,
                                           cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading',
                                           shuffle_bags: bool = False,
                                           **dataloader_kwargs):
-    featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
+    featureclip = gigapath_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, device_batch_size=device_batch_size, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     clip_dataset_builder = TileClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), shuffle_seed=shuffle_bags_seed))
     return TileClipDataLoaderBuilder(spec=dict(
                             clip_dataset_builder=clip_dataset_builder,
@@ -289,7 +289,7 @@ def gigapath_featurebag_dataloader_samples(name, n, root: str = None, shuffle_ba
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_400159_CALIBRATE').build()"
 # git commit -am "gigaq: FeatureBagMedianProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_feature_bags_median_probe('GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE', n_workers=4, cpu_parallelization='ray').build()"
 @tagged
-def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_devices: int = 1, gpu_batch_size: int = 16, n_workers: int = 1, cpu_batch_size: int = None,
+def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_devices: int = 1, device_batch_size: int = 16, n_workers: int = 1, cpu_batch_size: int = None,
                                     cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
     ) -> FeatureBagMedianProbe:
     """Compute the element-wise median (and min/max) of GigaPath tile features across all bags in a clip.
@@ -306,7 +306,7 @@ def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_device
               (e.g. ``'GIGAPATH_BASELINE_CPTAC_200179_CALIBRATE'``).
         tag: Optional human-readable pipeline tag propagated to the clip.
         n_devices: Number of GPU devices used for feature extraction.
-        gpu_batch_size: Batch size per GPU device.
+        device_batch_size: Batch size per GPU device.
         n_workers: Number of CPU workers for parallel bag loading.
         cpu_batch_size: Optional batch size for CPU-side parallel execution.
         cpu_parallelization: CPU parallelization strategy (``'Inline'``,
@@ -317,7 +317,7 @@ def gigapath_feature_bags_median_probe(name, *, tag: str | None = None, n_device
         A ``FeatureBagMedianProbe`` datablock whose ``median``, ``min``, and
         ``max`` properties expose the computed statistics after building.
     """
-    return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, tag=tag, n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),))
+    return FeatureBagMedianProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, tag=tag, n_devices=n_devices, device_batch_size=device_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),))
 
 
 # git commit -am "gigaq: BipolarFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_400159').build()"
@@ -336,7 +336,7 @@ def gigapath_bipolar_feature_bags_probe(name,
                                         bag_n_workers: int = 1,
                                         gpu_parallelization: str = 'multithreading',    
                                         n_devices: int = 1, 
-                                        gpu_batch_size: int = 16,
+                                        device_batch_size: int = 16,
     ) -> BipolarFeatureBagProbe:
     """Bipolarise GigaPath tile features and compute comprehensive clip-level statistics.
 
@@ -386,7 +386,7 @@ def gigapath_bipolar_feature_bags_probe(name,
         bag_n_workers: Worker count for bag formation.
         gpu_parallelization: GPU parallelization strategy.
         n_devices: Number of GPU devices.
-        gpu_batch_size: Batch size per GPU.
+        device_batch_size: Batch size per GPU.
 
     Returns:
         A ``BipolarFeatureBagProbe`` datablock exposing clip-wide tile- and
@@ -398,7 +398,7 @@ def gigapath_bipolar_feature_bags_probe(name,
                                                             tag=tag,
                                                             gpu_parallelization=gpu_parallelization,
                                                             n_devices=n_devices, 
-                                                            gpu_batch_size=gpu_batch_size, 
+                                                            device_batch_size=device_batch_size, 
                                                             cpu_parallelization=cpu_parallelization, 
                                                             n_workers=n_workers, 
                                                             cpu_batch_size=cpu_batch_size, 
@@ -408,7 +408,7 @@ def gigapath_bipolar_feature_bags_probe(name,
                                                         ), 
                   medianprobe=gigapath_feature_bags_median_probe(f"{name}_CALIBRATE", 
                                                                  tag=tag,
-                                                                 n_devices=n_devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),
+                                                                 n_devices=n_devices, device_batch_size=device_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization),
         ),
         devices=[f'cuda:{i}' for i in range(n_devices)],
     )
@@ -436,7 +436,7 @@ def gigapath_bipolar_feature_bag_clip(name,
                                      bag_n_workers: int = 0,
                                      gpu_parallelization: str = 'multithreading',
                                      n_devices: int = 1,
-                                     gpu_batch_size: int = 16,
+                                     device_batch_size: int = 16,
     ) -> BipolarFeatureBagClip:
     """Materialise a clip of per-bag bipolar features for a GigaPath split.
 
@@ -476,7 +476,7 @@ def gigapath_bipolar_feature_bag_clip(name,
         bag_n_workers: Worker count for bag formation.
         gpu_parallelization: GPU parallelization strategy.
         n_devices: Number of GPU devices.
-        gpu_batch_size: Batch size per GPU.
+        device_batch_size: Batch size per GPU.
 
     Returns:
         A ``BipolarFeatureBagClip`` (or ``BipolarSingleFeatureBagClip``)
@@ -489,7 +489,7 @@ def gigapath_bipolar_feature_bag_clip(name,
         name=name,
         gpu_parallelization=gpu_parallelization, 
         n_devices=n_devices, 
-        gpu_batch_size=gpu_batch_size, 
+        device_batch_size=device_batch_size, 
         cpu_parallelization=cpu_parallelization,
         n_workers=n_workers, 
         cpu_batch_size=cpu_batch_size,
@@ -520,7 +520,7 @@ def gigapath_bipolar_feature_bag_clip(name,
             bag_n_workers=bag_n_workers,
             bag_cpu_batch_size=bag_cpu_batch_size,
             gpu_parallelization=gpu_parallelization,
-            gpu_batch_size=gpu_batch_size,
+            device_batch_size=device_batch_size,
             devices=devices,
             tag=tag,
         )
@@ -533,16 +533,16 @@ def gigapath_bipolar_feature_bag_clip(name,
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_0')[0]"
 # git commit -am "gigaq: BipolarFeaturebagDataset: TEST"; dbx.pprint "autopath.gigapath.pipelines.gigapath_bipolar_featurebag_dataset('GIGAPATH_BASELINE_CPTAC_400159_SINGLE_1')[0]"
 def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_seed: int = None,
-                                      n_workers: int = 0, n_devices: int = 1, gpu_batch_size: int = 16,
+                                      n_workers: int = 0, n_devices: int = 1, device_batch_size: int = 16,
                                       cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
     ) -> torch.utils.data.Dataset:
     if 'SINGLE' in name:
         single = int(name.split('_')[-1])
         name = name.split('_SINGLE')[0]
         dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> single: {repr(single)}\nname: {repr(name)}")
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single, n_workers=n_workers, n_devices=n_devices, device_batch_size=device_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     else:
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, device_batch_size=device_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     dbx.Logger(name='gigapath_bipolar_featurebag_dataset').debug(f"===================> {featureclip=}\nquoted featureclip {dbx.quote(featureclip)}")
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
@@ -550,16 +550,16 @@ def gigapath_bipolar_featurebag_dataset(name, *, root: str = None, shuffle_bags_
 
 
 def gigapath_bipolar_featurebag_dataloader_builder(name, root: str = None, shuffle_bags_seed: int = None, 
-                                                  n_workers: int = 0, n_devices: int = 1, gpu_batch_size: int = 16,
+                                                  n_workers: int = 0, n_devices: int = 1, device_batch_size: int = 16,
                                                   cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading',
                                                   shuffle_bags: bool = False,
                                                   **dataloader_kwargs):
     if 'SINGLE' in name:
         single = int(name.split('_')[-1])
         name = name.split('_SINGLE')[0]
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, single=single, n_workers=n_workers, n_devices=n_devices, device_batch_size=device_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     else:
-        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
+        featureclip = gigapath_bipolar_feature_bag_clip(name, root=root, n_workers=n_workers, n_devices=n_devices, device_batch_size=device_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization)
     transform = dbx.quote(FeaturesToFloat, dtype='float32')
     target_transform = dbx.quote(FeaturesLabelTileToFloat, dtype='float32')
     clip_dataset_builder = TileClipDatasetBuilder(spec=dict(clip=dbx.quote(featureclip), transform=transform, target_transform=target_transform, shuffle_seed=shuffle_bags_seed))
@@ -869,10 +869,10 @@ def gigapath_bipolar_hydro_still(
 # git commit -am "gigaq: LogisticFeatureBagProbe: BUILD"; dbx.pprint "autopath.gigapath.pipelines.gigapath_logistic_feature_bags_probe('GIGAPATH_BASELINE_CPTAC_9802_TRAIN', n_bins=2, aggregation='cdf').build()"
 
 def gigapath_logistic_feature_bags_probe(name, n_bins: int = 2, polarize: bool = False, aggregation: str = 'mean',
-                                         n_workers: int = 1, n_devices: int = 1, gpu_batch_size: int = 1024,
+                                         n_workers: int = 1, n_devices: int = 1, device_batch_size: int = 1024,
                                          cpu_parallelization: str = 'Inline', gpu_parallelization: str = 'Multithreading'
     ) -> LogisticFeatureBagProbe:
-    return LogisticFeatureBagProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_workers=n_workers, n_devices=n_devices, gpu_batch_size=gpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization), n_bins=n_bins, polarize=polarize, aggregation=aggregation))
+    return LogisticFeatureBagProbe(spec=dict(featurebagclip=gigapath_feature_bag_clip(name, n_workers=n_workers, n_devices=n_devices, device_batch_size=device_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization), n_bins=n_bins, polarize=polarize, aggregation=aggregation))
     
 
 # ---- SphericalFeatureBagClip ------------------------------------------------
@@ -891,7 +891,7 @@ def gigapath_spherical_feature_bag_clip(name,
                                        bag_n_workers: int = 1,
                                        gpu_parallelization: str = 'multithreading',
                                        n_devices: int = 1,
-                                       gpu_batch_size: int = 16,
+                                       device_batch_size: int = 16,
     ) -> SphericalFeatureBagClip:
     """Materialise a clip of L2-normalised (spherical) feature bags.
 
@@ -914,7 +914,7 @@ def gigapath_spherical_feature_bag_clip(name,
         gpu_parallelization: GPU parallelization strategy (passed to
             the underlying ``FeatureBagClip``).
         n_devices: Number of GPU devices.
-        gpu_batch_size: Batch size per GPU.
+        device_batch_size: Batch size per GPU.
 
     Returns:
         A ``SphericalFeatureBagClip`` whose ``.bags`` yields
@@ -926,7 +926,7 @@ def gigapath_spherical_feature_bag_clip(name,
                 name,
                 tag=tag,
                 n_devices=n_devices,
-                gpu_batch_size=gpu_batch_size,
+                device_batch_size=device_batch_size,
                 n_workers=n_workers,
                 cpu_batch_size=cpu_batch_size,
                 cpu_parallelization=cpu_parallelization,
@@ -963,7 +963,7 @@ def gigapath_affine_logistic_feature_bags_probe(name,
                                                 aggregation: str = 'mean',
                                                 n_workers: int = 1,
                                                 n_devices: int = 1,
-                                                gpu_batch_size: int = 16,
+                                                device_batch_size: int = 16,
                                                 cpu_parallelization: str = 'Inline',
                                                 gpu_parallelization: str = 'Multithreading',
     ) -> AffineLogisticFeatureBagProbe:
@@ -988,7 +988,7 @@ def gigapath_affine_logistic_feature_bags_probe(name,
         aggregation: Bag-level feature aggregation (``"mean"``).
         n_workers: CPU worker count.
         n_devices: Number of GPU devices.
-        gpu_batch_size: Batch size per GPU.
+        device_batch_size: Batch size per GPU.
         cpu_parallelization: CPU parallelization strategy.
         gpu_parallelization: GPU parallelization strategy.
 
@@ -1000,7 +1000,7 @@ def gigapath_affine_logistic_feature_bags_probe(name,
         clip = gigapath_spherical_feature_bag_clip(
             name, tag=tag,
             n_workers=n_workers, n_devices=n_devices,
-            gpu_batch_size=gpu_batch_size,
+            device_batch_size=device_batch_size,
             cpu_parallelization=cpu_parallelization,
             gpu_parallelization=gpu_parallelization,
         )
@@ -1008,7 +1008,7 @@ def gigapath_affine_logistic_feature_bags_probe(name,
         clip = gigapath_feature_bag_clip(
             name, tag=tag,
             n_workers=n_workers, n_devices=n_devices,
-            gpu_batch_size=gpu_batch_size,
+            device_batch_size=device_batch_size,
             cpu_parallelization=cpu_parallelization,
             gpu_parallelization=gpu_parallelization,
         )
@@ -1180,10 +1180,10 @@ def quote_spectral_extractor(name='GIGAPATH_SPECTRAL_BACKBONE_EVALUATOR_BLOCKS:5
         return dbx.quote(gigapath_backbone_evaluator, name)
         
 
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5CAPPED_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:CLS').set(device='cuda', gpu_batch_size=1024).build()"
-# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:BOTH10').set(device='cuda', gpu_batch_size=64).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5_SPEC:CLS').set(device='cuda', device_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:5CAPPED_SPEC:CLS').set(device='cuda', device_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:CLS').set(device='cuda', device_batch_size=1024).build()"
+# git commit -am "gigaq: SpectralFeatureBag: BUILD" > /dev/null || true; dbx.pprint "autopath.gigapath.pipelines.gigapath_spectral_feature_bag('GIGAPATH_CPTAC_SAMPLE_SPECTRAL_BLOCKS:40CAPPED_SPEC:BOTH10').set(device='cuda', device_batch_size=64).build()"
 
 def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> SpectralFeatureBag:
     if name is None:
@@ -1204,7 +1204,7 @@ def gigapath_spectral_feature_bag(name: str = None, *, root: str = None) -> Spec
 @tagged
 def gigapath_spectral_feature_bag_clip(name: str = None, *, tag: str | None = None, root: str = None,
                                        n_workers: int = 1, n_devices: int = 1,
-                                       gpu_batch_size: int = 1,
+                                       device_batch_size: int = 1,
                                        cpu_batch_size: int | None = None,
                                        gpu_parallelization: Literal['Multiprocessing', 'Multithreading'] = 'multithreading',
                                        cpu_parallelization: Literal['Ray', 'Multiprocessing', 'Multithreading', 'Inline'] = 'ray',
@@ -1232,7 +1232,7 @@ def gigapath_spectral_feature_bag_clip(name: str = None, *, tag: str | None = No
         ),
         n_workers=n_workers,
         devices=devices,
-        gpu_batch_size=gpu_batch_size,
+        device_batch_size=device_batch_size,
         cpu_batch_size=cpu_batch_size,
         gpu_parallelization=gpu_parallelization,
         cpu_parallelization=cpu_parallelization,

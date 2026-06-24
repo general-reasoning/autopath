@@ -474,11 +474,10 @@ def bitconv_deep_feature_clip(
             evaluator_factory=dbx.quote(evaluator_factory),
             shard_size=cfg_shard_size,
         ),
-        gpu_batch_size=batch_size,
+        device_batch_size=batch_size,
         devices=devices,
         n_workers=len(devices),
         parallelization=parallelization,
-        keyby='tag_version_hash',
     )
 
 

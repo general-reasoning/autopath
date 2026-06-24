@@ -65,8 +65,8 @@ class DeepFeatureBag(Bag):
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024    # samples per MDS shard
 
-    def __init__(self, *args, gpu_batch_size: int = 64, device: str = "cuda", **kwargs):
-        Datablock.__init__(self, *args, gpu_batch_size=gpu_batch_size, device=device, **kwargs)
+    def __init__(self, *args, device_batch_size: int = 64, device: str = "cuda", **kwargs):
+        Datablock.__init__(self, *args, device_batch_size=device_batch_size, device=device, **kwargs)
 
     def __post_init__(self):
         # Compute feature names without loading the model.
@@ -163,15 +163,15 @@ class DeepFeatureBag(Bag):
         columns["tile_index"] = "int32"
         columns["bag_name"] = "str"
 
-        n_batches = math.ceil(n_tiles / self.gpu_batch_size)
+        n_batches = math.ceil(n_tiles / self.device_batch_size)
         progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch')
         writer = None
         tile_cursor = 0
 
         try:
             for k in progress:
-                m = k * self.gpu_batch_size
-                n = min((k + 1) * self.gpu_batch_size, n_tiles)
+                m = k * self.device_batch_size
+                n = min((k + 1) * self.device_batch_size, n_tiles)
                 batch = tiles_tensor[m:n].to(self.device)
 
                 result = evaluator(batch)
@@ -365,11 +365,11 @@ class DeepFeatureClip(Clip):
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024
 
-    def __init__(self, *args, gpu_batch_size: int = 64,
+    def __init__(self, *args, device_batch_size: int = 64,
                  devices: list = None, **kwargs):
         self._devices = devices or ["cuda"]
         kwargs.pop('v2', None)
-        super().__init__(*args, gpu_batch_size=gpu_batch_size, **kwargs)
+        super().__init__(*args, device_batch_size=device_batch_size, **kwargs)
 
     @property
     def n_blocks(self) -> int:
@@ -419,7 +419,7 @@ class DeepFeatureClip(Clip):
                 evaluator_factory=self.spec['evaluator_factory'],
                 shard_size=self.cfg.shard_size,
             ),
-            gpu_batch_size=self.gpu_batch_size,
+            device_batch_size=self.device_batch_size,
             device=device,
             revision=self.revision,
             tag=tilebag.tag,

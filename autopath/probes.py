@@ -535,16 +535,16 @@ class BipolarFeatureBagProbe(Datablock):
         medianprobe: FeatureBagMedianProbe
 
     class BipolarFeaturesSimilarityShardComputer:
-        def __init__(self, rows, *, device: str = 'cuda', gpu_batch_size: int = 1024, log: Logger = Logger()):
+        def __init__(self, rows, *, device: str = 'cuda', device_batch_size: int = 1024, log: Logger = Logger()):
             self.rows = rows
             self.device = device
-            self.gpu_batch_size = gpu_batch_size
+            self.device_batch_size = device_batch_size
             self.log = log
 
         def __call__(self, probe, features, groups, similarities):
-            self.log.detailed(f"Executing BipolarFeaturesSimilarityShardComputer with {len(self.rows)} rows on device {self.device} using batch size {self.gpu_batch_size}: BEGIN")
-            row_blocks = torch.split(torch.tensor(self.rows), self.gpu_batch_size)
-            col_blocks = torch.split(torch.arange(features.shape[0]), self.gpu_batch_size)
+            self.log.detailed(f"Executing BipolarFeaturesSimilarityShardComputer with {len(self.rows)} rows on device {self.device} using batch size {self.device_batch_size}: BEGIN")
+            row_blocks = torch.split(torch.tensor(self.rows), self.device_batch_size)
+            col_blocks = torch.split(torch.arange(features.shape[0]), self.device_batch_size)
             for row_block_idx, col_block_idx in itertools.product(range(len(row_blocks)), range(len(col_blocks))):
                 self.log.verbose(f"COMPUTING similarities between row block {row_block_idx} and col block {col_block_idx}: BEGIN")
                 row_indices = row_blocks[row_block_idx]
@@ -558,7 +558,7 @@ class BipolarFeatureBagProbe(Datablock):
                 target_cols = col_groups.unsqueeze(0).expand(len(row_groups), -1).reshape(-1)
                 similarities.index_put_((target_rows, target_cols), _similarities.reshape(-1), accumulate=True)
                 self.log.verbose(f"COMPUTING similarities between row block {row_block_idx} and col block {col_block_idx}: END")
-            self.log.detailed(f"Executing BipolarFeaturesSimilarityShardComputer with {len(self.rows)} rows on device {self.device} using batch size {self.gpu_batch_size}: END")
+            self.log.detailed(f"Executing BipolarFeaturesSimilarityShardComputer with {len(self.rows)} rows on device {self.device} using batch size {self.device_batch_size}: END")
 
     @dataclass
     class Stats:
@@ -602,13 +602,13 @@ class BipolarFeatureBagProbe(Datablock):
     def __init__(self, 
                  *args, 
                  devices=['cuda:0'], 
-                 gpu_batch_size: int = 1024, 
+                 device_batch_size: int = 1024, 
                  n_workers: int = 1, 
                  cpu_batch_size: int|None = None,
                  cpu_parallelization: str = 'inline',
                  gpu_parallelization: str = 'multithreading',
                  **kwargs):
-        super().__init__(*args, devices=devices, gpu_batch_size=gpu_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
+        super().__init__(*args, devices=devices, device_batch_size=device_batch_size, n_workers=n_workers, cpu_batch_size=cpu_batch_size, cpu_parallelization=cpu_parallelization, gpu_parallelization=gpu_parallelization, **kwargs)
 
     def __build__(self):
         if not self.validtopics([
@@ -1044,27 +1044,27 @@ class BipolarFeatureBagProbe(Datablock):
                 bag_similarities = torch.zeros((self.n_bags, self.n_bags))
                 bag_indices = torch.tensor_split(torch.arange(self.n_bags), len(self.devices))
                 bag_similarities_computers = [
-                    self.BipolarFeaturesSimilarityShardComputer(bag_indices[i], device=self.devices[i], gpu_batch_size=self.gpu_batch_size, log=self.log)
+                    self.BipolarFeaturesSimilarityShardComputer(bag_indices[i], device=self.devices[i], device_batch_size=self.device_batch_size, log=self.log)
                     for i in range(len(self.devices))
                 ]
-                self.log.verbose(f"COMPUTING bag similarities using {len(self.devices)} devices with gpu_batch_size {self.gpu_batch_size}: BEGIN")
+                self.log.verbose(f"COMPUTING bag similarities using {len(self.devices)} devices with device_batch_size {self.device_batch_size}: BEGIN")
                 bag_executor = MultithreadingCallableExecutor(n_workers=len(self.devices), log=self.log)
                 bag_executor.execute(bag_similarities_computers, self, tile_bipolar_features, torch.tensor(self.tile_bag_indices), bag_similarities)
                 write_npz(self.path('bag_similarities', ensure_dirpath=True), bag_similarities=bag_similarities)
-                self.log.verbose(f"COMPUTING bag similarities using {len(self.devices)} devices with gpu_batch_size {self.gpu_batch_size}: END")
+                self.log.verbose(f"COMPUTING bag similarities using {len(self.devices)} devices with device_batch_size {self.device_batch_size}: END")
 
             if not self.validtopic('label_similarities'):  
                 label_similarities = torch.zeros((self.n_distinct_labels, self.n_distinct_labels))
                 label_indices = torch.tensor_split(torch.arange(self.n_distinct_labels), len(self.devices))
                 label_similarities_computers = [
-                    self.BipolarFeaturesSimilarityShardComputer(label_indices[i], device=self.devices[i], gpu_batch_size=self.gpu_batch_size, log=self.log)
+                    self.BipolarFeaturesSimilarityShardComputer(label_indices[i], device=self.devices[i], device_batch_size=self.device_batch_size, log=self.log)
                     for i in range(len(self.devices))
                 ]
-                self.log.verbose(f"COMPUTING label similarities using {len(self.devices)} devices with gpu_batch_size {self.gpu_batch_size}: BEGIN")
+                self.log.verbose(f"COMPUTING label similarities using {len(self.devices)} devices with device_batch_size {self.device_batch_size}: BEGIN")
                 label_executor = MultithreadingCallableExecutor(n_workers=len(self.devices), log=self.log)
                 label_executor.execute(label_similarities_computers, self, tile_bipolar_features, torch.tensor(self.tile_label_indices), label_similarities)
                 write_npz(self.path('label_similarities', ensure_dirpath=True), label_similarities=label_similarities)
-                self.log.verbose(f"COMPUTING label similarities using {len(self.devices)} devices with gpu_batch_size {self.gpu_batch_size}: END")   
+                self.log.verbose(f"COMPUTING label similarities using {len(self.devices)} devices with device_batch_size {self.device_batch_size}: END")   
         
 
 
@@ -1147,12 +1147,12 @@ class FeaturePairwiseDistances(Datablock):
         layer: str = None
         seed: int = 42
 
-    def __init__(self, *args, n_devices: int = 1, gpu_batch_size: int = 1024, **kwargs):
-        super().__init__(*args, n_devices=n_devices, gpu_batch_size=gpu_batch_size, **kwargs)
+    def __init__(self, *args, n_devices: int = 1, device_batch_size: int = 1024, **kwargs):
+        super().__init__(*args, n_devices=n_devices, device_batch_size=device_batch_size, **kwargs)
 
     def __post_init__(self):
         self.devices = [f"cuda:{i}" for i in range(self.n_devices)]
-        self.cfg.featurebagclip = self.cfg.featurebagclip.set(devices=self.devices, gpu_batch_size=self.gpu_batch_size)
+        self.cfg.featurebagclip = self.cfg.featurebagclip.set(devices=self.devices, device_batch_size=self.device_batch_size)
         return self
     
     def build_tree(self):
