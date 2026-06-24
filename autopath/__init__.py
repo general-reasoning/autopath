@@ -7,6 +7,11 @@ import warnings
 warnings.filterwarnings('ignore', message=r'xFormers is (available|not available|disabled)',
                         category=UserWarning)
 
+import logging
+logging.getLogger('streaming.base.format.base.writer').addFilter(
+    lambda record: 'exist_ok is set to True so will remove contents' not in record.getMessage()
+)
+
 import torch
 
 import dbx
