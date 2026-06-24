@@ -472,7 +472,7 @@ class PancanTileClip(Clip):
 		resolution: str
 
 	def __init__(self, *args, **kwargs):
-		super().__init__(*args, v2=True, **kwargs)
+		super().__init__(*args, **kwargs)
 
 	def __post_init__(self):
 		def _is_tfrecords_dir(fs, d, resolution):

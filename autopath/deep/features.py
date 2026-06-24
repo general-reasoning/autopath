@@ -372,7 +372,7 @@ class DeepFeatureClip(Clip):
                  devices: list = None, **kwargs):
         self._devices = devices or ["cuda"]
         kwargs.pop('v2', None)
-        super().__init__(*args, gpu_batch_size=gpu_batch_size, v2=True, **kwargs)
+        super().__init__(*args, gpu_batch_size=gpu_batch_size, **kwargs)
 
     @property
     def n_blocks(self) -> int:
@@ -1035,7 +1035,7 @@ class BipolarDeepFeatureClip(Clip):
 
     def __init__(self, *args, **kwargs):
         kwargs.pop('v2', None)
-        super().__init__(*args, v2=True, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @property
     def feature_clip(self):
