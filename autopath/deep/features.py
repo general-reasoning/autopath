@@ -124,10 +124,6 @@ class DeepFeatureBag(Bag):
             )
         return super().validtopic(topic)
 
-    def valid(self, topic):
-        if topic is not None:
-            return self.validtopic(topic)
-        return self.validtopics(reduce=True)
 
 
     # ── Build ───────────────────────────────────────────────────────

@@ -224,8 +224,7 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
     gpu_batch_size=512, \
-    n_devices=3,\
-    parallelization='multiprocessing',\
+    n_devices=3, parallelization='multiprocessing', work_stealing=True,\
 ).build_tree()"
 ### CPTAC_602020_TRAIN|CALIBRATE|TEST: OUTPUT-ONLY|ALL_HEADS
 ## piggyback on CPTAC clip
