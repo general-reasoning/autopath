@@ -450,7 +450,13 @@ def gigapath_deep_feature_clip_dataloader_samples(
 
 """
 ### CPTAC 60/20/20 — no normalization
-git commit -am 'deep: AffineLogisticProbe: BUILD' > /dev/null || true; ç
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+).build_tree()"
 
 ### CPTAC 60/20/20 — L2-normalised features
 git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\

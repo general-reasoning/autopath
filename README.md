@@ -196,7 +196,7 @@ flowchart TB
     INPUT["Input Tile<br/>(B, 3, 256, 256)"] --> STEM
 
     subgraph STEM ["Stem (full-precision)"]
-        S1["Conv2d 3→C, 7×7, stride 2<br/>(B, C, 128, 128)"]
+        S1["Conv2d 3→C, 7×7, stride 2<br/>Outputs (B, C, 128, 128)<br/>where C = hidden_channels (default: 128)"]
         S1 --> BN0["BatchNorm + ReLU"]
     end
 
@@ -229,7 +229,9 @@ flowchart TB
 
 - **Stem is full-precision**: The first conv uses standard `nn.Conv2d` because
   the input (RGB pixels) has very low entropy and quantizing 3-channel inputs
-  to ternary weights loses too much information.
+  to ternary weights loses too much information. This 7×7 convolution with a stride of 2 acts as a spatial downsampler, moving the 7×7 kernel by 2 pixels at a time to immediately reduce the 256×256 input to `128×128`. The output shape of this stem is `(B, C, 128, 128)`, where `C` is the base number of hidden channels.
+
+- **Configurability**: In `BitPathConvLightning.CONFIG`, you can configure the base channel dimension `C` via `hidden_channels` (default 128). You can also configure the number of blocks (`n_blocks`), the output dimension (`output_dim`), and the number of prediction classes (`n_classes`). The stem's 7×7 kernel size and stride of 2 are currently fixed architectural choices, as 7×7 is a very well-established standard for the first layer of ConvNets like ResNet.
 
 - **Residual connections**: Each BitBlock uses a skip connection around the two
   `BitConv2d158` layers.  When channel dimensions change, a 1×1 projection
@@ -271,15 +273,15 @@ sequenceDiagram
     participant DL as DataLoader
     participant Net as BitPathNet
     participant Loss as CrossEntropy
-    participant Opt as Adam
+    participant Optim as Adam
 
     loop Each batch
         DL->>Net: tiles (B, 3, 256, 256)
         Note over Net: Forward pass with<br/>STE-quantized weights
         Net->>Loss: logits (B, 3, 1536)
         DL->>Loss: bipolar targets (B, 1536)<br/>mapped to class indices
-        Loss->>Opt: dL/dW (via STE)
-        Opt->>Net: Update latent weights W<br/>(full precision)
+        Loss->>Optim: dL/dW (via STE)
+        Optim->>Net: Update latent weights W<br/>(full precision)
     end
 ```
 
