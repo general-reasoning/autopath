@@ -164,7 +164,7 @@ class DeepFeatureBag(Bag):
         columns["bag_name"] = "str"
 
         n_batches = math.ceil(n_tiles / self.device_batch_size)
-        progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch', leave=False, disable=(n_batches <= 1))
+        progress = tqdm(range(n_batches), desc=self.tag or 'tiles', unit='batch', disable=True)
         writer = None
         tile_cursor = 0
 
