@@ -249,7 +249,6 @@ def bitpath_conv_still(
         still.build_tree()
     """
 
-
     # Strip any known split suffix so the user can pass either the base
     # name or a fully-qualified split name.
     _SPLIT_SUFFIXES = ('_TRAIN', '_TEST', '_CALIBRATE', '_VAL')
