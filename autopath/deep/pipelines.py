@@ -371,9 +371,17 @@ git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST shuffle' > /
     shuffle=True, \
     n=16,\
 )"
-git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST tiles' > /dev/null || true; dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST tiles' > /dev/null || true; \
+dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC', \
     cfg_cls_token_only=True, \
+    n=4,\
+)"
+git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST tiles' > /dev/null || true; \
+dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
     n=4,\
 )"
 """
