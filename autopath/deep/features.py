@@ -920,7 +920,7 @@ class BipolarDeepFeatureBag(Bag):
         finally:
             writer.finish()
 
-        self.log.verbose(
+        self.log.detailed(
             f"Built bipolar features: {n_tiles} tiles, d={tile_bipolar.shape[1]}, "
             f"bag dims with |mean|>={threshold}: "
             f"{int((np.abs(bag_mean) >= threshold).sum())}/{tile_bipolar.shape[1]}"
