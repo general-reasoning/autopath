@@ -823,8 +823,6 @@ def gigapath_bipolar_deep_feature_clip(
         )
         bipolar.build_tree()
     """
-
-
     if parallelization is None and n_workers > 1:
         parallelization = 'multiprocessing'
 
