@@ -603,8 +603,6 @@ def gigapath_deep_feature_affine_logistic_probe(
         )
         probe.build()
     """
-
-
     clip = gigapath_deep_feature_clip(
         name,
         cfg_capture_blocks=cfg_capture_blocks,
@@ -627,7 +625,6 @@ def gigapath_deep_feature_affine_logistic_probe(
     )
 
 
-
 # ═══════════════════════════════════════════════════════════════════════
 #  Deep Feature Stats Probe pipeline
 # ═══════════════════════════════════════════════════════════════════════
@@ -640,7 +637,7 @@ autopath.deep.pipelines.gigapath_deep_feature_stats_probe( \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
-).build_tree()"
+).build()"
 """
 def gigapath_deep_feature_stats_probe(
     name: str,
