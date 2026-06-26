@@ -384,6 +384,13 @@ dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_sample
     cfg_shard_size=64, \
     n=4,\
 )"
+git commit -am 'gigapath_deep_feature_clip_dataloader_samples: TEST tiles' > /dev/null || true; \
+dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE, \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    n=4,\
+)"
 """
 def gigapath_deep_feature_clip_dataloader_samples(
     name: str,
