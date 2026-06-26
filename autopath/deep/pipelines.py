@@ -489,11 +489,18 @@ autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
     cfg_shard_size=64, \
     cfg_normalize='l2', \
 ).build_tree()"
-
+git commit -am 'deep: AffineLogisticProbe(l2): BUILD' > /dev/null || true; dbx.pprint "\
+autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    cfg_layer='output', \
+    cfg_cls_token_only=True, \
+    cfg_shard_size=64, \
+    cfg_normalize='l2', \
+).build_tree()"
 ### CPTAC 60/20/20 — corner-linfty features
 git commit -am 'deep: AffineLogisticProbe(corner-linfty): BUILD' > /dev/null || true; dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
     cfg_layer='output', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
