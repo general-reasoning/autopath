@@ -271,6 +271,8 @@ class DeepFeatureAffineLogisticProbe(Datablock):
     - ``classes``             — ordered class labels from the fitted model
     """
 
+    VERSION = 1
+
     TOPICS = {
         'bag_labels':        'bag_labels.npz',
         'bag_annotations':   'bag_annotations.pkl',
@@ -424,6 +426,8 @@ class DeepFeatureStatsProbe(Datablock):
     Subsumes the functionality of
     :class:`~autopath.probes.FeatureBagMedianProbe`.
     """
+
+    VERSION = 1
 
     TOPICS = {
         'tile_count':           'tile_count.npz',

@@ -55,7 +55,7 @@ class DeepFeatureBag(Bag):
         ``fs.ls`` listing of the shards directory.
     """
 
-    VERSION = 7  # bump to 8 when rebuilding with tile_index + bag_name
+    VERSION = 8
 
     TOPICS = ['shards']
 
@@ -84,7 +84,7 @@ class DeepFeatureBag(Bag):
             for layer in getattr(factory.cfg, 'capture_layers', []):
                 names.append(layer)
             if getattr(factory.cfg, 'capture_outputs', True):
-                names.append('output')
+                names.append('final')
             self._feature_names = names
         elif hasattr(factory, 'evaluator'):
             # Last resort — loads the model; avoid if factory has layer_names.
@@ -289,7 +289,7 @@ class DeepFeatureBag(Bag):
         Parameters
         ----------
         layer : str
-            Feature key (e.g. ``"block.0"``, ``"output"``).
+            Feature key (e.g. ``"block.0"``, ``"final"``).
 
         Returns
         -------
@@ -351,7 +351,7 @@ class DeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 4
+    VERSION = 5
 
     # Inherits TOPICS = {"bag_lens": "bag_lens.npz"} from Clip.
     # Do NOT also declare TOPICS — the presence of both causes path()
@@ -710,7 +710,7 @@ class DeepFeatureClip(Clip):
         results_bs1 = []
         for _ in range(n_repeats):
             r = evaluator(tile)
-            results_bs1.append(r['output'][0].numpy().copy())
+            results_bs1.append(r['final'][0].numpy().copy())
             evaluator.clear()
 
         # --- BS=build_batch_size (same tile repeated) ---
@@ -718,7 +718,7 @@ class DeepFeatureClip(Clip):
         results_bsN = []
         for _ in range(n_repeats):
             r = evaluator(batch)
-            results_bsN.append(r['output'][0].numpy().copy())
+            results_bsN.append(r['final'][0].numpy().copy())
             evaluator.clear()
 
         bs1 = np.stack(results_bs1)
@@ -804,14 +804,14 @@ class BipolarDeepFeatureBag(Bag):
         across all tiles in the same bag).
     """
 
-    VERSION = 5
+    VERSION = 6
 
     TOPICS = ['shards']
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
         deep_feature_bag: DeepFeatureBag
-        layer: str = 'output'
+        layer: str = 'final'
         bag_aggregation_threshold: float = 0.5
         ternarize_tiles: bool = False
 
@@ -1018,13 +1018,13 @@ class BipolarDeepFeatureClip(Clip):
     """
 
     v2 = True
-    VERSION = 5
+    VERSION = 6
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
         clip: object              # DeepFeatureClip
         stats_probe: object       # DeepFeatureStatsProbe
-        layer: str = 'output'
+        layer: str = 'final'
         bag_aggregation_threshold: float = 0.5
         ternarize_tiles: bool = False
 

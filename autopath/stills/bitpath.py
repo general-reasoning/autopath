@@ -14,7 +14,6 @@ import glob
 import io
 import os
 import re
-import tempfile
 
 import torch
 import torch.nn as nn
@@ -495,7 +494,7 @@ class BitPathConvLightning(Datablock):
         # Scheduler
         scheduler: str = 'cosine'
         # Feature column
-        feature_layer: str = 'output'
+        feature_layer: str = 'final'
         # Logging
         log_every_n_steps: int = 50
 
@@ -504,7 +503,7 @@ class BitPathConvLightning(Datablock):
         def __init__(
             self,
             model: nn.Module,
-            feature_layer: str = 'output',
+            feature_layer: str = 'final',
             learning_rate: float = 1e-3,
             weight_decay: float = 0.01,
             scheduler: str = 'cosine',
@@ -755,7 +754,7 @@ class BitPathConvStill(Datablock):
     training and via an ``atexit`` handler for crash resilience.
     """
 
-    VERSION = 1
+    VERSION = 2
     TOPICS = ['ckpts', 'logs']
 
     @dataclass
@@ -808,72 +807,44 @@ class BitPathConvStill(Datablock):
 
     @property
     def _local_ckpts_dir(self):
-        """Where Lightning writes checkpoints.
+        """Where Lightning writes checkpoints — always a real local path.
 
-        * **Local**: directly ``self.dirpath('ckpts')`` — no staging needed.
-        * **Remote**: ``<tmpdir>/datalake/<anchorkey>/ckpts/`` —
-          synced to remote at the end of / on exception from ``__build__``.
+        Delegates to ``dirpath('ckpts', local=True)``: when the block's url
+        is already local this is the canonical path; when it is remote it is
+        the DBX_LOCAL staging path (or ``/tmp/dbx`` by default).
         """
-        if self._is_remote():
-            base = os.path.join(
-                tempfile.gettempdir(),
-                'datalake',
-                self.anchorkey,
-                'ckpts',
-            )
-        else:
-            base = self.dirpath('ckpts', ensure=True)
+        base = self.dirpath('ckpts', local=True, ensure=True)
         os.makedirs(base, exist_ok=True)
         return base
 
     @property
     def _local_logs_dir(self):
-        """Where TensorBoard events are written.
+        """Where TensorBoard events are written — always a real local path.
 
-        * **Local**: directly ``self.dirpath('logs')`` — no staging needed.
-          :meth:`linklogs` will symlink ``logsroot/<tag>`` here so
-          TensorBoard still discovers it from the standard location.
-        * **Remote**: ``<tmpdir>/datalake/<anchorkey>/logs/`` —
-          synced to remote Datablock storage (when ``save_remote_logs``
-          is set) at the end of / on exception from :meth:`__build__`.
+        Delegates to ``dirpath('logs', local=True)``: when the block's url
+        is already local this is the canonical path; when it is remote it is
+        the DBX_LOCAL staging path (or ``/tmp/dbx`` by default).
+        :meth:`linklogs` symlinks ``logsroot/<tag>`` here so TensorBoard
+        discovers the events from the standard location.
         """
-        if self._is_remote():
-            base = os.path.join(
-                tempfile.gettempdir(),
-                'datalake',
-                self.anchorkey,
-                'logs',
-            )
-        else:
-            base = self.dirpath('logs', ensure=True)
+        base = self.dirpath('logs', local=True, ensure=True)
         os.makedirs(base, exist_ok=True)
         return base
 
-    # -- remote helpers ----------------------------------------------------
+    # -- remote sync helpers -----------------------------------------------
 
-    def _is_remote(self):
-        protocol = (
-            self.fs.protocol
-            if isinstance(self.fs.protocol, str)
-            else self.fs.protocol[0]
-        )
-        return protocol not in ('file', 'local', '')
+    def _sync_ckpts_to_remote(self):
+        """Upload local checkpoints to remote Datablock storage via pushtopic.
 
-    def _sync_ckpts_to_remote(self, ckpts_dir):
-        """Upload local checkpoints to remote Datablock storage."""
-        if not self._is_remote():
-            return
-        remote_ckpts = self.dirpath('ckpts', ensure=True)
-        self.log.info(f'Syncing ckpts {ckpts_dir} -> {remote_ckpts}')
-        self.fs.put(ckpts_dir, remote_ckpts, recursive=True)
+        No-op when the block's url is already local (``pushtopic`` detects
+        that src == dest and skips the copy).
+        """
+        self.pushtopic('ckpts')
 
-    def _sync_logs_to_remote(self, logs_dir):
-        """Upload local logs to remote Datablock storage."""
-        if not self._is_remote():
-            return
-        remote_logs = self.dirpath('logs', ensure=True)
-        self.log.info(f'Syncing logs {logs_dir} -> {remote_logs}')
-        self.fs.put(logs_dir, remote_logs, recursive=True)
+    def _sync_logs_to_remote(self):
+        """Upload local TensorBoard logs to remote Datablock storage."""
+        if self.save_remote_logs:
+            self.pushtopic('logs')
 
     def upload(self, topic='logs'):
         """Upload a local-only topic to remote storage.
@@ -882,9 +853,9 @@ class BitPathConvStill(Datablock):
         explicit upload.  Other topics are a no-op.
         """
         if topic == 'logs':
-            self._sync_logs_to_remote(self._local_logs_dir)
+            self._sync_logs_to_remote()
         elif topic == 'ckpts':
-            self._sync_ckpts_to_remote(self._local_ckpts_dir)
+            self._sync_ckpts_to_remote()
         else:
             self.log.verbose("upload(%r): no-op (already remote)", topic)
         return self
@@ -899,40 +870,13 @@ class BitPathConvStill(Datablock):
         return os.path.join(self.logsroot, self.tag)
 
     def linklogs(self):
-        """Create a symlink so TensorBoard discovers the logs directory.
+        """Symlink ``logsroot/<tag>`` → local logs staging path.
 
-        Points to ``_local_logs_dir``, which is either the Datablock
-        local path (local FS) or the staging dir under ``/tmp`` (remote).
+        Delegates to :meth:`~dbx.Datablock.linklocal`, which handles
+        stale-link removal, non-symlink refusal, and the no-op when
+        ``logsroot`` is ``None``.
         """
-        logslink = self._logslink
-        if logslink is None:
-            return self
-
-        logs_dir = self._local_logs_dir  # already branched on _is_remote()
-
-        os.makedirs(os.path.dirname(logslink), exist_ok=True)
-
-        if os.path.lexists(logslink):
-            if (
-                os.path.islink(logslink)
-                and os.readlink(logslink) == logs_dir
-            ):
-                return self
-            try:
-                os.remove(logslink)
-            except Exception as e:
-                self.log.warning(
-                    f'Could not remove existing path at {logslink}: {e}'
-                )
-                return self
-        try:
-            os.symlink(logs_dir, logslink)
-            self.log.verbose(f'Linked logs: {logs_dir} -> {logslink}')
-        except Exception as e:
-            self.log.warning(
-                f'Failed to create symlink {logslink} -> {logs_dir}: {e}'
-            )
-        return self
+        return self.linklocal('logs', target=self._logslink)
 
     # -- validity ----------------------------------------------------------
 
@@ -960,50 +904,19 @@ class BitPathConvStill(Datablock):
         return int(m.group(1)) if m else -1
 
     def ckpt(self):
-        """Return the path to the most recent checkpoint, or None.
+        """Return the local path to the most recent checkpoint, or None.
 
-        Checks remote storage first (downloads to local if found),
-        then scans local.
+        Uses :meth:`~dbx.Datablock.synclocal` to download any remote
+        checkpoint not yet present in local staging, then returns the
+        path to the highest-step entry.
         """
-        ckpts_dir = self._local_ckpts_dir
-        os.makedirs(ckpts_dir, exist_ok=True)
-
-        # 1) Try remote — download the latest ckpt if not already local
-        try:
-            remote_ckpts_dir = self.dirpath('ckpts')
-            remote_files = [
-                f for f in (self.fs.ls(remote_ckpts_dir, detail=False)
-                            if self.fs.exists(remote_ckpts_dir) else [])
-                if f.endswith('.ckpt')
-            ]
-            if remote_files:
-                remote_files.sort(
-                    key=lambda f: self._ckpt_step(os.path.basename(f))
-                )
-                remote_ckpt = remote_files[-1]
-                name = os.path.basename(remote_ckpt)
-                local_path = os.path.join(ckpts_dir, name)
-                if not os.path.exists(local_path):
-                    self.log.info(
-                        'ckpt: downloading %s from remote...', name,
-                    )
-                    self.fs.get(remote_ckpt, local_path)
-        except Exception as e:
-            self.log.verbose(f'ckpt: remote check failed: {e}')
-
-        # 2) Scan local directory for the latest valid checkpoint
-        if not os.path.isdir(ckpts_dir):
-            return None
-
-        candidates = [
-            os.path.join(ckpts_dir, f)
-            for f in os.listdir(ckpts_dir)
-            if f.endswith('.ckpt')
-        ]
-        candidates.sort(
-            key=lambda p: self._ckpt_step(os.path.basename(p))
+        return self.synclocal(
+            'ckpts',
+            suffix='.ckpt',
+            key=self._ckpt_step,
+            latest=True,
+            validate=os.path.exists,
         )
-        return candidates[-1] if candidates else None
 
     # -- build (training) --------------------------------------------------
 
@@ -1019,15 +932,14 @@ class BitPathConvStill(Datablock):
         def _atexit_sync():
             self.log.info('atexit: syncing checkpoints to remote...')
             try:
-                self._sync_ckpts_to_remote(ckpts_dir)
+                self._sync_ckpts_to_remote()
             except Exception as e:
                 self.log.warning('atexit: ckpt sync failed: %s', e)
-            if self.save_remote_logs:
-                self.log.info('atexit: syncing logs to remote...')
-                try:
-                    self._sync_logs_to_remote(logs_dir)
-                except Exception as e:
-                    self.log.warning('atexit: log sync failed: %s', e)
+            self.log.info('atexit: syncing logs to remote...')
+            try:
+                self._sync_logs_to_remote()
+            except Exception as e:
+                self.log.warning('atexit: log sync failed: %s', e)
 
         atexit.register(_atexit_sync)
 
@@ -1370,6 +1282,8 @@ def _plot_connectivity(layers, max_ch: int = 48):
 
 class BitPathConvStillProbe(Datablock):
     """Visualise the ternary-weight connectivity of a :class:`BitPathConvStill`.
+
+    VERSION = 1
 
     Loads the latest checkpoint from the still, extracts the ternary
     (``{-1, 0, +1}``) weights from each ``BitConv2d158`` and

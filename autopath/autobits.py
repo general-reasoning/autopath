@@ -346,6 +346,8 @@ class DeepBackboneEvaluatorFactory(Datablock):
     :class:`DeepBackboneEvaluator`.
     """
 
+    VERSION = 1
+
     @dataclass
     class CONFIG:
         capture_blocks: list = field(default_factory=list)  # list[int] — transformer block indices

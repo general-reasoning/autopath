@@ -43,10 +43,10 @@ DEFAULT_LOGSROOT = os.path.join(os.environ['HOME'], 'autopath', 'tensorboard')
 
 """
 ### CPTAC 60/20/20 — BitPath distillation (3 GPUs)
-git commit -am 'stills: BitPathConvStill: BUILD' > /dev/null || true; dbx.pprint "\
+dbx.pprint "\
 autopath.stills.pipelines.bitpath_conv_still( \
     'GIGAPATH_DEEP_CPTAC_602020', \
-    cfg_layer='output', \
+    cfg_layer='final', \
     cfg_cls_token_only=True, \
     cfg_shard_size=64, \
     cfg_max_steps=10000, \
@@ -78,7 +78,7 @@ def bitpath_conv_still(
     cfg_dataloader_seed: int | None = None,
     cfg_num_workers: int = 4,
     # Bipolar clip params
-    cfg_layer: str = 'output',
+    cfg_layer: str = 'final',
     cfg_bag_aggregation_threshold: float = 0.5,
     cfg_ternarize_tiles: bool = False,
     cfg_stats_probe_name: str | None = None,
@@ -238,7 +238,7 @@ def bitpath_conv_still(
         ### 3-GPU BitPath distillation on CPTAC 60/20/20
         still = bitpath_conv_still(
             'GIGAPATH_DEEP_CPTAC_602020',
-            cfg_layer='output',
+            cfg_layer='final',
             cfg_cls_token_only=True,
             cfg_shard_size=64,
             cfg_max_epochs=100,          # AFFECTS HASH — include in eval call too
@@ -368,12 +368,12 @@ def bitconv_deep_backbone_evaluator_factory(
 
 """
 ### CPTAC 60/20/20 — BitConv feature extraction (CPU, multiprocessing)
-git commit -am 'stills: bitconv_deep_feature_clip: BUILD' > /dev/null || true; dbx.pprint "\
+dbx.pprint "\
 autopath.stills.pipelines.bitconv_deep_feature_clip( \
     'BITCONV_DEEP_CPTAC_602020_TEST', \
     still=autopath.stills.pipelines.bitpath_conv_still( \
         'GIGAPATH_DEEP_CPTAC_602020', \
-        cfg_layer='output', \
+        cfg_layer='final', \
         cfg_cls_token_only=True, \
         cfg_shard_size=64, \
         cfg_max_steps=10000, \
@@ -486,12 +486,12 @@ def bitconv_deep_feature_clip(
 
 """
 ### CPTAC 60/20/20 — BitConv logistic probe on train fold
-git commit -am 'stills: bitconv_deep_feature_affine_logistic_probe: BUILD' > /dev/null || true; dbx.pprint "\
+dbx.pprint "\
 autopath.stills.pipelines.bitconv_deep_feature_affine_logistic_probe( \
     'BITCONV_DEEP_CPTAC_602020_TEST', \
     still=autopath.stills.pipelines.bitpath_conv_still( \
         'GIGAPATH_DEEP_CPTAC_602020', \
-        cfg_layer='output', \
+        cfg_layer='final', \
         cfg_cls_token_only=True, \
         cfg_shard_size=64, \
         cfg_max_steps=10000, \
@@ -564,7 +564,7 @@ def bitconv_deep_feature_affine_logistic_probe(
             'BITCONV_DEEP_CPTAC_602020_TEST',
             still=bitpath_conv_still(
                 'GIGAPATH_DEEP_CPTAC_602020',
-                cfg_layer='output',
+                cfg_layer='final',
                 cfg_cls_token_only=True,
                 cfg_shard_size=64,
                 cfg_max_steps=10000,
@@ -589,7 +589,7 @@ def bitconv_deep_feature_affine_logistic_probe(
         url=url,
         spec=dict(
             clip=dbx.quote(clip),
-            layer='output',
+            layer='final',
             annotation_key=cfg_annotation_key,
             fit_intercept=cfg_fit_intercept,
             evaluation_fraction=cfg_evaluation_fraction,
@@ -604,11 +604,11 @@ def bitconv_deep_feature_affine_logistic_probe(
 
 """
 ### Connectivity plot for a trained BitPathConvStill
-git commit -am 'stills: bitpath_conv_still_probe: BUILD' > /dev/null || true; dbx.pprint "\
+dbx.pprint "\
 autopath.stills.pipelines.bitpath_conv_still_probe( \
     still=autopath.stills.pipelines.bitpath_conv_still( \
         'GIGAPATH_DEEP_CPTAC_602020', \
-        cfg_layer='output', \
+        cfg_layer='final', \
         cfg_cls_token_only=True, \
         cfg_shard_size=64, \
         cfg_max_steps=10000, \
@@ -645,7 +645,7 @@ def bitpath_conv_still_probe(
         probe = bitpath_conv_still_probe(
             still=bitpath_conv_still(
                 'GIGAPATH_DEEP_CPTAC_602020',
-                cfg_layer='output',
+                cfg_layer='final',
                 cfg_cls_token_only=True,
                 cfg_shard_size=64,
                 cfg_max_steps=10000,

@@ -10,16 +10,12 @@ from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTileParti
 from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RESOLUTION
 
 """
-git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().valid()"
 
-git commit -am "gigaq: PancanTileBag: BUILD" >/dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').build().paths()"
 
-git commit -am "gigaq: PancanTileBag: READ SHARDS" >/dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').read('shards')"
 
-git commit -am "gigaq: PancanTileBag: DATASET" >/dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_bag('CPTAC_SAMPLE').data()[0]"
 """
 def pancan_tile_bag(name=None) -> PancanTileBag:
@@ -31,10 +27,8 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
         raise ValueError(f"Unknown tile_bag: {name}")
 
 """
-git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build().valid()"
 
-git commit -am "gigaq: PancanTileClip: BUILD" > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC', n_workers=16).build().valid()"
 """
 def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | None = None) -> PancanTileClip:
@@ -57,28 +51,20 @@ def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | No
 
 
 """
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree()"
 #
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_9802').build_tree()"
 #
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build_tree()"
 #
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
 #
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_602020').build_tree()"
 #
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
 #
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_200179').build_tree()"
 #
-git commit -am 'gigaq: PancanTilePartition: BUILD' > /dev/null || true; \
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_305020').build_tree()"
 """
 def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = None) -> PancanTilePartition:
@@ -117,38 +103,38 @@ def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = Non
 
 
 """
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TEST').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_8020_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_9802_TEST').build().valid()"
 
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_CALIBRATE').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_CALIBRATE').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_404020_TEST').build().valid()"
 
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_CALIBRATE').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_CALIBRATE').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_305020_TEST').build().valid()"
 
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_CALIBRATE').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_CALIBRATE').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_206020_TEST').build().valid()"
 
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_602020_CALIBRATE').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_602020_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_602020_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_602020_CALIBRATE').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_602020_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_602020_TEST').build().valid()"
 
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TEST').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').block(0)"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').block_lens"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').block(0)"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_400159_CALIBRATE').block_lens"
 
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TRAIN').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TEST').build().valid()"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').block(0)"
-git commit -am 'gigaq: PancanTileFold: BUILD' > /dev/null || true; dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').block_lens"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TRAIN').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_TEST').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').block(0)"
+dbx.print "autopath.pancan.pipelines.pancan_tile_fold('CPTAC_200179_CALIBRATE').block_lens"
 """
 
 def pancan_tile_fold(name=None) -> PancanTileFold:
@@ -202,10 +188,8 @@ def pancan_tile_fold(name=None) -> PancanTileFold:
         raise ValueError(f"Unknown tile_fold: {name}")
 
 """
-git commit -am "gigaq: pancan_tile_dataset: CPTAC" > /dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC')[0]"
 
-git commit -am "gigaq: pancan_tile_dataset: fold" > /dev/null || true; \
 dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset('CPTAC_404020_TRAIN')[0]"
 """
 def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: bool = False, batch_size: int = 1):
@@ -244,37 +228,37 @@ def pancan_tile_dataset(name=None, *, shuffle: bool = False, skip_invalid_bags: 
 
 
 """
-git commit -am 'gigaq: pancan_tile_dataset_samples: CPTAC' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC', n=8, batch_size=1)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC', n=8, batch_size=1)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_8020_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_8020_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_8020_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_8020_TEST', n=8, batch_size=4)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_9802_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_9802_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_9802_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_9802_TEST', n=8, batch_size=4)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_404020_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_404020_CALIBRATE', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_404020_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_404020_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_404020_CALIBRATE', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_404020_TEST', n=8, batch_size=4)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_305020_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_305020_CALIBRATE', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_305020_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_305020_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_305020_CALIBRATE', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_305020_TEST', n=8, batch_size=4)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_206020_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_206020_CALIBRATE', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_206020_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_206020_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_206020_CALIBRATE', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_206020_TEST', n=8, batch_size=4)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_602020_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_602020_CALIBRATE', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_602020_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_602020_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_602020_CALIBRATE', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_602020_TEST', n=8, batch_size=4)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_400159_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_400159_CALIBRATE', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_400159_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_400159_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_400159_CALIBRATE', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_400159_TEST', n=8, batch_size=4)"
 
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_200179_TRAIN', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_200179_CALIBRATE', n=8, batch_size=4)"
-git commit -am 'gigaq: pancan_tile_dataset_samples: SAMPLE' > /dev/null || true; dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_200179_TEST', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_200179_TRAIN', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_200179_CALIBRATE', n=8, batch_size=4)"
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_dataset_samples('CPTAC_200179_TEST', n=8, batch_size=4)"
 """
 def pancan_tile_dataset_samples(
     name=None,
@@ -321,7 +305,7 @@ def pancan_tile_dataset_samples(
 
 
 """
-git commit -am 'pancan: verify tile integrity' > /dev/null || true; dbx.pprint "\
+dbx.pprint "\
 autopath.pancan.pipelines.pancan_verify_tile_integrity( \
     'CPTAC_602020_TRAIN', \
     n_bags=3, \

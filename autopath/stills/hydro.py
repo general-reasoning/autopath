@@ -9,7 +9,6 @@ import math
 import os
 from typing import Callable, List, Optional, Tuple
 
-import fsspec
 
 import numpy as np
 
@@ -804,7 +803,7 @@ class HydroStill(Datablock):
 
     @property
     def logs(self):
-        return self.dirpath('logs', ensure=True)
+        return self.dirpath('logs', local=True, ensure=True)
 
     @property
     def logslink(self):
@@ -828,9 +827,7 @@ class HydroStill(Datablock):
         if expected_n <= 0:
             return False
 
-        dirpath = self.dirpath('ckpts')
-        ckptfs, _ = fsspec.url_to_fs(dirpath)
-        files = [] if not ckptfs.exists(dirpath) else ckptfs.ls(dirpath)
+        files = self.ls('ckpts')
         ckpts = [f for f in files if f.endswith('.ckpt') and 'step=' in f]
         
         steps = []
@@ -867,39 +864,17 @@ class HydroStill(Datablock):
         return self
 
     def linklogs(self):
-        # Link the logs directory to the provided location (e.g., for Tensorboard to pick up the logs)
-        if self.logslink is not None:
-            self.log.verbose(f"---------------------- Linking logs to {self.logslink} ----------------------------")
-            
-            # Create a symlink only if self.logslink does not already point to target
-            if os.path.lexists(self.logslink):
-                if os.path.islink(self.logslink) and os.readlink(self.logslink) == self.logs:
-                    return self # Correct link already exists
-                
-                # It exists but is NOT the correct link.
-                # We remove it ONLY now to allow creation of the correct link.
-                # This avoids the unconditional removal that was previously at the start of the function.
-                try:
-                    os.remove(self.logslink)
-                except Exception as e:
-                    self.log.warning(f"Could not remove existing path at {self.logslink}: {e}")
-                    return self
+        """Symlink ``logsroot/<tag>`` → local logs staging path.
 
-            # Create the symlink
-            try:
-                # Ensure parent directory exists (needed if tag contains slashes)
-                os.makedirs(os.path.dirname(self.logslink), exist_ok=True)
-                os.symlink(self.logs, self.logslink)
-                self.log.debug(f"os.symlink({self.logs}, {self.logslink})")
-            except Exception as e:
-                self.log.warning(f"Failed to create symlink {self.logslink} -> {self.logs}: {e}")
-        return self
+        Delegates to :meth:`~dbx.Datablock.linklocal`, which handles
+        stale-link removal, non-symlink refusal, and the no-op when
+        ``logsroot`` is ``None``.
+        """
+        return self.linklocal('logs', target=self.logslink)
 
     def ckpt(self):
-        """Find the latest checkpoint file."""
-        dirpath = self.dirpath('ckpts')
-        ckptfs, _ = fsspec.url_to_fs(dirpath)
-        files = [] if not ckptfs.exists(dirpath) else ckptfs.ls(dirpath)
+        """Find the latest checkpoint file, checking remote then local staging."""
+        files = self.ls('ckpts')
         ckpts = [f for f in files if f.endswith('.ckpt') and 'step=' in f]
         steps = []
         for ckpt in ckpts:
@@ -947,10 +922,10 @@ class HydroStill(Datablock):
         )
 
         # Log the datablock metadata to TensorBoard for traceability
-        logger.experiment.add_text("HydroStill: anchorhashpath", f"```python\n{self.anchorhashpath}\n```", global_step=0)
+        logger.experiment.add_text("HydroStill: anchorkeypath", f"```python\n{self.anchorkeypath}\n```", global_step=0)
         logger.experiment.add_text("HydroStill: dfn", f"```python\n{self.dfn}\n```", global_step=0)
         
-        default_root_dir = self.dirpath('ckpts')
+        default_root_dir = self.dirpath('ckpts', local=True, ensure=True)
         
         self.log.verbose(f"Building trainer for {self.max_steps} steps using {self.cfg.lightning}")
         
@@ -964,7 +939,7 @@ class HydroStill(Datablock):
         if self.cfg.ckpt_every_n_steps is not None:
             callbacks.append(
                 L.pytorch.callbacks.ModelCheckpoint(
-                    dirpath=self.dirpath('ckpts'), 
+                    dirpath=self.dirpath('ckpts', local=True),
                     every_n_train_steps=self.cfg.ckpt_every_n_steps
                 )
             )
@@ -1023,5 +998,10 @@ class HydroStill(Datablock):
             trainer.fit(model=model, train_dataloaders=self.dataloader, **fit_kwargs)
         finally:
             torch.set_float32_matmul_precision(original_precision)
+            self.log.info('Syncing checkpoints to remote...')
+            try:
+                self.pushtopic('ckpts')
+            except Exception as e:
+                self.log.warning('ckpt sync failed: %s', e)
             
         return self

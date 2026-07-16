@@ -386,7 +386,7 @@ from autopath.deep.pipelines import bitpath_still
 
 still = bitpath_still(
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-    cfg_layer='output',
+    cfg_layer='final',
     cfg_cls_token_only=True,
     cfg_shard_size=64,
     cfg_batch_size=64,
@@ -435,7 +435,7 @@ ternary convolutions).
 
 #### AffineLogisticProbe on CPTAC 60/20/20
 
-All probes use `cfg_layer='output'`, `cfg_cls_token_only=True`, `cfg_shard_size=64` on the CPTAC 60/20/20 split.  Evaluation is on the 20% test fold (n=444 slides, 10 cancer types).
+All probes use `cfg_layer='final'`, `cfg_cls_token_only=True`, `cfg_shard_size=64` on the CPTAC 60/20/20 split.  Evaluation is on the 20% test fold (n=444 slides, 10 cancer types).
 
 **Asphericity** is defined as the mean `|intercept / coefficient|` ratio across feature dimensions in the per-class affine logistic classifier.  A value near 0 means the classifier's decision boundary passes close to the origin in feature space (the class cluster is approximately origin-centred); larger values indicate the boundary is offset — the class occupies a region far from zero in that feature.
 

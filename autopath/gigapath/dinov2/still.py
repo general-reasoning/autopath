@@ -295,7 +295,7 @@ class GigaqStill(Datablock):
 
             logger.info("Model:\n{}".format(model))
 
-            writer = SummaryWriter(self.dirpath('tensorboard', ensure=True))
+            writer = SummaryWriter(self.dirpath('tensorboard', local=True, ensure=True))
             model.train()
             inputs_dtype = torch.half
             fp16_scaler = model.fp16_scaler  # for mixed precision training
@@ -330,7 +330,7 @@ class GigaqStill(Datablock):
             iteration = start_iter
 
             logger.info("Starting training from iteration {}".format(start_iter))
-            metrics_file = os.path.join(self.dirpath('training_metrics', ensure=True), 'training_metrics.json')
+            metrics_file = os.path.join(self.dirpath('training_metrics', local=True, ensure=True), 'training_metrics.json')
             metric_logger = MetricLogger(delimiter="  ", output_file=metrics_file)
             header = "Training"
             for i, data in enumerate(metric_logger.log_every(
