@@ -6,7 +6,7 @@ import torchvision
 
 import dbx
 
-from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTilePartition, PancanTileFold, TileClipDatasetBuilder, sanitize_collate
+from autopath.pancan.clips import PancanTileBag, PancanTileClip, PancanTileClipAnnotations, PancanTilePartition, PancanTileFold, TileClipDatasetBuilder, sanitize_collate
 from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RESOLUTION
 
 """
@@ -356,3 +356,41 @@ def pancan_verify_tile_integrity(
     print(f"\n{'PASSED' if n_failed == 0 else 'FAILED'}: "
           f"{total} bags checked, {n_failed} failed")
     return results
+
+"""
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_clip_annotations('CPTAC').build().valid()"
+
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_clip_annotations('CPTAC').read('annotations')"
+
+dbx.pprint "autopath.pancan.pipelines.pancan_tile_clip_annotations('CPTAC').read('stats')"
+"""
+def pancan_tile_clip_annotations(name=None, *, batch_size: int = 1) -> PancanTileClipAnnotations:
+    """Return a :class:`PancanTileClipAnnotations` for the named clip.
+
+    Scans every tile in the clip's MDS shards, collects the per-tile
+    ``annotations`` field written by :meth:`PancanTileBag.__build__`,
+    and persists two JSON artefacts:
+
+    * ``annotations`` — flat list of per-tile annotation dicts
+    * ``stats``       — per-key value-frequency counts across all tiles
+
+    Parameters
+    ----------
+    name : str
+        Clip name.  Currently supported: ``'CPTAC'``.
+    batch_size : int
+        Streaming batch size forwarded to :meth:`PancanTileClip.dataset`.
+
+    Returns
+    -------
+    PancanTileClipAnnotations
+    """
+    if name is None:
+        return PancanTileClipAnnotations
+    elif name == "CPTAC":
+        return PancanTileClipAnnotations(
+            spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC')),
+            batch_size=batch_size,
+        )
+    else:
+        raise ValueError(f"Unknown tile_clip_annotations: {name}")

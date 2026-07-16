@@ -621,3 +621,51 @@ class PancanTileFold(Fold):
 		"""Delegate to :meth:`PancanTileClip.dataset` (same shard interface)."""
 		return PancanTileClip.dataset(self, shuffle=shuffle, skip_invalid_bags=skip_invalid_bags, batch_size=batch_size, **streaming_kwargs)
 
+
+class PancanTileClipAnnotations(Datablock):
+	VERSION = 1
+	@dataclass
+	class CONFIG:
+		clip: PancanTileClip
+
+	TOPICS = {"annotations": "annotations.json", "stats": "stats.json"}
+
+	def __init__(self, *args, batch_size=1, **kwargs):
+		super().__init__(*args, batch_size=batch_size, **kwargs)
+
+	def __build__(self):
+		ds = self.cfg.clip.dataset(shuffle=False, batch_size=self.batch_size)
+		anns = [dp['annotations'] for dp in tqdm.tqdm(ds, desc="Building PancanTileClipAnnotations")]
+		unique = {}
+		for ann in tqdm.tqdm(anns, desc="Building PancanTileClipAnnotations stats"):
+			if ann is None:
+				continue
+			for key, val in ann.items():
+				if key not in unique:
+					unique[key] = {}
+				if isinstance(val, list):
+					kind = 'list'
+				elif isinstance(val, dict):
+					kind = 'dict'
+				else:
+					kind = val
+				if kind not in unique[key]:
+					unique[key][kind] = 1
+				else:
+					unique[key][kind] += 1
+		dbx.write_json(anns, self.path("annotations", ensure_dirpath=True))
+		dbx.write_json(unique, self.path("stats", ensure_dirpath=True))
+		return self
+
+	def __read__(self, topic: str):
+		if topic == "annotations":
+			result = dbx.read_json(self.path("annotations"))
+		elif topic == "stats":
+			result = dbx.read_json(self.path("stats"))
+		else:
+			raise ValueError(f"Unknown topic: {topic}")
+		return result
+
+	
+
+		
