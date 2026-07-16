@@ -645,6 +645,17 @@ class PancanTileClipAnnotations(Datablock):
 		if not self.validtopic('stats'):
 			self.log.verbose("Building PancanTileClipAnnotations 'stats'")
 			unique = {}
+			#
+			def update_unique(unq, update):
+				for subkey, subval in update.items():
+					if subkey not in unq:
+						unq[subkey] = {}
+					if subval not in unq[subkey]:
+						unq[subkey][subval] = 1
+					else:
+						unq[subkey][subval] += 1
+				return unq
+			#
 			for ann in tqdm.tqdm(anns, desc="Building PancanTileClipAnnotations 'stats'"):
 				if ann is None:
 					continue
