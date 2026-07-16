@@ -634,27 +634,31 @@ class PancanTileClipAnnotations(Datablock):
 		super().__init__(*args, batch_size=batch_size, **kwargs)
 
 	def __build__(self):
-		ds = self.cfg.clip.dataset(shuffle=False, batch_size=self.batch_size)
-		anns = [dp['annotations'] for dp in tqdm.tqdm(ds, desc="Building PancanTileClipAnnotations")]
-		unique = {}
-		for ann in tqdm.tqdm(anns, desc="Building PancanTileClipAnnotations stats"):
-			if ann is None:
-				continue
-			for key, val in ann.items():
-				if key not in unique:
-					unique[key] = {}
-				if isinstance(val, list):
-					kind = 'list'
-				elif isinstance(val, dict):
-					kind = 'dict'
-				else:
-					kind = val
-				if kind not in unique[key]:
-					unique[key][kind] = 1
-				else:
-					unique[key][kind] += 1
-		dbx.write_json(anns, self.path("annotations", ensure_dirpath=True))
-		dbx.write_json(unique, self.path("stats", ensure_dirpath=True))
+		if not self.validtopic('annotations'):
+			self.log.info("Building PancanTileClipAnnotations 'annotations'")
+			ds = self.cfg.clip.dataset(shuffle=False, batch_size=self.batch_size)
+			anns = [dp['annotations'] for dp in tqdm.tqdm(ds, desc="Building PancanTileClipAnnotations 'annotations'")]
+			dbx.write_json(anns, self.path("annotations", ensure_dirpath=True))
+		else:
+			self.log.verbose("Reading existing PancanTileClipAnnotations 'annotations'")
+			anns = dbx.read_json(self.path("annotations"))
+		if not self.validtopic('stats'):
+			self.log.verbose("Building PancanTileClipAnnotations 'stats'")
+			unique = {}
+			for ann in tqdm.tqdm(anns, desc="Building PancanTileClipAnnotations 'stats'"):
+				if ann is None:
+					continue
+				for key, val in ann.items():
+					if isinstance(val, list):
+						update = {key: 'list'}
+					elif isinstance(val, dict):
+						update = {f"{key}_{subkey}": 'list' if isinstance(subval, list) else ('dict' if isinstance(subval, dict) else subval) 
+								for subkey, subval in val.items()
+						}
+					else:
+						update = {key: val}
+					unique = update_unique(unique, update)
+			dbx.write_json(unique, self.path("stats", ensure_dirpath=True))
 		return self
 
 	def __read__(self, topic: str):
