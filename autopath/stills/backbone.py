@@ -128,8 +128,8 @@ class BitConvDeepBackboneEvaluator(DeepBackboneEvaluator):
 
     @property
     def layer_names(self) -> List[str]:
-        """Returns ``['output']`` — the single ternary feature layer."""
-        return ['output']
+        """Returns ``['final']`` — the single ternary feature layer."""
+        return ['final']
 
     def __call__(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Run a forward pass and return ternary predictions.
@@ -142,7 +142,7 @@ class BitConvDeepBackboneEvaluator(DeepBackboneEvaluator):
         Returns
         -------
         dict[str, Tensor]
-            ``{'output': Tensor}`` where the tensor has shape
+            ``{'final': Tensor}`` where the tensor has shape
             ``(B, output_dim)`` and dtype float32 with values in
             ``{-1.0, 0.0, +1.0}``.
         """
@@ -150,7 +150,7 @@ class BitConvDeepBackboneEvaluator(DeepBackboneEvaluator):
         with torch.no_grad():
             logits = self._model(x)          # (B, n_classes, D)
             preds = (logits.argmax(dim=1) - 1).float()  # (B, D)
-        self._last_features = {'output': preds.cpu()}
+        self._last_features = {'final': preds.cpu()}
         return dict(self._last_features)
 
     @property
@@ -216,11 +216,11 @@ class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
     def layer_names(self) -> list:
         """Layer names produced by this evaluator factory.
 
-        Returns ``['output']`` without loading the model, allowing
+        Returns ``['final']`` without loading the model, allowing
         :meth:`~autopath.deep.features.DeepFeatureBag.__post_init__`
         to determine the MDS column schema cheaply.
         """
-        return ['output']
+        return ['final']
 
     def evaluator(
         self,

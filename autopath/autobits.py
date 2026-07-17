@@ -275,7 +275,7 @@ class DeepBackboneEvaluator:
       ``__call__``.
     * :meth:`__call__` — run a forward pass and return a
       ``dict[str, Tensor]`` mapping capture keys to activation tensors,
-      plus an ``"output"`` key for the backbone output.
+      plus an ``"final"`` key for the backbone output.
     * :meth:`clear` — release captured tensors and free accelerator
       memory.
 
@@ -312,7 +312,7 @@ class DeepBackboneEvaluator:
         -------
         dict[str, Tensor]
             Mapping from capture-key to activation tensor, plus
-            ``"output"`` for the backbone's own output.
+            ``"final"`` for the backbone's own output.
 
         Must be overridden by subclasses.
         """

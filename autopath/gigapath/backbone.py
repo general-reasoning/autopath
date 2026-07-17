@@ -219,7 +219,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         names = [self._capture_key(b) for b in self.capture_blocks]
         names += [self._capture_key(l) for l in self.capture_layers]
         if self.capture_outputs:
-            names.append('output')
+            names.append('final')
         return names
 
     # ── Forward pass ────────────────────────────────────────────────
@@ -240,7 +240,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         -------
         dict[str, Tensor]
             Mapping from capture-key to activation tensor, plus
-            ``"output"`` for the backbone's own output.
+            ``"final"`` for the backbone's own output.
         """
         self._captured.clear()
         self.__pre_call__()
@@ -254,7 +254,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
             out = z
             if self.cls_token_only and out.dim() == 3:
                 out = out[:, 0]
-            result['output'] = out
+            result['final'] = out
         return result
 
     @property

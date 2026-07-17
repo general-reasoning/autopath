@@ -72,7 +72,7 @@ def gigapath_deep_backbone_evaluator(
         Defaults to ``[]``.
     cfg_capture_outputs : bool
         When ``True`` (default), store the model's direct output
-        under the key ``'output'``.
+        under the key ``'final'``.
     cfg_cls_token_only : bool
         When ``True``, hooks capture only the CLS token (index 0).
     device : str
@@ -541,7 +541,7 @@ def gigapath_deep_feature_affine_logistic_probe(
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
     cfg_layer : str
-        Which capture key to probe (e.g. ``"output"``,
+        Which capture key to probe (e.g. ``"final"``,
         ``"B_0_norm1"``).
     cfg_annotation_key : str | None
         Dotted path into the annotation dict for label extraction
@@ -660,7 +660,7 @@ def gigapath_deep_feature_stats_probe(
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"``).
     cfg_layer : str
-        Which capture key to probe (e.g. ``"output"``).
+        Which capture key to probe (e.g. ``"final"``).
     cfg_normalize : str | None
         Feature normalization mode:
         ``None`` — raw features,
@@ -785,7 +785,7 @@ def gigapath_bipolar_deep_feature_clip(
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
     cfg_layer : str
-        Which capture key to bipolarize (e.g. ``"output"``).
+        Which capture key to bipolarize (e.g. ``"final"``).
     cfg_bag_aggregation_threshold : float
         Threshold for bag-level bipolar aggregation.
         ``abs(mean) >= threshold → sign(mean)``, else ``0``.

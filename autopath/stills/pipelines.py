@@ -181,7 +181,7 @@ def bitpath_conv_still(
     Bipolar clip params (all affect hash)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     cfg_layer : str
-        Which Gigapath capture key to bipolarize (default ``'output'``).
+        Which Gigapath capture key to bipolarize (default ``'final'``).
     cfg_bag_aggregation_threshold : float
         Threshold for bag-level bipolar aggregation (default 0.5).
     cfg_ternarize_tiles : bool
@@ -520,7 +520,7 @@ def bitconv_deep_feature_affine_logistic_probe(
     on BitConv deep features.
 
     Fits a logistic regression classifier on bag-level mean features
-    from the ``'output'`` layer of a trained
+    from the ``'final'`` layer of a trained
     :class:`~autopath.stills.bitpath.BitPathConvStill`, persisting the
     fitted model's ``coef_``, ``intercept_``, and ``classes_`` arrays.
 
