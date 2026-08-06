@@ -84,7 +84,7 @@ class DeepFeatureBag(Bag):
                 names.append(f"block.{block}")
             for layer in getattr(factory.cfg, 'capture_layers', []):
                 names.append(layer)
-            if getattr(factory.cfg, 'capture_outputs', True):
+            if getattr(factory.cfg, 'capture_final', True):
                 names.append('final')
             self._feature_names = names
         elif hasattr(factory, 'evaluator'):

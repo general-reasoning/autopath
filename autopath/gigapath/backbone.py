@@ -123,7 +123,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         *,
         capture_blocks: List[int] = None,
         capture_layers: List[str] = None,
-        capture_outputs: bool = True,
+        capture_final: bool = True,
         cls_token_only: bool = False,
         transform=None, #defaults to dino_tile_transform (ImageNet normalisation)
         device: str = "cuda",
@@ -141,7 +141,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
             capture_blocks = list(range(GIGAPATH_BACKBONE_DEPTH))
         self.capture_blocks = list(capture_blocks or [])
         self.capture_layers = list(capture_layers or [])
-        self.capture_outputs = capture_outputs
+        self.capture_final = capture_final
         self.cls_token_only = cls_token_only
         self._captured: Dict[str, torch.Tensor] = {}
         self._hooks_registered = False
@@ -218,7 +218,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
         """Return the ordered list of capture keys that ``__call__`` will produce."""
         names = [self._capture_key(b) for b in self.capture_blocks]
         names += [self._capture_key(l) for l in self.capture_layers]
-        if self.capture_outputs:
+        if self.capture_final:
             names.append('final')
         return names
 
@@ -250,7 +250,7 @@ class GigapathDeepBackboneEvaluator(DeepBackboneEvaluator):
             del y
 
         result = dict(self._captured)
-        if self.capture_outputs:
+        if self.capture_final:
             out = z
             if self.cls_token_only and out.dim() == 3:
                 out = out[:, 0]
@@ -293,7 +293,7 @@ class GigapathDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
                 backbone=None,  # lazy-loaded from default
                 capture_blocks=self.cfg.capture_blocks,
                 capture_layers=self.cfg.capture_layers,
-                capture_outputs=self.cfg.capture_outputs,
+                capture_final=self.cfg.capture_final,
                 cls_token_only=self.cfg.cls_token_only,
                 device=device,
                 log=log,

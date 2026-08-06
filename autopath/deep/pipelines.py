@@ -57,7 +57,7 @@ def gigapath_deep_backbone_evaluator(
     *,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     device: str = "cuda",
 ) -> GigapathDeepBackboneEvaluator:
@@ -70,7 +70,7 @@ def gigapath_deep_backbone_evaluator(
     var_capture_layers : list[str] | None
         Named model layers to capture (e.g. ``["norm"]``).
         Defaults to ``[]``.
-    var_capture_outputs : bool
+    var_capture_final : bool
         When ``True`` (default), store the model's direct output
         under the key ``'final'``.
     var_cls_token_only : bool
@@ -81,7 +81,7 @@ def gigapath_deep_backbone_evaluator(
     return GigapathDeepBackboneEvaluator(
         capture_blocks=var_capture_blocks or [],
         capture_layers=var_capture_layers or [],
-        capture_outputs=var_capture_outputs,
+        capture_final=var_capture_final,
         cls_token_only=var_cls_token_only,
         device=device,
     )
@@ -94,7 +94,7 @@ def gigapath_deep_backbone_evaluator(
 def gigapath_deep_backbone_evaluator_factory(
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     *,
     url: str | None = None,
@@ -105,7 +105,7 @@ def gigapath_deep_backbone_evaluator_factory(
         spec=dict(
             capture_blocks=var_capture_blocks or [],
             capture_layers=var_capture_layers or [],
-            capture_outputs=var_capture_outputs,
+            capture_final=var_capture_final,
             cls_token_only=var_cls_token_only,
         ),
     )
@@ -159,7 +159,7 @@ def gigapath_deep_feature_bag(
     *,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 1024,
     device_batch_size: int = 64,
@@ -172,7 +172,7 @@ def gigapath_deep_feature_bag(
     name : str
         Name identifying the source tile-bag.  Currently supported:
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
-    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     var_shard_size : int
         Number of samples written per MDS shard file for streaming
@@ -185,7 +185,7 @@ def gigapath_deep_feature_bag(
         Datablock URL (symbolic specline for relocatability).
     """
     factory = gigapath_deep_backbone_evaluator_factory(
-        var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only, url=url,
+        var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only, url=url,
     )
     if name == "GIGAPATH_DEEP_CPTAC_SAMPLE":
         
@@ -273,7 +273,7 @@ def gigapath_deep_feature_clip(
     *,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 1024,
     url: str | None = None,
@@ -292,7 +292,7 @@ def gigapath_deep_feature_clip(
         ``"GIGAPATH_DEEP_CPTAC"`` -- full CPTAC tile-bag clip.
         ``"GIGAPATH_DEEP_CPTAC_<partition_fold>"`` -- a specific fold
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
-    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
     var_shard_size : int
         Number of samples per MDS shard.
@@ -324,7 +324,7 @@ def gigapath_deep_feature_clip(
     if parallelization is None and len(devices) > 1:
         parallelization = "multiprocessing"
     factory = gigapath_deep_backbone_evaluator_factory(
-        var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only, url=url,
+        var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only, url=url,
     )
     # Resolve the tile-bag clip
     if name == "GIGAPATH_DEEP_CPTAC":
@@ -525,7 +525,7 @@ def gigapath_deep_feature_affine_logistic_probe(
     var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 64,
     url: str | None = None,
@@ -559,7 +559,7 @@ def gigapath_deep_feature_affine_logistic_probe(
         ``'l2'`` — L2-normalise,
         ``'corner-l1'`` / ``'corner-l2'`` — snap to {-1,+1}^d,
         ``'corner-linfty'`` — axis-aligned vertex.
-    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
         Forwarded to :func:`gigapath_deep_feature_clip` to identify
         the underlying clip.
     var_shard_size : int
@@ -605,7 +605,7 @@ def gigapath_deep_feature_affine_logistic_probe(
         name,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
@@ -644,7 +644,7 @@ def gigapath_deep_feature_stats_probe(
     var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 64,
     url: str | None = None,
@@ -669,7 +669,7 @@ def gigapath_deep_feature_stats_probe(
         ``'l2'`` — L2-normalise,
         ``'corner-l1'`` / ``'corner-l2'`` — snap to {-1,+1}^d,
         ``'corner-linfty'`` — axis-aligned vertex.
-    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
         Forwarded to :func:`gigapath_deep_feature_clip` to identify
         the underlying clip.
     var_shard_size : int
@@ -695,7 +695,7 @@ def gigapath_deep_feature_stats_probe(
         name,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
@@ -763,7 +763,7 @@ def gigapath_bipolar_deep_feature_clip(
     var_stats_probe_name: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 64,
     url: str | None = None,
@@ -796,7 +796,7 @@ def gigapath_bipolar_deep_feature_clip(
         fold of the same partition (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"`` for a
         ``602020`` partition).
-    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
         Forwarded to :func:`gigapath_deep_feature_clip` to identify
         the underlying clip.
     var_shard_size : int
@@ -829,7 +829,7 @@ def gigapath_bipolar_deep_feature_clip(
         name,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
@@ -849,7 +849,7 @@ def gigapath_bipolar_deep_feature_clip(
         var_layer=var_layer,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
@@ -928,7 +928,7 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
     var_stats_probe_name: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 64,
     url: str | None = None,
@@ -957,7 +957,7 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
         Threshold for bag-level bipolar aggregation.
     var_stats_probe_name : str | None
         Name for the stats probe clip (defaults to CALIBRATE fold).
-    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
         Forwarded to :func:`gigapath_bipolar_deep_feature_clip`.
     var_shard_size : int
         Forwarded to :func:`gigapath_bipolar_deep_feature_clip`.
@@ -983,7 +983,7 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
         var_stats_probe_name=var_stats_probe_name,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
@@ -1125,7 +1125,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
     var_stats_probe_name: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 64,
     url: str | None = None,
@@ -1168,7 +1168,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
         var_stats_probe_name=var_stats_probe_name,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
@@ -1231,7 +1231,7 @@ def gigapath_validate_tile_feature_zip_alignment(
     url: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 1024,
     n_samples: int | None = None,
@@ -1292,7 +1292,7 @@ def gigapath_validate_tile_feature_zip_alignment(
         url=url,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
     )
@@ -1421,7 +1421,7 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
     url: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
-    var_capture_outputs: bool = True,
+    var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 1024,
     bag_index: int = 0,
@@ -1446,7 +1446,7 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
         url=url,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
-        var_capture_outputs=var_capture_outputs,
+        var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
     )
