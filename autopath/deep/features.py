@@ -260,7 +260,7 @@ class DeepFeatureBag(Bag):
         descriptors are released promptly::
 
             with bag.dataset() as ds:
-                x = ds[0]['features_output']
+                x = ds[0]['features_final']
 
         Each sample is a dict with keys ``features_{name}`` (ndarray).
 
@@ -753,7 +753,7 @@ class DeepFeatureClip(Clip):
             flat_offset += len(self.bags[i])
         ds = self.dataset(shuffle=False, batch_size=1)
         sample = ds[flat_offset]
-        stored = sample['features_output']
+        stored = sample['features_final']
         if isinstance(stored, torch.Tensor):
             stored = stored.numpy()
 

@@ -401,7 +401,7 @@ def bitconv_deep_feature_clip(
 
     Evaluates the trained :class:`~autopath.stills.bitpath.BitPathConvNet`
     on each tile and stores the resulting ternary ``{-1, 0, +1}``
-    feature vectors as ``features_output`` in MDS format, identically to
+    feature vectors as ``features_final`` in MDS format, identically to
     how :func:`~autopath.deep.pipelines.gigapath_deep_feature_clip` stores
     Gigapath activations.
 

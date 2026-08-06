@@ -10,7 +10,7 @@ participates in the usual spec-hash lineage tracking.
 
 The evaluator is a drop-in replacement for
 :class:`~autopath.gigapath.backbone.GigapathDeepBackboneEvaluator`
-wherever the consumer only requires ``features_output`` and the
+wherever the consumer only requires ``features_final`` and the
 continuous-valued nature of the Gigapath backbone is not central (e.g.
 when plugging into :class:`~autopath.deep.features.DeepFeatureClip` or
 probes that operate on the ternary feature space).

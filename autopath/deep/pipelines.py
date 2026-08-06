@@ -118,19 +118,21 @@ def gigapath_deep_backbone_evaluator_factory(
 """
 ### FINAL layer only
 ## CLS-only
-dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+dbx.pprint \
+"autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     var_cls_token_only=True, \
     var_shard_size=64, \
     device_batch_size=1024 \
-    ).build().valid()"
+).build().valid()"
 ### ALL DEEP layers
 ## CLS-only
-dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+dbx.pprint \
+"autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
     var_cls_token_only=True, \
     var_capture_blocks='all', \
     var_shard_size=128, \
     device_batch_size=128 \
-    ).build().valid()"
+).build().valid()"
 # [01:09<00:00, 34.52s/batch, VRAM 4.6/42GB (peak 23.6GB)]
 ## CLS + PATCH tokens
 dbx.pprint "\
@@ -206,7 +208,7 @@ def gigapath_deep_feature_bag(
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-###! CPTAC: OUTPUT-ONLY|CLS-ONLY
+### CPTAC: FINAL-ONLY|CLS-ONLY
 ## 1 device
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
@@ -223,7 +225,7 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
     var_shard_size=64, \
     n_devices=3,  device_batch_size=32, parallelization='multiprocessing', work_stealing=True,\
 ).build_tree()"
-### CPTAC_602020_TRAIN|CALIBRATE|TEST: OUTPUT-ONLY|CLS-ONLY
+### CPTAC_602020_TRAIN|CALIBRATE|TEST: FINAL-ONLY|CLS-ONLY
 ## 1 device
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
@@ -1369,14 +1371,14 @@ def gigapath_probe_tile_feature_zip_alignment(
     n_differ = 0
     max_diff = 0.0
     for i in range(min(n_samples, len(ds_plain))):
-        feat_plain = ds_plain[i]['features_output']
+        feat_plain = ds_plain[i]['features_final']
         if isinstance(feat_plain, torch.Tensor):
             feat_plain = feat_plain.numpy()
 
         sample_zip = ds_zip[i]
-        feat_zip = sample_zip.get('features_output')
+        feat_zip = sample_zip.get('features_final')
         if feat_zip is None:
-            clip.log.warning(f"[{i}] features_output MISSING in zip. keys={list(sample_zip.keys())}")
+            clip.log.warning(f"[{i}] features_final MISSING in zip. keys={list(sample_zip.keys())}")
             n_differ += 1
             continue
         if isinstance(feat_zip, torch.Tensor):
