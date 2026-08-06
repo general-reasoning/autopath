@@ -71,6 +71,7 @@ class BipolarFeatureBagMaker:
 
 class FeatureBag(Bag):
     VERSION = 1
+    LEGACY_NORM = True
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -200,6 +201,7 @@ class FeatureBag(Bag):
 
 class FeatureBagClip(Clip):
     VERSION = 1
+    LEGACY_NORM = True
     TOPICS = {"bag_lens": "bag_lens.npy"}
     @dataclass
     class CONFIG:
@@ -408,6 +410,7 @@ class BipolarFeatureBag(Bag):
     from autopath.probes import BipolarFeatureBagProbe
 
     VERSION = 1
+    LEGACY_NORM = True
     TOPICS = {
         'bipolar_features': 'bipolar_features.npy',
     }
@@ -484,6 +487,7 @@ class BipolarFeatureBag(Bag):
 
 class BipolarFeatureBagClip(Clip):
     VERSION = 3
+    LEGACY_NORM = True
 
     TOPICS = {'bag_lens': 'bag_lens.npy'}
     
@@ -623,6 +627,7 @@ class BipolarSingleFeatureBagClip(Clip):
     from autopath.probes import BipolarFeatureBagProbe
 
     VERSION = 1
+    LEGACY_NORM = True
 
     TOPICS = {'bag_lens': 'bag_lens.npy'}
 
@@ -783,6 +788,7 @@ class SphericalFeatureBagClip(Clip):
     """
 
     VERSION = 1
+    LEGACY_NORM = True
 
     TOPICS = {'bag_lens': 'bag_lens.npy'}
 
@@ -947,6 +953,7 @@ class SpectralFeatureBag(Bag):
     """
 
     VERSION = 1
+    LEGACY_NORM = True
 
     @dataclass
     class CONFIG(Datablock.CONFIG):
@@ -1095,6 +1102,7 @@ class SpectralFeatureBagClip(Clip):
     """
 
     VERSION = 1
+    LEGACY_NORM = True
     TOPICS = {"bag_lens": "bag_lens.npy"}
 
     @dataclass

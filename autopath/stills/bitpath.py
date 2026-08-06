@@ -755,6 +755,7 @@ class BitPathConvStill(Datablock):
     """
 
     VERSION = 2
+    LEGACY_NORM = True
     TOPICS = ['ckpts', 'logs']
 
     @dataclass
@@ -1284,6 +1285,7 @@ class BitPathConvStillProbe(Datablock):
     """Visualise the ternary-weight connectivity of a :class:`BitPathConvStill`.
 
     VERSION = 1
+    LEGACY_NORM = True
 
     Loads the latest checkpoint from the still, extracts the ternary
     (``{-1, 0, +1}``) weights from each ``BitConv2d158`` and

@@ -56,6 +56,7 @@ class DeepFeatureBag(Bag):
     """
 
     VERSION = 8
+    LEGACY_NORM = True
 
     TOPICS = ['shards']
 
@@ -352,6 +353,7 @@ class DeepFeatureClip(Clip):
 
     v2 = True
     VERSION = 5
+    LEGACY_NORM = True
 
     # Inherits TOPICS = {"bag_lens": "bag_lens.npz"} from Clip.
     # Do NOT also declare TOPICS — the presence of both causes path()
@@ -805,6 +807,7 @@ class BipolarDeepFeatureBag(Bag):
     """
 
     VERSION = 6
+    LEGACY_NORM = True
 
     TOPICS = ['shards']
 
@@ -1019,6 +1022,7 @@ class BipolarDeepFeatureClip(Clip):
 
     v2 = True
     VERSION = 6
+    LEGACY_NORM = True
 
     @dataclass
     class CONFIG(Datablock.CONFIG):

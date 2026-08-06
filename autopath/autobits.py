@@ -347,6 +347,7 @@ class DeepBackboneEvaluatorFactory(Datablock):
     """
 
     VERSION = 1
+    LEGACY_NORM = True
 
     @dataclass
     class CONFIG:

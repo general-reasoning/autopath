@@ -159,6 +159,7 @@ class PancanTileBag(TileBag):
 	"""
 
 	VERSION = 4
+	LEGACY_NORM = True
 
 	TOPICS = ['shards']
 
@@ -466,6 +467,7 @@ class PancanTileBag(TileBag):
 
 class PancanTileClip(Clip):
 	VERSION = 2
+	LEGACY_NORM = True
 	@dataclass
 	class CONFIG:
 		source: str
@@ -612,10 +614,12 @@ class PancanTileClip(Clip):
 
 class PancanTilePartition(Partition):
 	VERSION = 2
+	LEGACY_NORM = True
 
 
 class PancanTileFold(Fold):
 	VERSION = 2
+	LEGACY_NORM = True
 
 	def dataset(self, *, shuffle: bool = False, skip_invalid_bags: bool = False, batch_size: int = 1, **streaming_kwargs):
 		"""Delegate to :meth:`PancanTileClip.dataset` (same shard interface)."""
@@ -624,6 +628,7 @@ class PancanTileFold(Fold):
 
 class PancanTileClipAnnotations(Datablock):
 	VERSION = 1
+	LEGACY_NORM = True
 	@dataclass
 	class CONFIG:
 		clip: PancanTileClip

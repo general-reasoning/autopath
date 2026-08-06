@@ -55,34 +55,34 @@ log = Logger()
 
 def gigapath_deep_backbone_evaluator(
     *,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
     device: str = "cuda",
 ) -> GigapathDeepBackboneEvaluator:
     """Create a live :class:`GigapathDeepBackboneEvaluator`.
 
     Parameters
     ----------
-    cfg_capture_blocks : list[int] | None
+    var_capture_blocks : list[int] | None
         Transformer block indices to capture.  Defaults to ``[]``.
-    cfg_capture_layers : list[str] | None
+    var_capture_layers : list[str] | None
         Named model layers to capture (e.g. ``["norm"]``).
         Defaults to ``[]``.
-    cfg_capture_outputs : bool
+    var_capture_outputs : bool
         When ``True`` (default), store the model's direct output
         under the key ``'final'``.
-    cfg_cls_token_only : bool
+    var_cls_token_only : bool
         When ``True``, hooks capture only the CLS token (index 0).
     device : str
         Target device.
     """
     return GigapathDeepBackboneEvaluator(
-        capture_blocks=cfg_capture_blocks or [],
-        capture_layers=cfg_capture_layers or [],
-        capture_outputs=cfg_capture_outputs,
-        cls_token_only=cfg_cls_token_only,
+        capture_blocks=var_capture_blocks or [],
+        capture_layers=var_capture_layers or [],
+        capture_outputs=var_capture_outputs,
+        cls_token_only=var_cls_token_only,
         device=device,
     )
 
@@ -92,10 +92,10 @@ def gigapath_deep_backbone_evaluator(
 # ═══════════════════════════════════════════════════════════════════════
 
 def gigapath_deep_backbone_evaluator_factory(
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
     *,
     url: str | None = None,
 ) -> GigapathDeepBackboneEvaluatorFactory:
@@ -103,10 +103,10 @@ def gigapath_deep_backbone_evaluator_factory(
     return GigapathDeepBackboneEvaluatorFactory(
         url=url,
         spec=dict(
-            capture_blocks=cfg_capture_blocks or [],
-            capture_layers=cfg_capture_layers or [],
-            capture_outputs=cfg_capture_outputs,
-            cls_token_only=cfg_cls_token_only,
+            capture_blocks=var_capture_blocks or [],
+            capture_layers=var_capture_layers or [],
+            capture_outputs=var_capture_outputs,
+            cls_token_only=var_cls_token_only,
         ),
     )
 
@@ -119,25 +119,25 @@ def gigapath_deep_backbone_evaluator_factory(
 ### FINAL layer only
 ## CLS-only
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     device_batch_size=1024 \
     ).build().valid()"
 ### ALL DEEP layers
 ## CLS-only
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
-    cfg_cls_token_only=True, \
-    cfg_capture_blocks='all', \
-    cfg_shard_size=128, \
+    var_cls_token_only=True, \
+    var_capture_blocks='all', \
+    var_shard_size=128, \
     device_batch_size=128 \
     ).build().valid()"
 # [01:09<00:00, 34.52s/batch, VRAM 4.6/42GB (peak 23.6GB)]
 ## CLS + PATCH tokens
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
-    cfg_cls_token_only=False, \
-    cfg_capture_blocks='all', \
-    cfg_shard_size=64, \
+    var_cls_token_only=False, \
+    var_capture_blocks='all', \
+    var_shard_size=64, \
     device_batch_size=1024 \
     ).build().valid()\
     "
@@ -145,9 +145,9 @@ autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', 
 ## CLS-only
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
-    cfg_cls_token_only=True, \
-    cfg_capture_blocks=[0, 7, 14, 21, 27, 33, 39], \
-    cfg_shard_size=128, \
+    var_cls_token_only=True, \
+    var_capture_blocks=[0, 7, 14, 21, 27, 33, 39], \
+    var_shard_size=128, \
     device_batch_size=1024 \
     ).build().valid()\
     "
@@ -155,11 +155,11 @@ autopath.deep.pipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', 
 def gigapath_deep_feature_bag(
     name: str,
     *,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 1024,
     device_batch_size: int = 64,
     url: str | None = None,
 ) -> DeepFeatureBag:
@@ -170,9 +170,9 @@ def gigapath_deep_feature_bag(
     name : str
         Name identifying the source tile-bag.  Currently supported:
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_shard_size : int
+    var_shard_size : int
         Number of samples written per MDS shard file for streaming
         reads.
     device_batch_size : int
@@ -183,7 +183,7 @@ def gigapath_deep_feature_bag(
         Datablock URL (symbolic specline for relocatability).
     """
     factory = gigapath_deep_backbone_evaluator_factory(
-        cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only, url=url,
+        var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only, url=url,
     )
     if name == "GIGAPATH_DEEP_CPTAC_SAMPLE":
         
@@ -195,7 +195,7 @@ def gigapath_deep_feature_bag(
         spec=dict(
             tilebag=tilebag_quote,
             evaluator_factory=dbx.quote(factory),
-            shard_size=cfg_shard_size,
+            shard_size=var_shard_size,
         ),
         device_batch_size=device_batch_size,
     )
@@ -211,16 +211,16 @@ def gigapath_deep_feature_bag(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
 ).build_tree()"
 ## 3 devices
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=3,  device_batch_size=32, parallelization='multiprocessing', work_stealing=True,\
 ).build_tree()"
 ### CPTAC_602020_TRAIN|CALIBRATE|TEST: OUTPUT-ONLY|CLS-ONLY
@@ -228,52 +228,52 @@ autopath.deep.pipelines.gigapath_deep_feature_clip( \
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
 ).build_tree()"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip(\
     'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
 ).build_tree()"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
 ).build_tree()"
 ## 3 devices
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=3,  device_batch_size=32, parallelization='multiprocessing', work_stealing=True,).build_tree()"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=3,  device_batch_size=32, parallelization='multiprocessing', work_stealing=True,).build_tree()"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_devices=3,  device_batch_size=32, parallelization='multiprocessing', work_stealing=True,).build_tree()"
 """
 def gigapath_deep_feature_clip(
     name: str = None,
     *,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 1024,
     url: str | None = None,
     n_devices: int | None = None,
     devices: list | None = None,
@@ -290,9 +290,9 @@ def gigapath_deep_feature_clip(
         ``"GIGAPATH_DEEP_CPTAC"`` -- full CPTAC tile-bag clip.
         ``"GIGAPATH_DEEP_CPTAC_<partition_fold>"`` -- a specific fold
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
         Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
-    cfg_shard_size : int
+    var_shard_size : int
         Number of samples per MDS shard.
     url : str | None
         Datablock URL (symbolic specline for relocatability).
@@ -322,7 +322,7 @@ def gigapath_deep_feature_clip(
     if parallelization is None and len(devices) > 1:
         parallelization = "multiprocessing"
     factory = gigapath_deep_backbone_evaluator_factory(
-        cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only, url=url,
+        var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only, url=url,
     )
     # Resolve the tile-bag clip
     if name == "GIGAPATH_DEEP_CPTAC":
@@ -337,7 +337,7 @@ def gigapath_deep_feature_clip(
         spec=dict(
             tilebagclip=tilebagclip,
             evaluator_factory=dbx.quote(factory),
-            shard_size=cfg_shard_size,
+            shard_size=var_shard_size,
         ),
         device_batch_size=device_batch_size,
         devices=devices,
@@ -354,44 +354,44 @@ def gigapath_deep_feature_clip(
 """
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64,\
+    var_cls_token_only=True, \
+    var_shard_size=64,\
     n=8,\
 )"
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
-    cfg_cls_token_only=True, \
+    var_cls_token_only=True, \
     n=8,\
 )"
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
-    cfg_capture_blocks=[0,19,38], \
-    cfg_cls_token_only=True, \
+    var_capture_blocks=[0,19,38], \
+    var_cls_token_only=True, \
     batch_size=8, \
     shuffle=True, \
     n=16,\
 )"
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC', \
-    cfg_cls_token_only=True, \
+    var_cls_token_only=True, \
     n=4,\
 )"
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n=4,\
 )"
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n=4,\
 )"
 dbx.pprint "autopath.deep.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n=4,\
 )"
 """
@@ -400,10 +400,10 @@ def gigapath_deep_feature_clip_dataloader_samples(
     n: int,
     *,
     url: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 1024,
     batch_size: int = 4,
     shuffle: bool = False,
     skip_invalid_bags: bool = False,
@@ -420,7 +420,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         Forwarded to :func:`gigapath_deep_feature_clip`.
     n : int
         Number of samples to iterate.
-    cfg_shard_size : int
+    var_shard_size : int
         Forwarded to :func:`gigapath_deep_feature_clip` so the config
         hash matches the built clip.
     batch_size : int
@@ -436,10 +436,10 @@ def gigapath_deep_feature_clip_dataloader_samples(
     clip = gigapath_deep_feature_clip(
         name, 
         url=url,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
     )
     assert clip.valid(), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
@@ -471,61 +471,61 @@ def gigapath_deep_feature_clip_dataloader_samples(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
 ).build_tree()"
 
 ### CPTAC 60/20/20 — L2-normalised features
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    cfg_normalize='l2', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_normalize='l2', \
 ).build_tree()"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    cfg_normalize='l2', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_normalize='l2', \
 ).build_tree()"
 ### CPTAC 60/20/20 — corner-linfty features
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    cfg_normalize='corner-linfty', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_normalize='corner-linfty', \
 ).build_tree()"
 
 ### CPTAC 60/20/20 — corner-linfty features
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    cfg_normalize='corner-l1', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_normalize='corner-l1', \
 ).build_tree()"
 """
 def gigapath_deep_feature_affine_logistic_probe(
     name: str,
     *,
-    cfg_layer: str = 'final',
-    cfg_annotation_key: str | None = None,
-    cfg_fit_intercept: bool = True,
-    cfg_evaluation_fraction: float = 0.8,
-    cfg_normalize: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 64,
+    var_layer: str = 'final',
+    var_annotation_key: str | None = None,
+    var_fit_intercept: bool = True,
+    var_evaluation_fraction: float = 0.8,
+    var_normalize: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
     url: str | None = None,
 ) -> 'DeepFeatureAffineLogisticProbe':
     """Create a :class:`DeepFeatureAffineLogisticProbe` on a named clip.
@@ -540,27 +540,27 @@ def gigapath_deep_feature_affine_logistic_probe(
         Named configuration — same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
-    cfg_layer : str
+    var_layer : str
         Which capture key to probe (e.g. ``"final"``,
         ``"B_0_norm1"``).
-    cfg_annotation_key : str | None
+    var_annotation_key : str | None
         Dotted path into the annotation dict for label extraction
         (e.g. ``"cohort"``).  ``None`` falls back to
         ``tilebag.label``.
-    cfg_fit_intercept : bool
+    var_fit_intercept : bool
         Whether to fit an intercept term in the logistic regression.
-    cfg_evaluation_fraction : float
+    var_evaluation_fraction : float
         Fraction of bags used for training (rest for evaluation).
-    cfg_normalize : str | None
+    var_normalize : str | None
         Feature normalization mode:
         ``None`` — raw features,
         ``'l2'`` — L2-normalise,
         ``'corner-l1'`` / ``'corner-l2'`` — snap to {-1,+1}^d,
         ``'corner-linfty'`` — axis-aligned vertex.
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
         Forwarded to :func:`gigapath_deep_feature_clip` to identify
         the underlying clip.
-    cfg_shard_size : int
+    var_shard_size : int
         Forwarded to :func:`gigapath_deep_feature_clip`.
     url : str | None
         Datablock URL.
@@ -571,9 +571,9 @@ def gigapath_deep_feature_affine_logistic_probe(
 
         probe = gigapath_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            cfg_layer='final',
-            cfg_cls_token_only=True,
-            cfg_shard_size=64,
+            var_layer='final',
+            var_cls_token_only=True,
+            var_shard_size=64,
         )
         probe.build()
 
@@ -581,10 +581,10 @@ def gigapath_deep_feature_affine_logistic_probe(
 
         probe = gigapath_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            cfg_layer='final',
-            cfg_cls_token_only=True,
-            cfg_shard_size=64,
-            cfg_normalize='l2',
+            var_layer='final',
+            var_cls_token_only=True,
+            var_shard_size=64,
+            var_normalize='l2',
         )
         probe.build()
 
@@ -592,31 +592,31 @@ def gigapath_deep_feature_affine_logistic_probe(
 
         probe = gigapath_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            cfg_layer='final',
-            cfg_cls_token_only=True,
-            cfg_shard_size=64,
-            cfg_normalize='corner-linfty',
+            var_layer='final',
+            var_cls_token_only=True,
+            var_shard_size=64,
+            var_normalize='corner-linfty',
         )
         probe.build()
     """
     clip = gigapath_deep_feature_clip(
         name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
         url=url,
     )
     return DeepFeatureAffineLogisticProbe(
         url=url,
         spec=dict(
             clip=dbx.quote(clip),
-            layer=cfg_layer,
-            annotation_key=cfg_annotation_key,
-            fit_intercept=cfg_fit_intercept,
-            evaluation_fraction=cfg_evaluation_fraction,
-            normalize=cfg_normalize,
+            layer=var_layer,
+            annotation_key=var_annotation_key,
+            fit_intercept=var_fit_intercept,
+            evaluation_fraction=var_evaluation_fraction,
+            normalize=var_normalize,
         ),
     )
 
@@ -630,21 +630,21 @@ def gigapath_deep_feature_affine_logistic_probe(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_deep_feature_stats_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
 ).build()"
 """
 def gigapath_deep_feature_stats_probe(
     name: str,
     *,
-    cfg_layer: str = 'final',
-    cfg_normalize: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 64,
+    var_layer: str = 'final',
+    var_normalize: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
     url: str | None = None,
 ) -> 'DeepFeatureStatsProbe':
     """Create a :class:`DeepFeatureStatsProbe` on a named clip.
@@ -659,18 +659,18 @@ def gigapath_deep_feature_stats_probe(
         Named configuration — same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"``).
-    cfg_layer : str
+    var_layer : str
         Which capture key to probe (e.g. ``"final"``).
-    cfg_normalize : str | None
+    var_normalize : str | None
         Feature normalization mode:
         ``None`` — raw features,
         ``'l2'`` — L2-normalise,
         ``'corner-l1'`` / ``'corner-l2'`` — snap to {-1,+1}^d,
         ``'corner-linfty'`` — axis-aligned vertex.
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
         Forwarded to :func:`gigapath_deep_feature_clip` to identify
         the underlying clip.
-    cfg_shard_size : int
+    var_shard_size : int
         Forwarded to :func:`gigapath_deep_feature_clip`.
     url : str | None
         Datablock URL.
@@ -681,8 +681,8 @@ def gigapath_deep_feature_stats_probe(
 
         stats = gigapath_deep_feature_stats_probe(
             'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE',
-            cfg_layer='final',
-            cfg_cls_token_only=True,
+            var_layer='final',
+            var_cls_token_only=True,
         )
         stats.build()
         print(stats.tile_feature_mean)
@@ -691,19 +691,19 @@ def gigapath_deep_feature_stats_probe(
 
     clip = gigapath_deep_feature_clip(
         name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
         url=url,
     )
     return DeepFeatureStatsProbe(
         url=url,
         spec=dict(
             clip=dbx.quote(clip),
-            layer=cfg_layer,
-            normalize=cfg_normalize,
+            layer=var_layer,
+            normalize=var_normalize,
         ),
     )
 
@@ -717,53 +717,53 @@ def gigapath_deep_feature_stats_probe(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_workers=8,\
 ).build()"
 ### CPTAC 60/20/20 — bipolar features (TEST, stats from CALIBRATE)
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_workers=8,\
 ).build()"
 ### CPTAC 60/20/20 — bipolar features + ternarization (TRAIN, stats from CALIBRATE)
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_ternarize_tiles=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_ternarize_tiles=True, \
+    var_shard_size=64, \
     n_workers=8,\
 ).build()"
 ### CPTAC 60/20/20 — bipolar features + ternarization (TEST, stats from CALIBRATE)
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_ternarize_tiles=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_ternarize_tiles=True, \
+    var_shard_size=64, \
     n_workers=8,\
 ).build()"
 """
 def gigapath_bipolar_deep_feature_clip(
     name: str,
     *,
-    cfg_layer: str = 'final',
-    cfg_bag_aggregation_threshold: float = 0.5,
-    cfg_ternarize_tiles: bool = False,
-    cfg_stats_probe_name: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 64,
+    var_layer: str = 'final',
+    var_bag_aggregation_threshold: float = 0.5,
+    var_ternarize_tiles: bool = False,
+    var_stats_probe_name: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
     url: str | None = None,
     n_workers: int = 1,
     parallelization: str | None = None,
@@ -776,7 +776,7 @@ def gigapath_bipolar_deep_feature_clip(
     The ``clip`` (which bags to bipolarize) comes from ``name``.
     The ``stats_probe`` (which provides the median threshold) defaults
     to the CALIBRATE fold of the same partition to avoid data leakage.
-    Override with ``cfg_stats_probe_name``.
+    Override with ``var_stats_probe_name``.
 
     Parameters
     ----------
@@ -784,20 +784,20 @@ def gigapath_bipolar_deep_feature_clip(
         Named configuration — same values accepted by
         :func:`gigapath_deep_feature_clip` (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
-    cfg_layer : str
+    var_layer : str
         Which capture key to bipolarize (e.g. ``"final"``).
-    cfg_bag_aggregation_threshold : float
+    var_bag_aggregation_threshold : float
         Threshold for bag-level bipolar aggregation.
         ``abs(mean) >= threshold → sign(mean)``, else ``0``.
-    cfg_stats_probe_name : str | None
+    var_stats_probe_name : str | None
         Name for the stats probe clip.  Defaults to the CALIBRATE
         fold of the same partition (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"`` for a
         ``602020`` partition).
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
         Forwarded to :func:`gigapath_deep_feature_clip` to identify
         the underlying clip.
-    cfg_shard_size : int
+    var_shard_size : int
         Forwarded to :func:`gigapath_deep_feature_clip`.
     url : str | None
         Datablock URL.
@@ -814,8 +814,8 @@ def gigapath_bipolar_deep_feature_clip(
 
         bipolar = gigapath_bipolar_deep_feature_clip(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            cfg_layer='final',
-            cfg_cls_token_only=True,
+            var_layer='final',
+            var_cls_token_only=True,
         )
         bipolar.build_tree()
     """
@@ -825,31 +825,31 @@ def gigapath_bipolar_deep_feature_clip(
     # The clip whose bags are bipolarized.
     clip = gigapath_deep_feature_clip(
         name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
         url=url,
     )
 
     # Stats probe — default to CALIBRATE fold.
-    if cfg_stats_probe_name is None:
+    if var_stats_probe_name is None:
         # "GIGAPATH_DEEP_CPTAC_602020_TRAIN" → "GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"
         parts = name.rsplit('_', 1)
         if len(parts) == 2 and parts[1] in ('TRAIN', 'TEST', 'CALIBRATE'):
-            cfg_stats_probe_name = parts[0] + '_CALIBRATE'
+            var_stats_probe_name = parts[0] + '_CALIBRATE'
         else:
-            cfg_stats_probe_name = name
+            var_stats_probe_name = name
 
     stats_probe = gigapath_deep_feature_stats_probe(
-        cfg_stats_probe_name,
-        cfg_layer=cfg_layer,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_stats_probe_name,
+        var_layer=var_layer,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
         url=url,
     )
     return BipolarDeepFeatureClip(
@@ -857,9 +857,9 @@ def gigapath_bipolar_deep_feature_clip(
         spec=dict(
             clip=dbx.quote(clip),
             stats_probe=dbx.quote(stats_probe),
-            layer=cfg_layer,
-            bag_aggregation_threshold=cfg_bag_aggregation_threshold,
-            ternarize_tiles=cfg_ternarize_tiles,
+            layer=var_layer,
+            bag_aggregation_threshold=var_bag_aggregation_threshold,
+            ternarize_tiles=var_ternarize_tiles,
         ),
         n_workers=n_workers,
         parallelization=parallelization,
@@ -875,60 +875,60 @@ def gigapath_bipolar_deep_feature_clip(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
 ).build_tree()"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    cfg_normalize='l2', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_normalize='l2', \
 ).build_tree()"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    cfg_ternarize_tiles=True, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_ternarize_tiles=True, \
 ).build_tree()"
 ### CPTAC 60/20/20 — bipolar logistic probe
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
 ).build_tree()"
 ### CPTAC 60/20/20 — bipolar logistic probe
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
-    cfg_ternarize_tiles=True, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_ternarize_tiles=True, \
 ).build_tree()"
 """
 def gigapath_bipolar_deep_feature_affine_logistic_probe(
     name: str,
     *,
-    cfg_layer: str = 'final',
-    cfg_annotation_key: str | None = None,
-    cfg_fit_intercept: bool = True,
-    cfg_evaluation_fraction: float = 0.8,
-    cfg_normalize: str | None = None,
-    cfg_bag_aggregation_threshold: float = 0.5,
-    cfg_ternarize_tiles: bool = False,
-    cfg_stats_probe_name: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 64,
+    var_layer: str = 'final',
+    var_annotation_key: str | None = None,
+    var_fit_intercept: bool = True,
+    var_evaluation_fraction: float = 0.8,
+    var_normalize: str | None = None,
+    var_bag_aggregation_threshold: float = 0.5,
+    var_ternarize_tiles: bool = False,
+    var_stats_probe_name: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
     url: str | None = None,
 ) -> 'DeepFeatureAffineLogisticProbe':
     """Create a :class:`DeepFeatureAffineLogisticProbe` on a bipolar clip.
@@ -941,23 +941,23 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
     name : str
         Named configuration (e.g.
         ``"GIGAPATH_DEEP_CPTAC_602020_TRAIN"``).
-    cfg_layer : str
+    var_layer : str
         Which capture key to bipolarize and probe.
-    cfg_annotation_key : str | None
+    var_annotation_key : str | None
         Dotted path into annotations for label extraction.
-    cfg_fit_intercept : bool
+    var_fit_intercept : bool
         Whether to fit an intercept in the logistic regression.
-    cfg_evaluation_fraction : float
+    var_evaluation_fraction : float
         Fraction of bags used for training.
-    cfg_normalize : str | None
+    var_normalize : str | None
         Feature normalization mode.
-    cfg_bag_aggregation_threshold : float
+    var_bag_aggregation_threshold : float
         Threshold for bag-level bipolar aggregation.
-    cfg_stats_probe_name : str | None
+    var_stats_probe_name : str | None
         Name for the stats probe clip (defaults to CALIBRATE fold).
-    cfg_capture_blocks, cfg_capture_layers, cfg_capture_outputs, cfg_cls_token_only
+    var_capture_blocks, var_capture_layers, var_capture_outputs, var_cls_token_only
         Forwarded to :func:`gigapath_bipolar_deep_feature_clip`.
-    cfg_shard_size : int
+    var_shard_size : int
         Forwarded to :func:`gigapath_bipolar_deep_feature_clip`.
     url : str | None
         Datablock URL.
@@ -968,33 +968,33 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
 
         probe = gigapath_bipolar_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            cfg_layer='final',
-            cfg_cls_token_only=True,
+            var_layer='final',
+            var_cls_token_only=True,
         )
         probe.build_tree()
     """
     clip = gigapath_bipolar_deep_feature_clip(
         name,
-        cfg_layer=cfg_layer,
-        cfg_bag_aggregation_threshold=cfg_bag_aggregation_threshold,
-        cfg_ternarize_tiles=cfg_ternarize_tiles,
-        cfg_stats_probe_name=cfg_stats_probe_name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_layer=var_layer,
+        var_bag_aggregation_threshold=var_bag_aggregation_threshold,
+        var_ternarize_tiles=var_ternarize_tiles,
+        var_stats_probe_name=var_stats_probe_name,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
         url=url,
     )
     return DeepFeatureAffineLogisticProbe(
         url=url,
         spec=dict(
             clip=dbx.quote(clip),
-            layer=cfg_layer,
-            annotation_key=cfg_annotation_key,
-            fit_intercept=cfg_fit_intercept,
-            evaluation_fraction=cfg_evaluation_fraction,
-            normalize=cfg_normalize,
+            layer=var_layer,
+            annotation_key=var_annotation_key,
+            fit_intercept=var_fit_intercept,
+            evaluation_fraction=var_evaluation_fraction,
+            normalize=var_normalize,
         ),
     )
 
@@ -1007,8 +1007,8 @@ def gigapath_bipolar_deep_feature_affine_logistic_probe(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_tile_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     batch_size=4, \
     n=8, \
 )"
@@ -1017,10 +1017,10 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
     name: str,
     *,
     url: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 1024,
     shuffle: bool = False,
     skip_invalid_bags: bool = True,
     batch_size: int | None = None,
@@ -1050,10 +1050,10 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
     clip = gigapath_deep_feature_clip(
         name,
         url=url,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
     )
     assert clip.valid(), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
@@ -1088,28 +1088,28 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     batch_size=4, \
     n=8, \
 )"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     batch_size=4, \
     n=8, \
 )"
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    cfg_layer='final', \
-    cfg_cls_token_only=True, \
-    cfg_ternarize_tiles=True, \
-    cfg_shard_size=64, \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_ternarize_tiles=True, \
+    var_shard_size=64, \
     batch_size=4, \
     n=8, \
 )"
@@ -1117,15 +1117,15 @@ autopath.deep.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_sampl
 def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
     name: str,
     *,
-    cfg_layer: str = 'final',
-    cfg_bag_aggregation_threshold: float = 0.5,
-    cfg_ternarize_tiles: bool = False,
-    cfg_stats_probe_name: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 64,
+    var_layer: str = 'final',
+    var_bag_aggregation_threshold: float = 0.5,
+    var_ternarize_tiles: bool = False,
+    var_stats_probe_name: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
     url: str | None = None,
     shuffle: bool = False,
     skip_invalid_bags: bool = True,
@@ -1149,7 +1149,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
     ----------
     name : str
         Forwarded to :func:`gigapath_bipolar_deep_feature_clip`.
-    cfg_layer, cfg_bag_aggregation_threshold, cfg_ternarize_tiles, cfg_stats_probe_name
+    var_layer, var_bag_aggregation_threshold, var_ternarize_tiles, var_stats_probe_name
         Forwarded to :func:`gigapath_bipolar_deep_feature_clip`.
     shuffle, skip_invalid_bags, batch_size
         Forwarded to both ``.dataset()`` calls.
@@ -1160,15 +1160,15 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
 
     bipolar_clip = gigapath_bipolar_deep_feature_clip(
         name,
-        cfg_layer=cfg_layer,
-        cfg_bag_aggregation_threshold=cfg_bag_aggregation_threshold,
-        cfg_ternarize_tiles=cfg_ternarize_tiles,
-        cfg_stats_probe_name=cfg_stats_probe_name,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_layer=var_layer,
+        var_bag_aggregation_threshold=var_bag_aggregation_threshold,
+        var_ternarize_tiles=var_ternarize_tiles,
+        var_stats_probe_name=var_stats_probe_name,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
         url=url,
     )
     assert bipolar_clip.valid(), (
@@ -1209,16 +1209,16 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_validate_tile_feature_zip_alignment( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_samples=100, \
 )"
 ### CPTAC 60/20/20 — validate using TFRecord tiles (bypass MDS round-trip)
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_validate_tile_feature_zip_alignment( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_samples=100, \
     tile_source='tfrecord', \
 )"
@@ -1227,11 +1227,11 @@ def gigapath_validate_tile_feature_zip_alignment(
     name: str,
     *,
     url: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 1024,
     n_samples: int | None = None,
     tile_key: str = 'tile',
     tile_source: str = 'dataset',
@@ -1288,11 +1288,11 @@ def gigapath_validate_tile_feature_zip_alignment(
     clip = gigapath_deep_feature_clip(
         name,
         url=url,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
     )
     assert clip.valid(), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
@@ -1332,8 +1332,8 @@ def gigapath_validate_tile_feature_zip_alignment(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_probe_tile_feature_zip_alignment( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
-    cfg_shard_size=64, \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
     n_samples=20, \
 )"
 """
@@ -1341,8 +1341,8 @@ def gigapath_probe_tile_feature_zip_alignment(
     name: str,
     *,
     url: str | None = None,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 1024,
     n_samples: int = 20,
 ):
     """Check that ``clip.dataset()[i]`` and ``clip.tile_feature_dataset()[i]``
@@ -1355,8 +1355,8 @@ def gigapath_probe_tile_feature_zip_alignment(
     """
     clip = gigapath_deep_feature_clip(
         name, url=url,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
     )
 
     ds_plain = clip.dataset(shuffle=False, batch_size=1)
@@ -1408,20 +1408,20 @@ def gigapath_probe_tile_feature_zip_alignment(
 dbx.pprint "\
 autopath.deep.pipelines.gigapath_probe_deep_feature_clip_batchsize_effect( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    cfg_cls_token_only=True, \
+    var_cls_token_only=True, \
     bag_index = 0, tile_indices = list(range(100)), \
-    cfg_shard_size=64, \
+    var_shard_size=64, \
 )"
 """
 def gigapath_probe_deep_feature_clip_batchsize_effect(
     name: str,
     *,
     url: str | None = None,
-    cfg_capture_blocks: list | None = None,
-    cfg_capture_layers: list | None = None,
-    cfg_capture_outputs: bool = True,
-    cfg_cls_token_only: bool = False,
-    cfg_shard_size: int = 1024,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_outputs: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 1024,
     bag_index: int = 0,
     tile_index: int | list[int] = 0,
     n_repeats: int = 3,
@@ -1442,11 +1442,11 @@ def gigapath_probe_deep_feature_clip_batchsize_effect(
     clip = gigapath_deep_feature_clip(
         name,
         url=url,
-        cfg_capture_blocks=cfg_capture_blocks,
-        cfg_capture_layers=cfg_capture_layers,
-        cfg_capture_outputs=cfg_capture_outputs,
-        cfg_cls_token_only=cfg_cls_token_only,
-        cfg_shard_size=cfg_shard_size,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_outputs=var_capture_outputs,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
     )
 
     if isinstance(tile_index, int):

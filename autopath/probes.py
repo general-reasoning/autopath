@@ -477,6 +477,7 @@ class FeatureBagMedianProbe(Datablock):
     
 class BipolarFeatureBagProbe(Datablock):
     VERSION = 1
+    LEGACY_NORM = True
     TOPICS = {
         'labels': 'labels.npz',
         'bags': 'bags.npz',
@@ -1070,6 +1071,7 @@ class BipolarFeatureBagProbe(Datablock):
 
 class FeaturePairwiseDistancesBlock(Datablock):
     VERSION = 5
+    LEGACY_NORM = True
     TOPICS = {
         'rows': 'rows.npz',
         'cols': 'cols.npz',
@@ -1135,6 +1137,7 @@ class FeaturePairwiseDistancesBlock(Datablock):
 
 class FeaturePairwiseDistances(Datablock):
     VERSION = 5 
+    LEGACY_NORM = True
     TOPICS = {
         "features_shape": "features_shape.npy",
     }
@@ -1222,6 +1225,7 @@ class FeaturePairwiseDistances(Datablock):
 
 class FeatureSortedDistancesBlock(Datablock):
     VERSION = 5
+    LEGACY_NORM = True
     TOPICS = {
         "sorted_distances": "sorted_distances.npy",
         "original_order_indices": "original_order_indices.npy",
@@ -1273,6 +1277,7 @@ class FeatureSortedDistancesBlock(Datablock):
 
 class FeatureSortedDistances(Datablock):
     VERSION = 5
+    LEGACY_NORM = True
     TOPICS = "breadcrumbs"
 
     @dataclass

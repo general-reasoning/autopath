@@ -272,6 +272,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
     """
 
     VERSION = 1
+    LEGACY_NORM = True
 
     TOPICS = {
         'bag_labels':        'bag_labels.npz',
@@ -428,6 +429,7 @@ class DeepFeatureStatsProbe(Datablock):
     """
 
     VERSION = 1
+    LEGACY_NORM = True
 
     TOPICS = {
         'tile_count':           'tile_count.npz',

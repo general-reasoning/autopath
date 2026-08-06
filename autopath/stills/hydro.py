@@ -749,9 +749,10 @@ class HydroStill(Datablock):
     """Full training pipeline for Hydro, similar to VariationalReEncoderDecoderStill."""
     
     VERSION = 1
+    LEGACY_NORM = True
     TOPICS = {
-        'logs': None,
-        'ckpts': None,
+        'logs': dbx.DIRTOPIC,
+        'ckpts': dbx.DIRTOPIC,
     }
 
     @dataclass
