@@ -262,7 +262,7 @@ class PancanTilePartition(Partition):
     VERSION = 1
     
     @dataclass
-    class CONFIG(Partition.CONFIG):
+    class VAR(Partition.CONFIG):
         clip: PancanTileClip
 
 
@@ -270,12 +270,12 @@ class PancanTileFold(Fold):
     VERSION = 1
     
     @dataclass
-    class CONFIG(Fold.CONFIG):
+    class VAR(Fold.CONFIG):
         partition: PancanTilePartition
 
     def dataset(self, *slices, mode='map', columns=None, shared=None, validate_shared=False, on_conflict='last', skip_none=True, zip_validator=None, **streaming_kwargs):
         if not slices:
-            slices = self.cfg.partition.cfg.clip.SLICES
+            slices = self.var.partition.var.clip.SLICES
         
         datasets = []
         for slice_name in slices:
@@ -316,7 +316,7 @@ class PancanTileFold(Fold):
 
     def data(self, *slices, **kwargs):
         if not slices:
-            slices = self.cfg.partition.cfg.clip.SLICES
+            slices = self.var.partition.var.clip.SLICES
             
         def _read_slice(slice_name):
             samples = []
