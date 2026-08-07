@@ -131,9 +131,6 @@ class TileClipDataLoaderBuilder(Datablock):
         self.log.debug(f"Initializing TileClipDataLoaderBuilder dataloader with kwargs: {self.dataloader_kwargs}")
         return torch.utils.data.DataLoader(dataset=self.dataset, **self.dataloader_kwargs)
 
-
-
-
 	
 class PancanTFRecordDataset(TFRecordDataset):
 		def __init__(self, tfrecords_path, index_path, transform):
@@ -190,7 +187,6 @@ class PancanTileBag(TileBag):
 	@property
 	def name(self):
 		return self._name
-
 
 	# ── Source TFRecord access (for build) ──────────────────────────
 
