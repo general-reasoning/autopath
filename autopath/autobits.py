@@ -19,6 +19,10 @@ import dbx
 from dbx import (
     Datablock,
     Datastack,
+    DatamodelEvaluator,
+    DatamodelEvaluatorFactory,
+    DataformerEvaluator,
+    DataformerEvaluatorFactory,
     InlineCallableExecutor,
     MultithreadingCallableExecutor,
     MultiprocessingCallableExecutor,
@@ -259,105 +263,11 @@ class Fold(Clip):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Abstract Deep Backbone Evaluator & Factory
+#  Evaluator & Factory Aliases
 # ═══════════════════════════════════════════════════════════════════════
 
-class DeepBackboneEvaluator:
-    """Model-agnostic base for hook-based multi-layer activation capture.
-
-    Subclasses must implement:
-
-    * :meth:`layer_names` — ordered list of capture keys produced by
-      ``__call__``.
-    * :meth:`__call__` — run a forward pass and return a
-      ``dict[str, Tensor]`` mapping capture keys to activation tensors,
-      plus an ``"final"`` key for the backbone output.
-    * :meth:`clear` — release captured tensors and free accelerator
-      memory.
-
-    Optionally override :meth:`__pre_call__` to lazily register hooks.
-
-    Properties
-    ----------
-    layer_names : list[str]
-        Ordered capture keys that ``__call__`` will produce.
-    layer_features : dict[str, Tensor]
-        Most recently captured activations (read-only snapshot).
-    """
-
-    def __init__(self, *, device: str = "cuda", log: dbx.Logger = dbx.Logger(stack_depth=3)):
-        self.device = device
-        self.log = log
-
-    @property
-    def layer_names(self):
-        """Return the ordered list of capture keys that ``__call__`` produces.
-
-        Must be overridden by subclasses.
-        """
-        raise NotImplementedError
-
-    def __pre_call__(self):
-        """Hook called before each forward pass (e.g. to lazily register hooks)."""
-        pass
-
-    def __call__(self, x):
-        """Run forward pass on batch *x* and return captured activations.
-
-        Returns
-        -------
-        dict[str, Tensor]
-            Mapping from capture-key to activation tensor, plus
-            ``"final"`` for the backbone's own output.
-
-        Must be overridden by subclasses.
-        """
-        raise NotImplementedError
-
-    def clear(self):
-        """Release captured tensors and free accelerator memory."""
-        gc.collect()
-        torch.cuda.empty_cache()
-        return self
-
-    @property
-    def layer_features(self):
-        """Most recently captured activations (read-only snapshot).
-
-        Must be overridden by subclasses.
-        """
-        raise NotImplementedError
-
-
-class DeepBackboneEvaluatorFactory(Datablock):
-    """Abstract Datablock used for spec-based dependency tracking.
-
-    This Datablock does **not** build or persist anything itself.
-    It exists so that :class:`DeepFeatureBag` and :class:`DeepFeatureClip`
-    can declare their evaluator configuration as a spec dependency,
-    enabling deterministic hashing and lineage tracking.
-
-    Concrete subclasses may extend ``CONFIG`` with model-specific fields
-    and override :meth:`evaluator` to return a ready-to-use
-    :class:`DeepBackboneEvaluator`.
-    """
-
-    VERSION = 1
-    LEGACY_NORM = True
-
-    @dataclass
-    class CONFIG:
-        capture_blocks: list = field(default_factory=list)  # list[int] — transformer block indices
-        capture_layers: list = field(default_factory=list)  # list[str] — named layers
-        capture_final: bool = True   # capture model output as 'features_final'
-        cls_token_only: bool = False   # capture only CLS token activations
-
-    def evaluator(self, *, device: str = None, log: dbx.Logger = None):
-        """Create a live :class:`DeepBackboneEvaluator`.
-
-        Must be overridden by subclasses.
-        """
-        raise NotImplementedError
+DeepBackboneEvaluator = DataformerEvaluator
+DeepBackboneEvaluatorFactory = DataformerEvaluatorFactory
 
 
 # ═══════════════════════════════════════════════════════════════════════
