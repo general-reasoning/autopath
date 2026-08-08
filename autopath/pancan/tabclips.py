@@ -11,7 +11,8 @@ from streaming import Stream, StreamingDataset
 
 import dbx
 from dbx.datablocks import DIRTOPIC
-from dbx.datastreams import DatastreamTab, DatastreamTable, ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
+from dbx.datasamples import DatasampleTab, DatasampleTable
+from dbx.datastreams import ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
 from autopath.autobits import Partition, Fold
 from autopath.pancan.annotations import extract_case_id, get_annotations
@@ -20,7 +21,7 @@ from autopath.pancan.tools.tfrecord import get_tfrecord_parser
 from autopath.tools import read_mds_samples
 
 
-class PancanTileBag(DatastreamTab):
+class PancanTileBag(DatasampleTab):
     VERSION = 1
 
     SLICES = (
@@ -31,7 +32,7 @@ class PancanTileBag(DatastreamTab):
     )
 
     @dataclass
-    class VAR(DatastreamTab.VAR):
+    class VAR(DatasampleTab.VAR):
         source: str
         shard_size: int = 256
 
@@ -178,14 +179,14 @@ class PancanTileBag(DatastreamTab):
         return os.path.dirname(cohort_dir)
 
 
-class PancanTileClip(DatastreamTable):
+class PancanTileClip(DatasampleTable):
     VERSION = 1
     TAB = PancanTileBag
 
     TOPICS = {'tabs': DIRTOPIC, 'done': 'done', 'bag_lens': 'bag_lens.npz'}
 
     @dataclass
-    class VAR(DatastreamTable.VAR):
+    class VAR(DatasampleTable.VAR):
         source: str
         resolution: str
 

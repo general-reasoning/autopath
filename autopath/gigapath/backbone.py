@@ -17,7 +17,7 @@ the tile transform
 import copy
 from dataclasses import dataclass
 import gc
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 
@@ -131,3 +131,18 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
     """
 
     Evaluator = GigapathDeepBackboneEvaluator
+
+    @dataclass
+    class VAR(DataformerEvaluatorFactory.VAR):
+        model: Any = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
+
+    def __init__(self, model="$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()", *, capture_blocks=None, capture_layers=None, capture_final=True, cls_token_only=False, spec=None, **kwargs):
+        super().__init__(
+            model=model,
+            capture_blocks=capture_blocks,
+            capture_layers=capture_layers,
+            capture_final=capture_final,
+            cls_token_only=cls_token_only,
+            spec=spec,
+            **kwargs,
+        )
