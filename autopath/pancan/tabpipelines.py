@@ -27,7 +27,7 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
 """
 dbx.print "autopath.pancan.tabpipelines.pancan_tile_clip('CPTAC').build().valid()"
 
-dbx.print "autopath.pancan.tabpipelines.pancan_tile_clip('CPTAC', n_workers=16).build().valid()"
+dbx.print "autopath.pancan.tabpipelines.pancan_tile_clip('CPTAC', n_workers=64).build().valid()"
 """
 def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | None = None) -> PancanTileClip:
     if parallelization is None and n_workers > 1:
