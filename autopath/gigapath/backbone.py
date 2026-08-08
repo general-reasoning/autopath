@@ -86,7 +86,6 @@ class GigapathDeepBackboneEvaluator(DataformerEvaluator):
     """
 
     DEFAULT_MODEL = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
-    DEFAULT_BACKBONE = DEFAULT_MODEL
 
     def __init__(
         self,
@@ -105,7 +104,7 @@ class GigapathDeepBackboneEvaluator(DataformerEvaluator):
         if capture_blocks == 'all':
             capture_blocks = list(range(GIGAPATH_BACKBONE_DEPTH))
         super().__init__(
-            backbone=backbone,
+            model=backbone,
             capture_blocks=capture_blocks,
             capture_layers=capture_layers,
             capture_final=capture_final,
@@ -114,6 +113,11 @@ class GigapathDeepBackboneEvaluator(DataformerEvaluator):
             device=device,
             log=log,
         )
+
+    @property
+    def backbone(self):
+        """Backwards compatible alias for model."""
+        return self.model
 
 
 class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
