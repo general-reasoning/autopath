@@ -85,7 +85,8 @@ class GigapathDeepBackboneEvaluator(DataformerEvaluator):
     for the GigaPath ViT backbone.
     """
 
-    DEFAULT_BACKBONE = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
+    DEFAULT_MODEL = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
+    DEFAULT_BACKBONE = DEFAULT_MODEL
 
     def __init__(
         self,
