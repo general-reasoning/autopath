@@ -1,17 +1,17 @@
 """GigaPath-specific deep backbone evaluation infrastructure.
 
-Provides :class:`GigapathDeepBackboneEvaluator` (runtime hook-based
+Provides `GigapathDeepBackboneEvaluator` (runtime hook-based
 activation capture for the GigaPath ViT backbone) and
-:class:`GigapathDeepBackboneEvaluatorFactory` (a concrete
-:class:`~autopath.autobits.DeepBackboneEvaluatorFactory` that persists
+`GigapathDeepBackboneEvaluatorFactory` (a concrete
+`DeepBackboneEvaluatorFactory` that persists
 the resolved capture configuration so that downstream consumers know
 the tensor shapes).
 
-Inherits solely from :class:`~autopath.autobits.DeepBackboneEvaluator`;
-the ``gigapath.dinov2`` package supplies only the raw model factory
-(:func:`~autopath.gigapath.dinov2.backbone.gigapath_tile_backbone`) and
+Inherits from `DataformerEvaluator`;
+the `gigapath.dinov2` package supplies only the raw model factory
+(`gigapath_tile_backbone()`) and
 the tile transform
-(:func:`~autopath.gigapath.dinov2.backbone.dino_tile_transform`).
+(`dino_tile_transform()`).
 """
 
 import copy
@@ -81,7 +81,7 @@ def resolve_sublayer_name(sublayer: str) -> str:
 class GigapathDeepBackboneEvaluator(DataformerEvaluator):
     """GigaPath-specific configurable activation-capturing backbone evaluator.
 
-    Concrete subclass of :class:`~dbx.DataformerEvaluator`
+    Concrete subclass of `DataformerEvaluator`
     for the GigaPath ViT backbone.
     """
 
@@ -89,8 +89,9 @@ class GigapathDeepBackboneEvaluator(DataformerEvaluator):
 
     def __init__(
         self,
-        backbone=None,
+        model=None,
         *,
+        backbone=None,
         capture_blocks: List[int] = None,
         capture_layers: List[str] = None,
         capture_final: bool = True,
@@ -99,12 +100,13 @@ class GigapathDeepBackboneEvaluator(DataformerEvaluator):
         device: str = "cuda",
         log: Logger = Logger(),
     ):
+        model_val = model if model is not None else backbone
         if transform is None:
             transform = dino_tile_transform()
         if capture_blocks == 'all':
             capture_blocks = list(range(GIGAPATH_BACKBONE_DEPTH))
         super().__init__(
-            model=backbone,
+            model=model_val,
             capture_blocks=capture_blocks,
             capture_layers=capture_layers,
             capture_final=capture_final,
@@ -121,11 +123,11 @@ class GigapathDeepBackboneEvaluator(DataformerEvaluator):
 
 
 class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
-    """GigaPath-specific :class:`DataformerEvaluatorFactory`.
+    """GigaPath-specific `DataformerEvaluatorFactory`.
 
-    Exists for spec-based dependency tracking in :class:`DeepFeatureBag`
-    and :class:`DeepFeatureClip`.  Call :meth:`evaluator` to obtain a
-    ready-to-use :class:`GigapathDeepBackboneEvaluator`.
+    Exists for spec-based dependency tracking in `DeepFeatureBag`
+    and `DeepFeatureClip`.  Call `evaluator()` to obtain a
+    ready-to-use `GigapathDeepBackboneEvaluator`.
     """
 
     Evaluator = GigapathDeepBackboneEvaluator
