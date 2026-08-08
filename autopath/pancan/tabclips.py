@@ -23,7 +23,12 @@ from autopath.tools import read_mds_samples
 class PancanTileBag(DatastreamTab):
     VERSION = 1
 
-    SLICES = ('tiles', 'annotations', 'bag_name', 'tile_index')
+    SLICES = (
+        ('tiles', 'ndarray'),
+        ('annotations', 'object'),
+        'bag_name',
+        ('tile_index', 'int32'),
+    )
 
     @dataclass
     class VAR(DatastreamTab.VAR):
