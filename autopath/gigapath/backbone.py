@@ -126,4 +126,6 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
     Exists for spec-based dependency tracking in :class:`DeepFeatureBag`
     and :class:`DeepFeatureClip`.  Call :meth:`evaluator` to obtain a
     ready-to-use :class:`GigapathDeepBackboneEvaluator`.
+    """
+
     Evaluator = GigapathDeepBackboneEvaluator
