@@ -14,7 +14,7 @@ dbx.pprint "autopath.pancan.tabpipelines.pancan_tile_bag('CPTAC_SAMPLE').build()
 
 dbx.pprint "autopath.pancan.tabpipelines.pancan_tile_bag('CPTAC_SAMPLE').build().paths()"
 
-dbx.pprint "autopath.pancan.tabpipelines.pancan_tile_bag('CPTAC_SAMPLE').data()[0]"
+dbx.pprint "autopath.pancan.tabpipelines.pancan_tile_bag('CPTAC_SAMPLE').data('tiles', concat=True)['tile'].shape"
 """
 def pancan_tile_bag(name=None) -> PancanTileBag:
     if name is None:
