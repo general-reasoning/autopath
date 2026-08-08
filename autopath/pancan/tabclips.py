@@ -11,7 +11,7 @@ from streaming import Stream, StreamingDataset
 
 import dbx
 from dbx.datablocks import DIRTOPIC
-from dbx.datastreams import DatastreamTab, DatastreamTable, ZipStreamingDataset, ZipIterableStreamingDatasets
+from dbx.datastreams import DatastreamTab, DatastreamTable, ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
 from autopath.autobits import Partition, Fold
 from autopath.pancan.annotations import extract_case_id, get_annotations
@@ -314,7 +314,7 @@ class PancanTileFold(Fold):
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
-    def data(self, *slices, **kwargs):
+    def data(self, *slices, concat: bool = False, **kwargs):
         if not slices:
             slices = self.var.partition.var.clip.SLICES
             
@@ -325,5 +325,9 @@ class PancanTileFold(Fold):
             return samples
             
         if len(slices) == 1:
-            return _read_slice(slices[0])
-        return {name: _read_slice(name) for name in slices}
+            res = _read_slice(slices[0])
+            return concat_data(res) if concat else res
+        res = {name: _read_slice(name) for name in slices}
+        if concat:
+            return {name: concat_data(val) for name, val in res.items()}
+        return res
