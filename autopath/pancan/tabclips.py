@@ -32,8 +32,9 @@ class PancanTileBag(DatapointTab):
     )
 
     @dataclass
-    class VAR(DatapointTab.VAR):
+    class VAR(Datablock.VAR):
         source: str
+        datapoints_per_row: int = 1
         shard_size: int = 256
 
     def __post_init__(self):
