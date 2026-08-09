@@ -12,7 +12,7 @@ from streaming import Stream, StreamingDataset
 
 import dbx
 from dbx.datablocks import DIRTOPIC
-from dbx.datapoints import DatapointTab, DatapointTable, DatapointPartition, DatapointFold
+from dbx.datapoints import Datablock, DatapointTab, DatapointTable, DatapointPartition, DatapointFold
 from dbx.datastreams import ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
 from autopath.pancan.annotations import extract_case_id, get_annotations
