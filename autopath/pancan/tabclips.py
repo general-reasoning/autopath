@@ -260,14 +260,6 @@ class PancanTileClip(DatapointTable):
         return self.n_tabs
 
 
-class PancanTilePartition(DatapointPartition):
-    VERSION = 1
-    
-    @dataclass
-    class VAR(DatapointPartition.VAR):
-        clip: PancanTileClip
-
-
 class PancanTileFold(DatapointFold):
     VERSION = 1
     
