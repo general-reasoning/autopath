@@ -107,19 +107,19 @@ norm2, mlp, mlp.fc1, mlp.act, mlp.fc2, ls2
 
 ```bash
 # Single bag — all 40 blocks, CLS token only
-dbx.print "autopath.gigadeep.pipelines.gigapath_deep_feature_bag( \
+dbx.print "autopath.gigaprobe.pipelines.gigapath_deep_feature_bag( \
     'GIGAPATH_DEEP_CPTAC_SAMPLE', \
     cls_token_only=True).build()"
 
 # Clip — final block only (fast)
-dbx.print "autopath.gigadeep.pipelines.gigapath_deep_feature_clip( \
+dbx.print "autopath.gigaprobe.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
     capture_blocks=[-1], \
     cls_token_only=True, \
     device_batch_size=1024).build()"
 
 # Clip — final LayerNorm output
-dbx.print "autopath.gigadeep.pipelines.gigapath_deep_feature_clip( \
+dbx.print "autopath.gigaprobe.pipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
     capture_layers=['norm'], \
     cls_token_only=True, \

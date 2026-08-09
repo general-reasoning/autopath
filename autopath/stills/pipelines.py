@@ -12,9 +12,9 @@ import os
 
 import dbx
 
-from autopath.gigadeep.features import DeepFeatureClip
-from autopath.gigadeep.pipelines import gigapath_bipolar_deep_feature_clip
-from autopath.gigadeep.probes import DeepFeatureAffineLogisticProbe
+from autopath.gigaprobe.features import DeepFeatureClip
+from autopath.gigaprobe.pipelines import gigapath_bipolar_deep_feature_clip
+from autopath.gigaprobe.probes import DeepFeatureAffineLogisticProbe
 from autopath.pancan.pipelines import (
     pancan_tile_clip,
     pancan_tile_fold,
@@ -397,12 +397,12 @@ def bitconv_deep_feature_clip(
     batch_size: int = 64,
     parallelization: str | None = None,
 ) -> DeepFeatureClip:
-    """Create a :class:`~autopath.gigadeep.features.DeepFeatureClip` backed by a trained BitConv still.
+    """Create a :class:`~autopath.gigaprobe.features.DeepFeatureClip` backed by a trained BitConv still.
 
     Evaluates the trained :class:`~autopath.stills.bitpath.BitPathConvNet`
     on each tile and stores the resulting ternary ``{-1, 0, +1}``
     feature vectors as ``features_final`` in MDS format, identically to
-    how :func:`~autopath.gigadeep.pipelines.gigapath_deep_feature_clip` stores
+    how :func:`~autopath.gigaprobe.pipelines.gigapath_deep_feature_clip` stores
     Gigapath activations.
 
     Parameters
@@ -516,7 +516,7 @@ def bitconv_deep_feature_affine_logistic_probe(
     parallelization: str | None = None,
     url: str | None = None,
 ) -> 'DeepFeatureAffineLogisticProbe':
-    """Create a :class:`~autopath.gigadeep.probes.DeepFeatureAffineLogisticProbe`
+    """Create a :class:`~autopath.gigaprobe.probes.DeepFeatureAffineLogisticProbe`
     on BitConv deep features.
 
     Fits a logistic regression classifier on bag-level mean features

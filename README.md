@@ -382,7 +382,7 @@ Only parameters that affect the **output** of training go in CONFIG
 ## 7  Pipeline: `bitpath_still()`
 
 ```python
-from autopath.gigadeep.pipelines import bitpath_still
+from autopath.gigaprobe.pipelines import bitpath_still
 
 still = bitpath_still(
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
