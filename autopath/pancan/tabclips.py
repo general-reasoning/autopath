@@ -7,21 +7,21 @@ from dataclasses import dataclass
 import fsspec
 import numpy as np
 import torch
+import tqdm
 from streaming import Stream, StreamingDataset
 
 import dbx
 from dbx.datablocks import DIRTOPIC
-from dbx.datasamples import DatasampleTab, DatasampleTable
+from dbx.datapoints import DatapointTab, DatapointTable, DatapointPartition, DatapointFold
 from dbx.datastreams import ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
-from autopath.autobits import Partition, Fold
 from autopath.pancan.annotations import extract_case_id, get_annotations
 from autopath.pancan.clips import PancanTFRecordDataset
 from autopath.pancan.tools.tfrecord import get_tfrecord_parser
 from autopath.tools import read_mds_samples
 
 
-class PancanTileBag(DatasampleTab):
+class PancanTileBag(DatapointTab):
     VERSION = 1
 
     SLICES = (
@@ -32,7 +32,7 @@ class PancanTileBag(DatasampleTab):
     )
 
     @dataclass
-    class VAR(DatasampleTab.VAR):
+    class VAR(DatapointTab.VAR):
         source: str
         shard_size: int = 256
 
@@ -168,25 +168,19 @@ class PancanTileBag(DatasampleTab):
         index = np.load(self._source_index_path)['arr_0']
         return len(index)
 
-    @property
-    def _is_local_fs(self):
-        """True when this bag's storage is on a local filesystem."""
-        protocol = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
-        return protocol in ('file', 'local', '')
-
     def _clip_source_root(self):
         cohort_dir, _ = self.var.source.split('/tfrecords/')
         return os.path.dirname(cohort_dir)
 
 
-class PancanTileClip(DatasampleTable):
+class PancanTileClip(DatapointTable):
     VERSION = 1
     TAB = PancanTileBag
 
     TOPICS = {'tabs': DIRTOPIC, 'done': 'done', 'bag_lens': 'bag_lens.npz'}
 
     @dataclass
-    class VAR(DatasampleTable.VAR):
+    class VAR(DatapointTable.VAR):
         source: str
         resolution: str
 
@@ -212,12 +206,13 @@ class PancanTileClip(DatasampleTable):
         ))
         return self
 
-    def __tab__(self, idx: int):
+    def __tab__(self, idx: int, tag=None):
         bagpath = self.bagpaths[idx]
         relpath = os.path.relpath(bagpath, self.var.source)
         source_expr = self.spec['source'][1:]  # strip leading '$' from specline
         source = f"$os.path.join({source_expr}, '{relpath}')"
-        tag = os.path.join(relpath.split(os.sep)[0], os.path.splitext(os.path.basename(bagpath))[0])
+        if tag is None:
+            tag = os.path.join(relpath.split(os.sep)[0], os.path.splitext(os.path.basename(bagpath))[0])
         return super().__tab__(
             idx,
             tag=tag,
@@ -228,7 +223,6 @@ class PancanTileClip(DatasampleTable):
         self.log.info(f"Stacking {self.n_tabs} bags of {self.__class__.__name__}")
         super().__stack__(results)
         
-        import tqdm
         bag_lens = [len(self.tab(i)) for i in tqdm.tqdm(range(self.n_tabs), desc="Stacking bag lens")]
         dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         
@@ -264,19 +258,19 @@ class PancanTileClip(DatasampleTable):
         return self.n_tabs
 
 
-class PancanTilePartition(Partition):
+class PancanTilePartition(DatapointPartition):
     VERSION = 1
     
     @dataclass
-    class VAR(Partition.CONFIG):
+    class VAR(DatapointPartition.VAR):
         clip: PancanTileClip
 
 
-class PancanTileFold(Fold):
+class PancanTileFold(DatapointFold):
     VERSION = 1
     
     @dataclass
-    class VAR(Fold.CONFIG):
+    class VAR(DatapointFold.VAR):
         partition: PancanTilePartition
 
     def dataset(self, *slices, mode='map', columns=None, shared=None, validate_shared=False, on_conflict='last', skip_none=True, zip_validator=None, **streaming_kwargs):
@@ -288,7 +282,7 @@ class PancanTileFold(Fold):
             streams = []
             for i in range(self.n_blocks):
                 tab = self.block(i)
-                if tab._is_local_fs:
+                if tab.is_local_fs:
                     streams.append(Stream(local=tab.path(tab.DATA, slice_name)))
                 else:
                     streams.append(Stream(remote=tab.path(tab.DATA, slice_name)))
