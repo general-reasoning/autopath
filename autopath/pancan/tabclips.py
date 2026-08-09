@@ -25,10 +25,10 @@ class PancanTileBag(DatasampleTab):
     VERSION = 1
 
     SLICES = (
-        ('tiles', 'ndarray'),
+        ('tiles',       'ndarray'),
         ('annotations', 'object'),
-        'bag_name',
-        ('tile_index', 'int32'),
+        'bag_name',    
+        ('tile_index',  'int32'),
     )
 
     @dataclass

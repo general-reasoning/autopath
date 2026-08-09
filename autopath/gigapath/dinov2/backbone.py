@@ -439,9 +439,9 @@ class SpectralProbe:
 
     Accepts a GigaPath backbone and unwraps its blocks via
     :func:`backbone_blocks`, then delegates to the model-agnostic
-    :class:`autopath.deep.probes.SpectralProbe`.
+    :class:`autopath.gigadeep.probes.SpectralProbe`.
 
-    New code should use :class:`autopath.deep.probes.SpectralProbe`
+    New code should use :class:`autopath.gigadeep.probes.SpectralProbe`
     directly.
     """
 
@@ -453,7 +453,7 @@ class SpectralProbe:
         device: str = 'cuda',
         log: dbx.Logger = dbx.Logger(name='SpectralProbe', stack_depth=3),
     ):
-        from autopath.deep.probes import SpectralProbe as _GenericSpectralProbe
+        from autopath.gigadeep.probes import SpectralProbe as _GenericSpectralProbe
         blocks = list(backbone_blocks(backbone))
         self._delegate = _GenericSpectralProbe(
             blocks=blocks,
