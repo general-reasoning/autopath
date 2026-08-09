@@ -262,7 +262,7 @@ class PancanTileClip(DatapointTable):
 
 class PancanTilePartition(DatapointPartition):
     pass
-    
+
 
 class PancanTileFold(DatapointFold):
     VERSION = 1
