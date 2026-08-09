@@ -11,7 +11,7 @@ import tqdm
 from streaming import Stream, StreamingDataset
 
 import dbx
-from dbx.datablocks import DIRTOPIC
+from dbx.datablocks import DIRTOPIC, SLICETOPIC
 from dbx.datapoints import Datablock, DatapointTab, DatapointTable, DatapointPartition, DatapointFold
 from dbx.datastreams import ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
@@ -24,12 +24,20 @@ from autopath.tools import read_mds_samples
 class PancanTileBag(DatapointTab):
     VERSION = 1
 
+    """
     SLICES = (
         ('tiles',       'ndarray'),
         ('annotations', 'object'),
         'bag_name',    
         ('tile_index',  'int32'),
     )
+    """
+    TOPICS = {
+        'tiles': SLICETOPIC,
+        'annotations': SLICETOPIC,
+        'bag_name': SLICETOPIC,
+        'tile_index': SLICETOPIC,
+    }
 
     @dataclass
     class VAR(Datablock.VAR):
