@@ -260,13 +260,13 @@ class PancanTileClip(DatapointTable):
         return self.n_tabs
 
 
+class PancanTilePartition(DatapointPartition):
+    pass
+    
+
 class PancanTileFold(DatapointFold):
     VERSION = 1
     
-    @dataclass
-    class VAR(DatapointFold.VAR):
-        partition: PancanTilePartition
-
     def dataset(self, *slices, mode='map', columns=None, shared=None, validate_shared=False, on_conflict='last', skip_none=True, zip_validator=None, **streaming_kwargs):
         if not slices:
             slices = self.var.partition.var.clip.SLICES
