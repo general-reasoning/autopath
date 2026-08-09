@@ -11,8 +11,8 @@ import tqdm
 from streaming import Stream, StreamingDataset
 
 import dbx
-from dbx.datablocks import DIRTOPIC, SLICETOPIC
-from dbx.datapoints import Datablock, DatapointTab, DatapointTable, DatapointPartition, DatapointFold
+from dbx.datablocks import DIRTOPIC
+from dbx.datapoints import Datablock, DatapointTab, DatapointTable, DatapointPartition, DatapointFold, SLICETOPIC
 from dbx.datastreams import ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
 from autopath.pancan.annotations import extract_case_id, get_annotations
