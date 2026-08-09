@@ -181,9 +181,10 @@ class PancanTileClip(DatapointTable):
     TOPICS = {'tabs': DIRTOPIC, 'done': 'done', 'bag_lens': 'bag_lens.npz'}
 
     @dataclass
-    class VAR(DatapointTable.VAR):
+    class VAR(Datablock.VAR):
         source: str
         resolution: str
+        datapoints_per_row: int = 1
 
     def __post_init__(self):
         def _is_tfrecords_dir(fs, d, resolution):
