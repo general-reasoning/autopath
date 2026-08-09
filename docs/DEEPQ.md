@@ -257,15 +257,15 @@ quality gap that narrows with ternary-aware fine-tuning.
 
 | Component | Location | Role |
 |-----------|----------|------|
-| `LinearDeepFeatureClipProbe` | `autopath/gigaprobe/probes.py` | Per-layer logistic regression with persisted weights |
-| `StatsDeepFeatureClipProbe` | `autopath/gigaprobe/probes.py` | Tile/bag-level norms, medians, distinct counts |
-| `SphericalDeepFeatureBag/Clip` | `autopath/gigaprobe/features.py` | Runtime L2-normalisation |
-| `CornerDeepFeatureBag/Clip` | `autopath/gigaprobe/features.py` | Runtime sign quantisation, `corner_ids()` |
-| `SpectralProbe` | `autopath/gigaprobe/probes.py` | Jacobian SVD for layer dynamics |
+| `LinearDeepFeatureClipProbe` | `autopath/gigapan/probes.py` | Per-layer logistic regression with persisted weights |
+| `StatsDeepFeatureClipProbe` | `autopath/gigapan/probes.py` | Tile/bag-level norms, medians, distinct counts |
+| `SphericalDeepFeatureBag/Clip` | `autopath/gigapan/features.py` | Runtime L2-normalisation |
+| `CornerDeepFeatureBag/Clip` | `autopath/gigapan/features.py` | Runtime sign quantisation, `corner_ids()` |
+| `SpectralProbe` | `autopath/gigapan/probes.py` | Jacobian SVD for layer dynamics |
 | `SphericalFeatureBag/Clip` | `autopath/features.py` | Legacy L2-normalisation (single-layer) |
 | `BipolarFeatureBag/Clip` | `autopath/features.py` | Legacy median-based trit encoding |
 | `AffineLogisticFeatureBagProbe` | `autopath/probes.py` | Single-layer probe with `coef_` / `intercept_` persistence |
-| Pipeline entry points | `autopath/gigaprobe/pipelines.py` | `gigapath_spherical_deep_feature_clip`, `gigapath_corner_deep_feature_clip` |
+| Pipeline entry points | `autopath/gigapan/pipelines.py` | `gigapath_spherical_deep_feature_clip`, `gigapath_corner_deep_feature_clip` |
 
 ---
 

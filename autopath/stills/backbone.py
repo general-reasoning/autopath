@@ -12,7 +12,7 @@ The evaluator is a drop-in replacement for
 :class:`~autopath.gigapath.backbone.GigapathDeepBackboneEvaluator`
 wherever the consumer only requires ``features_final`` and the
 continuous-valued nature of the Gigapath backbone is not central (e.g.
-when plugging into :class:`~autopath.gigaprobe.features.DeepFeatureClip` or
+when plugging into :class:`~autopath.gigapan.features.DeepFeatureClip` or
 probes that operate on the ternary feature space).
 
 Architecture notes
@@ -97,7 +97,7 @@ class BitConvDeepBackboneEvaluator(DeepBackboneEvaluator):
         preds = logits.argmax(dim=1) - 1   # ∈ {-1, 0, +1}, shape (B, D)
 
     The result is returned as float32 for compatibility with the MDS
-    writer used by :class:`~autopath.gigaprobe.features.DeepFeatureBag`.
+    writer used by :class:`~autopath.gigapan.features.DeepFeatureBag`.
 
     Default device is ``"cpu"`` because the network uses simulated
     float32 quantization (not hardware integer ops) and is small enough
@@ -176,8 +176,8 @@ class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
     The factory's hash is derived from the still's hash, so any change
     to the training configuration or checkpoint is automatically
     reflected in the hashes of downstream
-    :class:`~autopath.gigaprobe.features.DeepFeatureBag` and
-    :class:`~autopath.gigaprobe.features.DeepFeatureClip` instances.
+    :class:`~autopath.gigapan.features.DeepFeatureBag` and
+    :class:`~autopath.gigapan.features.DeepFeatureClip` instances.
 
     Usage
     -----
@@ -217,7 +217,7 @@ class BitConvDeepBackboneEvaluatorFactory(DeepBackboneEvaluatorFactory):
         """Layer names produced by this evaluator factory.
 
         Returns ``['final']`` without loading the model, allowing
-        :meth:`~autopath.gigaprobe.features.DeepFeatureBag.__post_init__`
+        :meth:`~autopath.gigapan.features.DeepFeatureBag.__post_init__`
         to determine the MDS column schema cheaply.
         """
         return ['final']
