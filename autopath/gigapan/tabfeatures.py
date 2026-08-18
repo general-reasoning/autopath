@@ -22,6 +22,7 @@ class TileCollator(Datacollator):
     class VAR(Datablock.VAR):
         signals: list = None
         labels: list = None
+        length: int | None = None
 
     def __post_init__(self):
         super().__post_init__()
