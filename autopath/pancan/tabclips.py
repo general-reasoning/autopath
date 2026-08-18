@@ -313,9 +313,9 @@ class PancanTileFold(DatapointFold):
             for i in range(self.n_blocks):
                 tab = self.block(i)
                 if tab.is_local_fs:
-                    streams.append(Stream(local=tab.path(tab.DATA, slice_name)))
+                    streams.append(Stream(local=tab.path(slice_name)))
                 else:
-                    streams.append(Stream(remote=tab.path(tab.DATA, slice_name)))
+                    streams.append(Stream(remote=tab.path(slice_name)))
             
             ds = StreamingDataset(streams=streams, **streaming_kwargs)
             datasets.append(ds)
