@@ -13,6 +13,8 @@ from dbx.datafeatures import (
 )
 
 
+from dataclasses import dataclass, field
+
 class TileCollator(Datacollator):
     """Default collator for tile datasets, extracting signal ('tiles', 'tile')."""
 
@@ -20,16 +22,9 @@ class TileCollator(Datacollator):
 
     @dataclass
     class VAR(Datablock.VAR):
-        signals: list = None
-        labels: list = None
+        signals: list = field(default_factory=lambda: [('tiles', 'tile')])
+        labels: list = field(default_factory=list)
         length: int | None = None
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.var.signals is None:
-            object.__setattr__(self.var, 'signals', [('tiles', 'tile')])
-        if self.var.labels is None:
-            object.__setattr__(self.var, 'labels', [])
 
 
 def tile_collator() -> TileCollator:
