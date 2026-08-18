@@ -83,6 +83,44 @@ def gigapath_deep_backbone_evaluator_factory(
 #  Deep Feature Bag & Clip
 # ═══════════════════════════════════════════════════════════════════════
 
+"""
+### FINAL-ONLY
+## CLS-only
+dbx.pprint \
+"autopath.gigapan.tabpipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    device_batch_size=1024 \
+).build().valid()"
+### ALL DEEP layers
+## CLS-only
+dbx.pprint \
+"autopath.gigapan.tabpipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    var_cls_token_only=True, \
+    var_capture_blocks='all', \
+    var_shard_size=128, \
+    device_batch_size=128 \
+).build().valid()"
+## CLS + PATCH tokens
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    var_cls_token_only=False, \
+    var_capture_blocks='all', \
+    var_shard_size=64, \
+    device_batch_size=1024 \
+    ).build().valid()\
+    "
+### SOME DEEP layers
+## CLS-only
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_bag('GIGAPATH_DEEP_CPTAC_SAMPLE', \
+    var_cls_token_only=True, \
+    var_capture_blocks=[0, 7, 14, 21, 27, 33, 39], \
+    var_shard_size=128, \
+    device_batch_size=1024 \
+    ).build().valid()\
+    "
+"""
 def gigapath_deep_feature_bag(
     name: str,
     *,
@@ -112,6 +150,67 @@ def gigapath_deep_feature_bag(
     )
 
 
+"""
+### CPTAC: FINAL-ONLY|CLS-ONLY
+## 1 device
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=1, device_batch_size=512, \
+).build_tree()"
+## 3 devices
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True,\
+).build_tree()"
+### CPTAC_602020_TRAIN|CALIBRATE|TEST: FINAL-ONLY|CLS-ONLY
+## 1 device
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=1, device_batch_size=512, \
+).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip(\
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=1, device_batch_size=512, \
+).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=1, device_batch_size=512, \
+).build_tree()"
+## 3 devices
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True,).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True,).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True,).build_tree()"
+"""
 def gigapath_deep_feature_clip(
     name: str = None,
     *,
@@ -162,6 +261,50 @@ def gigapath_deep_feature_clip(
     )
 
 
+"""
+dbx.pprint "autopath.gigapan.tabpipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC', \
+    var_cls_token_only=True, \
+    var_shard_size=64,\
+    n=8,\
+)"
+dbx.pprint "autopath.gigapan.tabpipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
+    var_cls_token_only=True, \
+    n=8,\
+)"
+dbx.pprint "autopath.gigapan.tabpipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_404020_TRAIN', \
+    var_capture_blocks=[0,19,38], \
+    var_cls_token_only=True, \
+    batch_size=8, \
+    shuffle=True, \
+    n=16,\
+)"
+dbx.pprint "autopath.gigapan.tabpipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC', \
+    var_cls_token_only=True, \
+    n=4,\
+)"
+dbx.pprint "autopath.gigapan.tabpipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n=4,\
+)"
+dbx.pprint "autopath.gigapan.tabpipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n=4,\
+)"
+dbx.pprint "autopath.gigapan.tabpipelines.gigapath_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n=4,\
+)"
+"""
 def gigapath_deep_feature_clip_dataloader_samples(
     name: str,
     n: int,
@@ -212,6 +355,15 @@ def gigapath_deep_feature_clip_dataloader_samples(
 #  Probes & Bipolar Clip
 # ═══════════════════════════════════════════════════════════════════════
 
+"""
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+).build()"
+"""
 def gigapath_deep_feature_stats_probe(
     name: str,
     *,
@@ -243,6 +395,46 @@ def gigapath_deep_feature_stats_probe(
     )
 
 
+"""
+### CPTAC 60/20/20 — bipolar features (TRAIN, stats from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_bipolar_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_workers=8,\
+).build()"
+### CPTAC 60/20/20 — bipolar features (TEST, stats from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_bipolar_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_workers=8,\
+).build()"
+### CPTAC 60/20/20 — bipolar features + ternarization (TRAIN, stats from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_bipolar_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_ternarize_tiles=True, \
+    var_shard_size=64, \
+    n_workers=8,\
+).build()"
+### CPTAC 60/20/20 — bipolar features + ternarization (TEST, stats from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_bipolar_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_ternarize_tiles=True, \
+    var_shard_size=64, \
+    n_workers=8,\
+).build()"
+"""
 def gigapath_bipolar_deep_feature_clip(
     name: str,
     *,
@@ -303,6 +495,16 @@ def gigapath_bipolar_deep_feature_clip(
     )
 
 
+"""
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_tile_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    batch_size=4, \
+    n=8, \
+)"
+"""
 def gigapath_tile_deep_feature_clip_dataloader_samples(
     name: str,
     *,
@@ -356,6 +558,36 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
         return last
 
 
+"""
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    batch_size=4, \
+    n=8, \
+)"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    batch_size=4, \
+    n=8, \
+)"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_ternarize_tiles=True, \
+    var_shard_size=64, \
+    batch_size=4, \
+    n=8, \
+)"
+"""
 def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
     name: str,
     *,
