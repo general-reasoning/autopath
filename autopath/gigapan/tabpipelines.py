@@ -24,6 +24,7 @@ from autopath.gigapan.tabfeatures import (
     DeepFeatureBag,
     DeepFeatureClip,
     BipolarDeepFeatureClip,
+    tile_collator,
 )
 from autopath.gigapan.tabprobes import (
     DeepFeatureStatsProbe,
@@ -144,6 +145,7 @@ def gigapath_deep_feature_bag(
         spec=dict(
             tilebag=tilebag_quote,
             evaluator_factory=dbx.quote(factory),
+            collator=dbx.quote(tile_collator),
             shard_size=var_shard_size,
         ),
         device_batch_size=device_batch_size,
@@ -251,6 +253,7 @@ def gigapath_deep_feature_clip(
         spec=dict(
             tilebagclip=tilebagclip,
             evaluator_factory=dbx.quote(factory),
+            collator=dbx.quote(tile_collator),
             shard_size=var_shard_size,
         ),
         device_batch_size=device_batch_size,

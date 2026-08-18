@@ -5,11 +5,35 @@ import dbx
 from dbx.datablocks import Datablock
 from dbx.datapoints import DatapointTab, DatapointTable
 from dbx.datafeatures import (
+    Datacollator,
     DatafeatureTab,
     DatafeatureTable,
     BipolarDatafeatureTab,
     BipolarDatafeatureTable,
 )
+
+
+class TileCollator(Datacollator):
+    """Default collator for tile datasets, extracting signal ('tiles', 'tile')."""
+
+    VERSION = 1
+
+    @dataclass
+    class VAR(Datablock.VAR):
+        signals: list = None
+        labels: list = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.var.signals is None:
+            object.__setattr__(self.var, 'signals', [('tiles', 'tile')])
+        if self.var.labels is None:
+            object.__setattr__(self.var, 'labels', [])
+
+
+def tile_collator() -> TileCollator:
+    """Constructor for the default tile collator."""
+    return TileCollator()
 
 
 class DeepFeatureBag(DatafeatureTab):
@@ -31,6 +55,8 @@ class DeepFeatureBag(DatafeatureTab):
         super().__post_init__()
         tab = self.var.tilebag if self.var.tilebag is not None else self.var.datapoint_tab
         object.__setattr__(self.var, 'datapoint_tab', tab)
+        if self.var.collator is None:
+            object.__setattr__(self.var, 'collator', tile_collator())
 
 
 class DeepFeatureClip(DatafeatureTable):
@@ -53,6 +79,8 @@ class DeepFeatureClip(DatafeatureTable):
         super().__post_init__()
         table = self.var.tilebagclip if self.var.tilebagclip is not None else self.var.datapoint_table
         object.__setattr__(self.var, 'datapoint_table', table)
+        if self.var.collator is None:
+            object.__setattr__(self.var, 'collator', tile_collator())
 
 
 class BipolarDeepFeatureBag(BipolarDatafeatureTab):
