@@ -305,7 +305,7 @@ class PancanTileFold(DatapointFold):
 
     def dataset(self, *slices, mode='map', columns=None, shared=None, validate_shared=False, on_conflict='last', skip_none=True, zip_validator=None, **streaming_kwargs):
         if not slices:
-            slices = self.var.partition.var.clip.SLICES
+            slices = self.slices
         
         datasets = []
         for slice_name in slices:
@@ -346,7 +346,7 @@ class PancanTileFold(DatapointFold):
 
     def data(self, *slices, concat: bool = False, **kwargs):
         if not slices:
-            slices = self.var.partition.var.clip.SLICES
+            slices = self.slices
             
         def _read_slice(slice_name):
             samples = []
