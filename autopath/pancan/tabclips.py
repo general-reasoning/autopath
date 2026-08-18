@@ -261,7 +261,23 @@ class PancanTileClip(DatapointTable):
 
 
 class PancanTilePartition(DatapointPartition):
-    pass
+    VERSION = 1
+
+    @dataclass
+    class VAR(DatapointPartition.VAR):
+        clip: DatapointTable = None
+        fold_fractions: list[float] = None
+        partition_slice: int | str = 'tiles'
+        datapoint_table: DatapointTable = None
+        fractions: list[float] = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        clip = self.var.clip if self.var.clip is not None else self.var.datapoint_table
+        fractions = self.var.fold_fractions if self.var.fold_fractions is not None else self.var.fractions
+        object.__setattr__(self.var, 'datapoint_table', clip)
+        object.__setattr__(self.var, 'fractions', fractions)
+
 
 
 class PancanTileFold(DatapointFold):
