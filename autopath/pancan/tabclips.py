@@ -266,7 +266,27 @@ class PancanTilePartition(DatapointPartition):
 
 class PancanTileFold(DatapointFold):
     VERSION = 1
-    
+
+    @dataclass
+    class VAR(DatapointFold.VAR):
+        fold: str = '0'
+        # datapoint_table and tab_indices are resolved in __post_init__ from
+        # partition + fold; give them defaults so VAR(**spec) succeeds with
+        # just {partition, fold} in the spec.
+        datapoint_table: DatapointTable = None
+        tab_indices: list = None
+
+    def __post_init__(self):
+        # Resolve fold (a string index into the partition's folds list) into
+        # the tab_indices and datapoint_table that DatapointFold needs.
+        partition = self.var.partition
+        fold_idx = int(self.var.fold)
+        folds_tabs = partition.read('tabs')   # list[list[int]] from partition JSON
+        tab_indices = folds_tabs[fold_idx]
+        datapoint_table = partition.var.datapoint_table
+        object.__setattr__(self.var, 'tab_indices', tab_indices)
+        object.__setattr__(self.var, 'datapoint_table', datapoint_table)
+
     def dataset(self, *slices, mode='map', columns=None, shared=None, validate_shared=False, on_conflict='last', skip_none=True, zip_validator=None, **streaming_kwargs):
         if not slices:
             slices = self.var.partition.var.clip.SLICES
