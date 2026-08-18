@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import dbx
+from dbx.datablocks import Datablock
 from dbx.datapoints import DatapointTab, DatapointTable
 from dbx.datafeatures import (
     DatafeatureTab,
@@ -17,15 +18,19 @@ class DeepFeatureBag(DatafeatureTab):
     VERSION = 1
 
     @dataclass
-    class VAR(DatafeatureTab.VAR):
+    class VAR(Datablock.VAR):
         tilebag: DatapointTab = None
         datapoint_tab: DatapointTab = None
+        evaluator_factory: object = None
+        collator: object = None
+        feature_namemap: dict[str, str] | None = None
+        shard_size_limit_bytes: int = 1 << 26
+        shard_size: int = 1024
 
     def __post_init__(self):
         super().__post_init__()
         tab = self.var.tilebag if self.var.tilebag is not None else self.var.datapoint_tab
-        if tab is not None:
-            object.__setattr__(self.var, 'datapoint_tab', tab)
+        object.__setattr__(self.var, 'datapoint_tab', tab)
 
 
 class DeepFeatureClip(DatafeatureTable):
@@ -35,15 +40,19 @@ class DeepFeatureClip(DatafeatureTable):
     TAB = DeepFeatureBag
 
     @dataclass
-    class VAR(DatafeatureTable.VAR):
+    class VAR(Datablock.VAR):
         tilebagclip: DatapointTable = None
         datapoint_table: DatapointTable = None
+        evaluator_factory: object = None
+        collator: object = None
+        feature_namemap: dict | None = None
+        shard_size_limit_bytes: int = 1 << 26
+        shard_size: int = 1024
 
     def __post_init__(self):
         super().__post_init__()
         table = self.var.tilebagclip if self.var.tilebagclip is not None else self.var.datapoint_table
-        if table is not None:
-            object.__setattr__(self.var, 'datapoint_table', table)
+        object.__setattr__(self.var, 'datapoint_table', table)
 
 
 class BipolarDeepFeatureBag(BipolarDatafeatureTab):
@@ -52,8 +61,11 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
     VERSION = 1
 
     @dataclass
-    class VAR(BipolarDatafeatureTab.VAR):
-        pass
+    class VAR(Datablock.VAR):
+        featuretab: DatafeatureTab = None
+        layer: str = 'final'
+        threshold: float = 0.5
+        ternarize: bool = False
 
 
 class BipolarDeepFeatureClip(BipolarDatafeatureTable):
@@ -63,12 +75,21 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
     TAB = BipolarDeepFeatureBag
 
     @dataclass
-    class VAR(BipolarDatafeatureTable.VAR):
+    class VAR(Datablock.VAR):
         clip: DatafeatureTable = None
         featuretable: DatafeatureTable = None
+        stats_probe: object = None
+        layer: str = 'final'
+        bag_aggregation_threshold: float = 0.5
+        threshold: float = 0.5
+        ternarize_tiles: bool = False
+        ternarize: bool = False
 
     def __post_init__(self):
         super().__post_init__()
         ft = self.var.clip if self.var.clip is not None else self.var.featuretable
-        if ft is not None:
-            object.__setattr__(self.var, 'featuretable', ft)
+        object.__setattr__(self.var, 'featuretable', ft)
+        agg_thresh = self.var.bag_aggregation_threshold if self.var.bag_aggregation_threshold is not None else self.var.threshold
+        object.__setattr__(self.var, 'threshold', agg_thresh)
+        tern = self.var.ternarize_tiles if self.var.ternarize_tiles is not None else self.var.ternarize
+        object.__setattr__(self.var, 'ternarize', tern)
