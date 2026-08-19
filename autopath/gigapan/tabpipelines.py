@@ -168,7 +168,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     var_cls_token_only=True, \
     var_shard_size=64, \
-    devices=['cuda', 'cuda', 'cuda', 'cuda'], device_batch_size=128, \
+    devices=['cuda', 'cuda', 'cuda', 'cuda'], device_batch_size=128, parallelization='multiprocessing', \
 ).build_tree()"
 ## 3 devices
 dbx.pprint "\
