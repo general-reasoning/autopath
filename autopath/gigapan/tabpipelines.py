@@ -162,6 +162,14 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
 ).build_tree()"
+## 1 device x4
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    devices=['cuda', 'cuda', 'cuda', 'cuda'], device_batch_size=128, \
+).build_tree()"
 ## 3 devices
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
