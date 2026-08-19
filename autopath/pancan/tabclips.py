@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import gc
 import itertools
 import os
@@ -286,21 +287,25 @@ class PancanTileFold(DatapointFold):
     @dataclass
     class VAR(Datablock.VAR):
         partition: DatapointPartition = None
-        fold: str | int = '0'
-        datapoint_table: DatapointTable = None
-        tab_indices: list = None
+        fold: int = 0
         datapoints_per_row: int = 1
 
-    def __post_init__(self):
-        super().__post_init__()
-        partition = self.var.partition
-        if partition is not None and (self.var.tab_indices is None or self.var.datapoint_table is None):
-            fold_idx = int(self.var.fold)
-            folds_tabs = partition.read('tabs')
-            tab_indices = folds_tabs[fold_idx]
-            datapoint_table = partition.var.datapoint_table
-            object.__setattr__(self.var, 'tab_indices', tab_indices)
-            object.__setattr__(self.var, 'datapoint_table', datapoint_table)
+    @property
+    def TAB(self):
+        return getattr(self.var.partition.var.datapoint_table, 'TAB', None)
+
+    @property
+    def slices(self):
+        return self.var.partition.var.datapoint_table.slices
+
+    @property
+    def TOPICS(self):
+        return self.var.partition.var.datapoint_table.TOPICS
+
+    @functools.cached_property
+    def tab_indices(self) -> list[int]:
+        # fold may arrive as a string from the spec (e.g. '-1', '0').
+        return self.var.partition.tabs_indices(int(self.var.fold))
 
     def dataset(self, *slices, mode='map', columns=None, shared=None, validate_shared=False, on_conflict='last', skip_none=True, zip_validator=None, **streaming_kwargs):
         if not slices:
