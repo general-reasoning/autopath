@@ -1,9 +1,9 @@
 """tabfeatures — DeepFeatureBag, DeepFeatureClip, and Bipolar variants using dbx.datafeatures."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import dbx
 from dbx.datablocks import Datablock
-from dbx.datapoints import DatapointTab, DatapointTable
+from dbx.datapoints import DatapointTab, DatapointTable, DIRTOPIC, SLICETOPIC
 from dbx.datafeatures import (
     Datacollator,
     DatafeatureTab,
@@ -12,8 +12,6 @@ from dbx.datafeatures import (
     BipolarDatafeatureTable,
 )
 
-
-from dataclasses import dataclass, field
 
 class TileCollator(Datacollator):
     """Default collator for tile datasets, extracting signal ('tiles', 'tile')."""
@@ -36,6 +34,7 @@ class DeepFeatureBag(DatafeatureTab):
     """Deep feature bag storing multi-layer activations."""
 
     VERSION = 1
+    TOPICS = {'features': SLICETOPIC}
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -60,6 +59,7 @@ class DeepFeatureClip(DatafeatureTable):
 
     VERSION = 1
     TAB = DeepFeatureBag
+    TOPICS = {'tabs': DIRTOPIC, 'built_tabs': DIRTOPIC, 'done': 'done'}
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -77,12 +77,11 @@ class DeepFeatureClip(DatafeatureTable):
         object.__setattr__(self.var, 'datapoint_table', table)
         if self.var.collator is None:
             object.__setattr__(self.var, 'collator', tile_collator())
-
-
 class BipolarDeepFeatureBag(BipolarDatafeatureTab):
     """Bipolar-encoded deep feature bag."""
 
     VERSION = 1
+    TOPICS = {'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC}
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -97,6 +96,7 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
 
     VERSION = 1
     TAB = BipolarDeepFeatureBag
+    TOPICS = {'tabs': DIRTOPIC, 'built_tabs': DIRTOPIC, 'done': 'done'}
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -117,3 +117,4 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
         object.__setattr__(self.var, 'threshold', agg_thresh)
         tern = self.var.ternarize_tiles if self.var.ternarize_tiles is not None else self.var.ternarize
         object.__setattr__(self.var, 'ternarize', tern)
+
