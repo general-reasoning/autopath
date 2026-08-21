@@ -38,7 +38,9 @@ from autopath.gigapath.dinov2.backbone import (
     GIGAPATH_BACKBONE_DEPTH,
     backbone_blocks,
     dino_tile_transform,
+    gigapath_tile_backbone,
 )
+
 
 
 
@@ -126,7 +128,7 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
     """GigaPath-specific `DataformerEvaluatorFactory`.
 
     Exists for spec-based dependency tracking in `DeepFeatureBag`
-    and `DeepFeatureClip`.  Call `evaluator()` to obtain a
+    and `DeepFeatureClip`. Call `evaluator()` to obtain a
     ready-to-use `GigapathDeepBackboneEvaluator`.
     """
 
@@ -134,20 +136,9 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
 
     @dataclass
     class VAR(DataformerEvaluatorFactory.VAR):
-        model: Any = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
+        pass
 
-    def __init__(self, model="$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()", *, capture_blocks=None, capture_layers=None, capture_final=True, cls_token_only=False, spec=None, **kwargs):
-        if spec is None:
-            spec = dict(
-                model=model,
-                capture_blocks=capture_blocks or [],
-                capture_layers=capture_layers or [],
-                capture_final=capture_final,
-                cls_token_only=cls_token_only,
-            )
-        else:
-            spec = dict(spec)
-            spec.setdefault('model', model)
+    def __init__(self, *, capture_blocks=None, capture_layers=None, capture_final=True, cls_token_only=False, spec=None, **kwargs):
         super().__init__(
             capture_blocks=capture_blocks,
             capture_layers=capture_layers,
@@ -157,8 +148,8 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
             **kwargs,
         )
 
-
     @property
     def model(self):
-        return self.var.model
+        return gigapath_tile_backbone()
+
 
