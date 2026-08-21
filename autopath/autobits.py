@@ -616,14 +616,19 @@ class ValidateTileFeatureZipStreamingDataset:
         )
 
 
-# ═══════════════════════════════════════════════════════════════════════
-#  Collation helpers
-# ═══════════════════════════════════════════════════════════════════════
+import warnings
+import numpy as np
+
+# Suppress PyTorch non-writable NumPy array UserWarning for read-only streaming buffers
+warnings.filterwarnings("ignore", category=UserWarning, message=".*given NumPy array is not writable.*")
+
 
 def _sanitize(obj):
-    """Recursively replace ``None`` with ``{}`` in nested dicts/lists."""
+    """Recursively replace ``None`` with ``{}`` in nested dicts/lists and make non-writable NumPy arrays writable."""
     if obj is None:
         return {}
+    if isinstance(obj, np.ndarray) and not obj.flags.writeable:
+        return np.copy(obj)
     if isinstance(obj, dict):
         return {k: _sanitize(v) for k, v in obj.items()}
     if isinstance(obj, list):
