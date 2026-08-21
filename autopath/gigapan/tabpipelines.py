@@ -172,7 +172,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     var_cls_token_only=True, \
     var_shard_size=64, \
-    n_devices=1, device_batch_size=256, streaming=True, dataloader_kwargs=dict(batch_size=512, num_workers=4, prefetch_factor=2, persistent_workers=True), \
+    n_devices=1, device_batch_size=256, streaming=True, dataloader_kwargs=dict(batch_size=512, num_workers=4, prefetch_factor=2, pin_memory=True), \
 ).build_tree()"
 ## 1 device x4
 dbx.pprint "\
@@ -196,7 +196,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     var_cls_token_only=True, \
     var_shard_size=64, \
-    n_devices=3, device_batch_size=256, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=256, num_workers=0),\
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=32, num_workers=0),\
 ).build_tree()"
 ## 3 devices
 dbx.pprint "\
@@ -229,13 +229,49 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
 ).build_tree()"
-## 3 devices, streaming
+## 1 device, streaming
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     var_cls_token_only=True, \
     var_shard_size=64, \
-    n_devices=3, device_batch_size=128, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=128, num_workers=1),\
+    n_devices=1, device_batch_size=256, streaming=True, dataloader_kwargs=dict(batch_size=512, num_workers=2, prefetch_factor=2, pin_memory=True), \
+).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=1, device_batch_size=256, streaming=True, dataloader_kwargs=dict(batch_size=512, num_workers=2, prefetch_factor=2, pin_memory=True), \
+).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=1, device_batch_size=256, streaming=True, dataloader_kwargs=dict(batch_size=512, num_workers=2, prefetch_factor=2, pin_memory=True), \
+).build_tree()"
+## 3 devices, streaming
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=32, num_workers=0),\
+).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=32, num_workers=0),\
+).build_tree()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=3, device_batch_size=32, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=32, num_workers=0),\
 ).build_tree()"
 ## 3 devices
 dbx.pprint "\
