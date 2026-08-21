@@ -59,7 +59,7 @@ class DeepFeatureClip(DatafeatureTable):
 
     VERSION = 1
     TAB = DeepFeatureBag
-    TOPICS = {'tabs': DIRTOPIC, 'built_tabs': DIRTOPIC, 'done': 'done'}
+    TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -96,7 +96,7 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
 
     VERSION = 1
     TAB = BipolarDeepFeatureBag
-    TOPICS = {'tabs': DIRTOPIC, 'built_tabs': DIRTOPIC, 'done': 'done'}
+    TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
 
     @dataclass
     class VAR(Datablock.VAR):
