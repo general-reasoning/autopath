@@ -187,28 +187,6 @@ class PancanTileClip(DatapointTable):
         resolution: str
         datapoints_per_row: int = 1
 
-    def __post_init__(self):
-        def _is_tfrecords_dir(fs, d, resolution):
-            is_tf_records_dir = (
-                fs.isdir(d) and
-                'tfrecords' in [os.path.basename(f) for f in fs.ls(d)] and
-                fs.isdir(os.path.join(d, 'tfrecords', resolution))
-            )
-            return is_tf_records_dir
-        def _tfrecords_paths(fs, d, resolution):
-            dd = os.path.join(d, 'tfrecords', resolution)
-            ff = [f for f in fs.ls(dd) if f.endswith('.tfrecords')]
-            return ff
-        fs, _ = fsspec.core.url_to_fs(self.root)
-        self.bagpaths = list(itertools.chain.from_iterable(
-            [
-                _tfrecords_paths(fs, d, resolution=self.var.resolution) 
-                for d in fs.ls(self.var.source) 
-                if _is_tfrecords_dir(fs, d, resolution=self.var.resolution)
-            ]
-        ))
-        return self
-
     def __tab__(self, idx: int, tag=None):
         bagpath = self.bagpaths[idx]
         relpath = os.path.relpath(bagpath, self.var.source)
@@ -237,6 +215,30 @@ class PancanTileClip(DatapointTable):
         if topicpath == ('bag_lens',):
             return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
         return super().__read__(*topicpath)
+
+    # 2. Properties and Accessors ───────────────────────────────────
+
+    @functools.cached_property
+    def bagpaths(self) -> list[str]:
+        def _is_tfrecords_dir(fs, d, resolution):
+            return (
+                fs.isdir(d) and
+                'tfrecords' in [os.path.basename(f) for f in fs.ls(d)] and
+                fs.isdir(os.path.join(d, 'tfrecords', resolution))
+            )
+
+        def _tfrecords_paths(fs, d, resolution):
+            dd = os.path.join(d, 'tfrecords', resolution)
+            return [f for f in fs.ls(dd) if f.endswith('.tfrecords')]
+
+        fs, _ = fsspec.core.url_to_fs(self.root)
+        return list(itertools.chain.from_iterable(
+            [
+                _tfrecords_paths(fs, d, resolution=self.var.resolution)
+                for d in fs.ls(self.var.source)
+                if _is_tfrecords_dir(fs, d, resolution=self.var.resolution)
+            ]
+        ))
 
     @property
     def n_tabs(self) -> int:

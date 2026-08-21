@@ -13,6 +13,9 @@ from dbx.datafeatures import (
 )
 
 
+from dbx.datamodels import DatamodelEvaluatorFactory
+
+
 class TileCollator(Datacollator):
     """Default collator for tile datasets, extracting signal ('tiles', 'tile')."""
 
@@ -38,20 +41,12 @@ class DeepFeatureBag(DatafeatureTab):
 
     @dataclass
     class VAR(Datablock.VAR):
-        tilebag: DatapointTab = None
-        datapoint_tab: DatapointTab = None
-        evaluator_factory: object = None
-        collator: object = None
+        datapoint_tab: DatapointTab
+        evaluator_factory: DatamodelEvaluatorFactory
+        collator: Datacollator | None = None
         feature_namemap: dict[str, str] | None = None
         shard_size_limit_bytes: int = 1 << 26
         shard_size: int = 1024
-
-    def __post_init__(self):
-        super().__post_init__()
-        tab = self.var.tilebag if self.var.tilebag is not None else self.var.datapoint_tab
-        object.__setattr__(self.var, 'datapoint_tab', tab)
-        if self.var.collator is None:
-            object.__setattr__(self.var, 'collator', tile_collator())
 
 
 class DeepFeatureClip(DatafeatureTable):
@@ -63,20 +58,15 @@ class DeepFeatureClip(DatafeatureTable):
 
     @dataclass
     class VAR(Datablock.VAR):
-        tilebagclip: DatapointTable = None
-        datapoint_table: DatapointTable = None
-        evaluator_factory: object = None
-        collator: object = None
+        datapoint_table: DatapointTable
+        evaluator_factory: DatamodelEvaluatorFactory
+        collator: Datacollator | None = None
         feature_namemap: dict | None = None
         shard_size_limit_bytes: int = 1 << 26
         shard_size: int = 1024
 
-    def __post_init__(self):
-        super().__post_init__()
-        table = self.var.tilebagclip if self.var.tilebagclip is not None else self.var.datapoint_table
-        object.__setattr__(self.var, 'datapoint_table', table)
-        if self.var.collator is None:
-            object.__setattr__(self.var, 'collator', tile_collator())
+
+
 class BipolarDeepFeatureBag(BipolarDatafeatureTab):
     """Bipolar-encoded deep feature bag."""
 
@@ -85,7 +75,7 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
 
     @dataclass
     class VAR(Datablock.VAR):
-        featuretab: DatafeatureTab = None
+        featuretab: DatafeatureTab
         layer: str = 'final'
         threshold: float = 0.5
         ternarize: bool = False
@@ -100,21 +90,7 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
 
     @dataclass
     class VAR(Datablock.VAR):
-        clip: DatafeatureTable = None
-        featuretable: DatafeatureTable = None
-        stats_probe: object = None
+        featuretable: DatafeatureTable
         layer: str = 'final'
-        bag_aggregation_threshold: float = 0.5
         threshold: float = 0.5
-        ternarize_tiles: bool = False
         ternarize: bool = False
-
-    def __post_init__(self):
-        super().__post_init__()
-        ft = self.var.clip if self.var.clip is not None else self.var.featuretable
-        object.__setattr__(self.var, 'featuretable', ft)
-        agg_thresh = self.var.bag_aggregation_threshold if self.var.bag_aggregation_threshold is not None else self.var.threshold
-        object.__setattr__(self.var, 'threshold', agg_thresh)
-        tern = self.var.ternarize_tiles if self.var.ternarize_tiles is not None else self.var.ternarize
-        object.__setattr__(self.var, 'ternarize', tern)
-
