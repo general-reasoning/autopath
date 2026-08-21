@@ -27,7 +27,6 @@ from dbx import Logger
 from autopath.pancan.pipelines import pancan_tile_bag
 
 from autopath.gigapath.backbone import (
-    GigapathDeepBackboneEvaluator,
     GigapathDeepBackboneEvaluatorFactory,
 )
 from autopath.gigapan.features import (
@@ -60,8 +59,8 @@ def gigapath_deep_backbone_evaluator(
     var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     device: str = "cuda",
-) -> GigapathDeepBackboneEvaluator:
-    """Create a live :class:`GigapathDeepBackboneEvaluator`.
+):
+    """Create a live evaluator.
 
     Parameters
     ----------
@@ -78,13 +77,14 @@ def gigapath_deep_backbone_evaluator(
     device : str
         Target device.
     """
-    return GigapathDeepBackboneEvaluator(
-        capture_blocks=var_capture_blocks or [],
-        capture_layers=var_capture_layers or [],
-        capture_final=var_capture_final,
-        cls_token_only=var_cls_token_only,
-        device=device,
+    factory = gigapath_deep_backbone_evaluator_factory(
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_final=var_capture_final,
+        var_cls_token_only=var_cls_token_only,
     )
+    return factory.evaluator(device=device)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════

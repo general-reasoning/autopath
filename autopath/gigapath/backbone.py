@@ -80,76 +80,18 @@ def resolve_sublayer_name(sublayer: str) -> str:
     return sublayer
 
 
-class GigapathDeepBackboneEvaluator(DataformerEvaluator):
-    """GigaPath-specific configurable activation-capturing backbone evaluator.
-
-    Concrete subclass of `DataformerEvaluator`
-    for the GigaPath ViT backbone.
-    """
-
-    DEFAULT_MODEL = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
-
-    def __init__(
-        self,
-        model=None,
-        *,
-        backbone=None,
-        capture_blocks: List[int] = None,
-        capture_layers: List[str] = None,
-        capture_final: bool = True,
-        cls_token_only: bool = False,
-        transform=None,
-        device: str = "cuda",
-        log: Logger = Logger(),
-    ):
-        model_val = model if model is not None else backbone
-        if transform is None:
-            transform = dino_tile_transform()
-        if capture_blocks == 'all':
-            capture_blocks = list(range(GIGAPATH_BACKBONE_DEPTH))
-        super().__init__(
-            model=model_val,
-            capture_blocks=capture_blocks,
-            capture_layers=capture_layers,
-            capture_final=capture_final,
-            cls_token_only=cls_token_only,
-            transform=transform,
-            device=device,
-            log=log,
-        )
-
-    @property
-    def backbone(self):
-        """Backwards compatible alias for model."""
-        return self.model
-
-
 class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
     """GigaPath-specific `DataformerEvaluatorFactory`.
 
     Exists for spec-based dependency tracking in `DeepFeatureBag`
     and `DeepFeatureClip`. Call `evaluator()` to obtain a
-    ready-to-use `GigapathDeepBackboneEvaluator`.
+    ready-to-use `DataformerEvaluator`.
     """
-
-    Evaluator = GigapathDeepBackboneEvaluator
-
-    @dataclass
-    class VAR(DataformerEvaluatorFactory.VAR):
-        pass
-
-    def __init__(self, *, capture_blocks=None, capture_layers=None, capture_final=True, cls_token_only=False, spec=None, **kwargs):
-        super().__init__(
-            capture_blocks=capture_blocks,
-            capture_layers=capture_layers,
-            capture_final=capture_final,
-            cls_token_only=cls_token_only,
-            spec=spec,
-            **kwargs,
-        )
 
     @property
     def model(self):
         return gigapath_tile_backbone()
 
-
+    @property
+    def transform(self):
+        return dino_tile_transform()
