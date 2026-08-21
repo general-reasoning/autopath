@@ -249,6 +249,7 @@ def gigapath_deep_feature_clip(
     work_stealing: bool = False,
     streaming: bool = False,
     dataloader_kwargs: dict | None = None,
+    filter_built_tabs: bool = False,
 ) -> DeepFeatureClip:
     if name is None:
         return DeepFeatureClip
@@ -285,6 +286,7 @@ def gigapath_deep_feature_clip(
         work_stealing=work_stealing,
         streaming=streaming,
         dataloader_kwargs=dataloader_kwargs,
+        filter_built_tabs=filter_built_tabs,
     )
 
 
@@ -345,6 +347,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
     shuffle: bool = False,
     skip_invalid_bags: bool = False,
     return_last: bool = True,
+    filter_built_tabs: bool = False,
     **dataloader_kwargs,
 ):
     clip = gigapath_deep_feature_clip(
@@ -354,6 +357,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
         var_capture_layers=var_capture_layers,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
+        filter_built_tabs=filter_built_tabs,
     )
     assert clip.valid(), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
@@ -402,6 +406,7 @@ def gigapath_deep_feature_stats_probe(
     var_cls_token_only: bool = False,
     var_shard_size: int = 64,
     url: str | None = None,
+    filter_built_tabs: bool = False,
 ) -> DeepFeatureStatsProbe:
     clip = gigapath_deep_feature_clip(
         name,
@@ -411,6 +416,7 @@ def gigapath_deep_feature_stats_probe(
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
+        filter_built_tabs=filter_built_tabs,
     )
     return DeepFeatureStatsProbe(
         url=url,
@@ -479,6 +485,7 @@ def gigapath_bipolar_deep_feature_clip(
     parallelization: str | None = None,
     streaming: bool = False,
     dataloader_kwargs: dict | None = None,
+    filter_built_tabs: bool = False,
 ) -> BipolarDeepFeatureClip:
     if parallelization is None and n_workers > 1:
         parallelization = 'multiprocessing'
@@ -493,6 +500,7 @@ def gigapath_bipolar_deep_feature_clip(
         url=url,
         streaming=streaming,
         dataloader_kwargs=dataloader_kwargs,
+        filter_built_tabs=filter_built_tabs,
     )
 
     if var_stats_probe_name is None:
@@ -511,6 +519,7 @@ def gigapath_bipolar_deep_feature_clip(
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
+        filter_built_tabs=filter_built_tabs,
     )
     return BipolarDeepFeatureClip(
         url=url,
@@ -525,6 +534,7 @@ def gigapath_bipolar_deep_feature_clip(
         parallelization=parallelization,
         streaming=streaming,
         dataloader_kwargs=dataloader_kwargs,
+        filter_built_tabs=filter_built_tabs,
     )
 
 

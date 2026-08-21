@@ -288,6 +288,7 @@ def gigapath_deep_feature_clip(
     work_stealing: bool = False,
     streaming: bool = False,
     dataloader_kwargs: dict | None = None,
+    filter_built_tabs: bool = False,
 ) -> DeepFeatureClip:
     """Create a `DeepFeatureClip` over a named tile-bag clip.
 
@@ -354,6 +355,7 @@ def gigapath_deep_feature_clip(
         work_stealing=work_stealing,
         streaming=streaming,
         dataloader_kwargs=dataloader_kwargs,
+        filter_built_tabs=filter_built_tabs,
     )
 
 
