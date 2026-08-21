@@ -204,7 +204,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     var_cls_token_only=True, \
     var_shard_size=64, \
-    n_devices=3, device_batch_size=128, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=128, num_workers=4, prefetch_factor=2, persistent_workers=True),\
+    n_devices=3, device_batch_size=256, parallelization='multiprocessing', work_stealing=True, streaming=True, dataloader_kwargs=dict(batch_size=256, num_workers=1, prefetch_factor=2, persistent_workers=True),\
 ).build_tree()"
 ### CPTAC_602020_TRAIN|CALIBRATE|TEST: FINAL-ONLY|CLS-ONLY
 ## 1 device
