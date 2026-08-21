@@ -188,7 +188,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC', \
     var_cls_token_only=True, \
     var_shard_size=64, \
-    devices=['cuda', 'cuda'], device_batch_size=128, parallelization='multiprocessing', streaming=True, dataloader_kwargs=dict(batch_size=128, num_workers=4, prefetch_factor=2, persistent_workers=True), \
+    devices=['cuda', 'cuda'], device_batch_size=128, parallelization='multithreading', streaming=True, dataloader_kwargs=dict(batch_size=128, num_workers=4, prefetch_factor=2, persistent_workers=True), \
 ).build_tree()"
 ## 3 devices
 dbx.pprint "\
