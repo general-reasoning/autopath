@@ -50,7 +50,6 @@ class DeepFeatureBag(DatafeatureTab):
         shard_size: int = 1024
 
         def __post_init__(self):
-            super().__post_init__()
             tab = self.datapoint_tab if self.datapoint_tab is not None else self.tilebag
             object.__setattr__(self, 'datapoint_tab', tab)
             object.__setattr__(self, 'tilebag', tab)
@@ -74,7 +73,6 @@ class DeepFeatureClip(DatafeatureTable):
         shard_size: int = 1024
 
         def __post_init__(self):
-            super().__post_init__()
             table = self.datapoint_table if self.datapoint_table is not None else self.tilebagclip
             object.__setattr__(self, 'datapoint_table', table)
             object.__setattr__(self, 'tilebagclip', table)
@@ -95,7 +93,6 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
         ternarize: bool = False
 
         def __post_init__(self):
-            super().__post_init__()
             tab = self.featuretab if self.featuretab is not None else self.bag
             object.__setattr__(self, 'featuretab', tab)
             object.__setattr__(self, 'bag', tab)
@@ -120,8 +117,8 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
         ternarize_tiles: bool = False
 
         def __post_init__(self):
-            super().__post_init__()
             tbl = self.featuretable if self.featuretable is not None else self.clip
             object.__setattr__(self, 'featuretable', tbl)
             object.__setattr__(self, 'clip', tbl)
+
 
