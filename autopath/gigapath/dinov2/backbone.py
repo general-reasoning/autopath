@@ -281,7 +281,8 @@ def gigapath_tile_backbone(
                 pretrained=(weights is None)
             )
         if weights is not None:
-            td = torch.load(weights, map_location=device)
+            load_device = device if torch.cuda.is_available() else "cpu"
+            td = torch.load(weights, map_location=load_device)
             model.load_state_dict(td, strict=True)
     elif type == 'dinov2':
         layerscale = 1.0e-5
@@ -293,7 +294,8 @@ def gigapath_tile_backbone(
         )
         state_dict = None
         if weights is not None:
-            state_dict = torch.load(weights, map_location=device)
+            load_device = device if torch.cuda.is_available() else "cpu"
+            state_dict = torch.load(weights, map_location=load_device)
             def chkey(key):
                 prefix = 'blocks.'
                 if key.startswith(prefix): 
