@@ -308,7 +308,10 @@ def gigapath_tile_backbone(
             model.load_state_dict(state_dict_, strict=True)
     else:
         raise ValueError(f"Uknown model type {type}")
-    model.to(device)
+    target_device = device
+    if isinstance(device, str) and device.startswith("cuda") and not torch.cuda.is_available():
+        target_device = "cpu"
+    model.to(target_device)
     model.eval()
     return model
 
