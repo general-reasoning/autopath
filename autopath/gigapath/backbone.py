@@ -137,8 +137,18 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
         model: Any = "$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()"
 
     def __init__(self, model="$autopath.gigapath.dinov2.backbone.gigapath_tile_backbone()", *, capture_blocks=None, capture_layers=None, capture_final=True, cls_token_only=False, spec=None, **kwargs):
+        if spec is None:
+            spec = dict(
+                model=model,
+                capture_blocks=capture_blocks or [],
+                capture_layers=capture_layers or [],
+                capture_final=capture_final,
+                cls_token_only=cls_token_only,
+            )
+        else:
+            spec = dict(spec)
+            spec.setdefault('model', model)
         super().__init__(
-            model=model,
             capture_blocks=capture_blocks,
             capture_layers=capture_layers,
             capture_final=capture_final,
@@ -146,6 +156,7 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
             spec=spec,
             **kwargs,
         )
+
 
     @property
     def model(self):
