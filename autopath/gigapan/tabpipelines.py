@@ -132,6 +132,8 @@ def gigapath_deep_feature_bag(
     var_shard_size: int = 1024,
     device_batch_size: int = 64,
     url: str | None = None,
+    streaming: bool = False,
+    dataloader_kwargs: dict | None = None,
 ) -> DeepFeatureBag:
     factory = gigapath_deep_backbone_evaluator_factory(
         var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only, url=url,
@@ -149,6 +151,8 @@ def gigapath_deep_feature_bag(
             shard_size=var_shard_size,
         ),
         device_batch_size=device_batch_size,
+        streaming=streaming,
+        dataloader_kwargs=dataloader_kwargs,
     )
 
 
@@ -161,6 +165,14 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
+).build_tree()"
+## 1 device, streaming
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    n_devices=1, device_batch_size=256, streaming=True, dataloader_kwargs=dict(batch_size=256, num_workers=6, prefetch_factor=2, persistent_workers=True), \
 ).build_tree()"
 ## 1 device x4
 dbx.pprint "\
@@ -235,6 +247,8 @@ def gigapath_deep_feature_clip(
     device_batch_size: int = 64,
     parallelization: str | None = None,
     work_stealing: bool = False,
+    streaming: bool = False,
+    dataloader_kwargs: dict | None = None,
 ) -> DeepFeatureClip:
     if name is None:
         return DeepFeatureClip
@@ -269,6 +283,8 @@ def gigapath_deep_feature_clip(
         n_workers=len(devices),
         parallelization=parallelization,
         work_stealing=work_stealing,
+        streaming=streaming,
+        dataloader_kwargs=dataloader_kwargs,
     )
 
 
@@ -461,6 +477,8 @@ def gigapath_bipolar_deep_feature_clip(
     url: str | None = None,
     n_workers: int = 1,
     parallelization: str | None = None,
+    streaming: bool = False,
+    dataloader_kwargs: dict | None = None,
 ) -> BipolarDeepFeatureClip:
     if parallelization is None and n_workers > 1:
         parallelization = 'multiprocessing'
@@ -473,6 +491,8 @@ def gigapath_bipolar_deep_feature_clip(
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
+        streaming=streaming,
+        dataloader_kwargs=dataloader_kwargs,
     )
 
     if var_stats_probe_name is None:
@@ -503,6 +523,8 @@ def gigapath_bipolar_deep_feature_clip(
         ),
         n_workers=n_workers,
         parallelization=parallelization,
+        streaming=streaming,
+        dataloader_kwargs=dataloader_kwargs,
     )
 
 

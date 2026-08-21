@@ -164,8 +164,10 @@ def gigapath_deep_feature_bag(
     var_shard_size: int = 1024,
     device_batch_size: int = 64,
     url: str | None = None,
+    streaming: bool = False,
+    dataloader_kwargs: dict | None = None,
 ) -> DeepFeatureBag:
-    """Create a single :class:`DeepFeatureBag`.
+    """Create a single DeepFeatureBag.
 
     Parameters
     ----------
@@ -173,7 +175,7 @@ def gigapath_deep_feature_bag(
         Name identifying the source tile-bag.  Currently supported:
         ``"GIGAPATH_DEEP_CPTAC_SAMPLE"`` (first TileBag in the CPTAC clip).
     var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
-        Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
+        Forwarded to `gigapath_deep_backbone_evaluator_factory`.
     var_shard_size : int
         Number of samples written per MDS shard file for streaming
         reads.
@@ -200,6 +202,8 @@ def gigapath_deep_feature_bag(
             shard_size=var_shard_size,
         ),
         device_batch_size=device_batch_size,
+        streaming=streaming,
+        dataloader_kwargs=dataloader_kwargs,
     )
 
 
@@ -282,8 +286,10 @@ def gigapath_deep_feature_clip(
     device_batch_size: int = 64,
     parallelization: str | None = None,
     work_stealing: bool = False,
+    streaming: bool = False,
+    dataloader_kwargs: dict | None = None,
 ) -> DeepFeatureClip:
-    """Create a :class:`DeepFeatureClip` over a named tile-bag clip.
+    """Create a `DeepFeatureClip` over a named tile-bag clip.
 
     Parameters
     ----------
@@ -293,7 +299,7 @@ def gigapath_deep_feature_clip(
         ``"GIGAPATH_DEEP_CPTAC_<partition_fold>"`` -- a specific fold
         (e.g. ``"GIGAPATH_DEEP_CPTAC_8020_TRAIN"``).
     var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
-        Forwarded to :func:`gigapath_deep_backbone_evaluator_factory`.
+        Forwarded to `gigapath_deep_backbone_evaluator_factory`.
     var_shard_size : int
         Number of samples per MDS shard.
     url : str | None
@@ -346,6 +352,8 @@ def gigapath_deep_feature_clip(
         n_workers=len(devices),
         parallelization=parallelization,
         work_stealing=work_stealing,
+        streaming=streaming,
+        dataloader_kwargs=dataloader_kwargs,
     )
 
 
