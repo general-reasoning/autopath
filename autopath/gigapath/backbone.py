@@ -146,3 +146,8 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
             spec=spec,
             **kwargs,
         )
+
+    @property
+    def model(self):
+        return self.var.model
+
