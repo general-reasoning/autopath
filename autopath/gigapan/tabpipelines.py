@@ -290,7 +290,7 @@ def gigapath_deep_feature_clip(
     return DeepFeatureClip(
         url=url,
         spec=dict(
-            tilebagclip=tilebagclip,
+            datapoint_table=tilebagclip,
             evaluator_factory=dbx.quote(factory),
             collator=dbx.quote(tile_collator),
             shard_size=var_shard_size,
@@ -540,11 +540,10 @@ def gigapath_bipolar_deep_feature_clip(
     return BipolarDeepFeatureClip(
         url=url,
         spec=dict(
-            clip=dbx.quote(clip),
-            stats_probe=dbx.quote(stats_probe),
+            featuretable=dbx.quote(clip),
             layer=var_layer,
-            bag_aggregation_threshold=var_bag_aggregation_threshold,
-            ternarize_tiles=var_ternarize_tiles,
+            threshold=var_bag_aggregation_threshold,
+            ternarize=var_ternarize_tiles,
         ),
         n_workers=n_workers,
         parallelization=parallelization,

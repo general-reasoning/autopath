@@ -14,3 +14,8 @@ When executing shell commands, running Python scripts, running tests, or invokin
 - Executable Binaries: `/home/t-9dkarp/miniconda3/envs/autopath/bin/<command>` (e.g., `/home/t-9dkarp/miniconda3/envs/autopath/bin/dbx.pprint`)
 
 Alternatively, prefix commands with `conda run -n autopath <command>`.
+
+## Dataclass Parameters Rule
+
+- **NEVER add defaults to required dataclass parameters**: Do not add default values or optional `None` fallbacks to required fields in dataclass or `VAR` definitions to fix caller argument mismatches. Always fix the callsite / caller arguments instead.
+
