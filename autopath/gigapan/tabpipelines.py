@@ -182,6 +182,14 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
     var_shard_size=64, \
     devices=['cuda', 'cuda', 'cuda', 'cuda'], device_batch_size=128, parallelization='multiprocessing', \
 ).build_tree()"
+## 1 device x2, streaming
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
+    'GIGAPATH_DEEP_CPTAC', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    devices=['cuda', 'cuda'], device_batch_size=256, streaming=True, dataloader_kwargs=dict(batch_size=256, num_workers=4, prefetch_factor=2, persistent_workers=True), \
+).build_tree()"
 ## 3 devices
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_clip( \
