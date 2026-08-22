@@ -37,6 +37,7 @@ class DeepFeatureBag(DatafeatureTab):
     """Deep feature bag storing multi-layer activations."""
 
     VERSION = 1
+    LEGACY_SIGNATURE = True
     TOPICS = {'features': SLICETOPIC}
 
     @dataclass
@@ -53,6 +54,7 @@ class DeepFeatureClip(DatafeatureTable):
     """Deep feature clip storing multi-layer activations across bags."""
 
     VERSION = 1
+    LEGACY_SIGNATURE = True
     TAB = DeepFeatureBag
     TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
 
