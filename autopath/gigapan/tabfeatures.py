@@ -37,8 +37,8 @@ class DeepFeatureBag(DatafeatureTab):
     """Deep feature bag storing multi-layer activations."""
 
     VERSION = 1
-    LEGACY_SIGNATURE = True
     TOPICS = {'features': SLICETOPIC}
+    LEGACY_SIGNATURE = True
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -54,9 +54,9 @@ class DeepFeatureClip(DatafeatureTable):
     """Deep feature clip storing multi-layer activations across bags."""
 
     VERSION = 1
-    LEGACY_SIGNATURE = True
     TAB = DeepFeatureBag
     TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
+    LEGACY_SIGNATURE = True
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -73,6 +73,7 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
 
     VERSION = 1
     TOPICS = {'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC}
+    LEGACY_SIGNATURE = True
 
     @dataclass
     class VAR(Datablock.VAR):
