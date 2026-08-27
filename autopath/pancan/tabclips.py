@@ -191,8 +191,6 @@ class PancanTileClip(DatapointTable):
         bagpath = self.bagpaths[idx]
         relpath = os.path.relpath(bagpath, self.var.source)
         source_specline = self.spec.get('source')
-        if source_specline is None and hasattr(self.var, 'partition') and hasattr(self.var.partition, 'spec'):
-            source_specline = self.var.partition.spec.get('source')
         if source_specline is not None and self.is_specline(source_specline):
             source_expr = source_specline[1:]  # strip leading '$' from specline
             source = f"$os.path.join({source_expr}, '{relpath}')"
