@@ -67,9 +67,20 @@ class DeepFeatureBag(DatafeatureTab):
             return None
 
     def fully_expanded_bag(self):
-        fespec = {f.name: getattr(self.var, f.name) for f in fields(self.var)}
-        febag = self.set(spec=fespec)
-        return febag
+        def _expand_val(val):
+            if hasattr(val, 'fully_expanded_bag') and callable(val.fully_expanded_bag):
+                return val.fully_expanded_bag()
+            elif isinstance(val, list):
+                return [_expand_val(v) for v in val]
+            elif isinstance(val, tuple):
+                return tuple(_expand_val(v) for v in val)
+            elif isinstance(val, dict):
+                return {k: _expand_val(v) for k, v in val.items()}
+            return val
+
+        fespec = {f.name: _expand_val(getattr(self.var, f.name)) for f in fields(self.var)}
+        return self.set(spec=fespec)
+
 
     def unsafe_redirect_callable(self):
         return self.UNSAFE_redirect_callable(self, idx=None, journal=None)

@@ -3,7 +3,7 @@ import functools
 import gc
 import itertools
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 import fsspec
 import numpy as np
@@ -47,8 +47,12 @@ class PancanTileBag(DatapointTab):
         tilesfile = os.path.basename(self.var.source)
         indexfile = tilesfile.split('.')[0] + '.index.npz'
         self._source_dirpath = os.path.dirname(self.var.source)
-        self._source_tilesfile = tilesfile
         self._source_indexfile = indexfile
+
+    def fully_expanded_bag(self):
+        fespec = {f.name: getattr(self.var, f.name) for f in fields(self.var)}
+        return self.set(spec=fespec)
+
 
     def __build__(self):
         """Read tiles from source TFRecord and repack as MDS shards."""

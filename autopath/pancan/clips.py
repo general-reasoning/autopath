@@ -1,5 +1,5 @@
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import functools
 import gc
 import itertools
@@ -177,8 +177,14 @@ class PancanTileBag(TileBag):
 		tilesfile = os.path.basename(self.config.source)
 		indexfile = tilesfile.split('.')[0] + '.index.npz'
 		self._source_dirpath = os.path.dirname(self.config.source)
-		self._source_tilesfile = tilesfile
 		self._source_indexfile = indexfile
+
+	def fully_expanded_bag(self):
+		cfg_cls = getattr(self, 'VAR', getattr(self, 'CONFIG', None))
+		cfg_obj = getattr(self, 'var', getattr(self, 'cfg', getattr(self, 'config', None)))
+		fespec = {f.name: getattr(cfg_obj, f.name) for f in fields(cfg_cls)}
+		return self.set(spec=fespec)
+
 
 	@property
 	def label(self):
