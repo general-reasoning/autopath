@@ -131,21 +131,14 @@ class DeepFeatureBag(Bag):
     def UNSAFE_redirect_callable(bag, idx=None, *, journal=None):
         """Redirect callable that maps a bag to its built paths via journal lookup.
 
-        Matches journal build events against `bag.var.datapoint_tab.tag` or source file.
+        Matches journal build events against `bag.var.datapoint_tab.tag`.
         Returns `{'paths': paths}` if valid, or `None` if invalid.
         """
         try:
             datapoint_tab = getattr(bag.var, 'datapoint_tab', None)
-            search_keys = []
-            if datapoint_tab is not None:
-                if hasattr(datapoint_tab, 'tag') and datapoint_tab.tag:
-                    search_keys.append(datapoint_tab.tag)
-                dp_var = getattr(datapoint_tab, 'var', getattr(datapoint_tab, 'cfg', getattr(datapoint_tab, 'config', None)))
-                if dp_var is not None and hasattr(dp_var, 'source') and dp_var.source:
-                    search_keys.append(os.path.basename(dp_var.source))
-                    search_keys.append(dp_var.source)
-            if hasattr(bag, 'tag') and bag.tag:
-                search_keys.append(bag.tag)
+            dp_tag = getattr(datapoint_tab, 'tag', None)
+            if not dp_tag:
+                return None
 
             journals_to_check = []
             if journal is not None and len(journal) > 0:
@@ -168,18 +161,21 @@ class DeepFeatureBag(Bag):
 
                 if idx is not None and 0 <= idx < len(df):
                     cand = df.iloc[idx]
-                    entry = DatajournalEntry(cand)
-                    paths = entry.paths
-                    if paths:
-                        first_path = next(iter(paths.values()))
-                        if bag.valid_path(first_path):
-                            matched_entry = cand
-                            break
+                    cand_sig = str(cand.get('signature', cand.get('type', '')))
+                    cand_tag = str(cand.get('tag', ''))
+                    if dp_tag in cand_sig or dp_tag in cand_tag:
+                        entry = DatajournalEntry(cand)
+                        paths = entry.paths
+                        if paths:
+                            first_path = next(iter(paths.values()))
+                            if bag.valid_path(first_path):
+                                matched_entry = cand
+                                break
 
                 for _, row in df.iloc[::-1].iterrows():
                     row_sig = str(row.get('signature', row.get('type', '')))
                     row_tag = str(row.get('tag', ''))
-                    if any(k and (k in row_sig or k in row_tag) for k in search_keys) or not search_keys:
+                    if dp_tag in row_sig or dp_tag in row_tag:
                         entry = DatajournalEntry(row)
                         paths = entry.paths
                         if paths:
@@ -202,6 +198,7 @@ class DeepFeatureBag(Bag):
             if hasattr(bag, 'log'):
                 bag.log.detailed(f"UNSAFE_redirect_callable failed: {e}")
             return None
+
 
 
 
