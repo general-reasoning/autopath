@@ -53,23 +53,26 @@ class DeepFeatureBag(DatafeatureTab):
     def UNSAFE_redirect_callable(bag, idx=None, *, journal=None):
         """Redirect callable that maps a bag to its built paths via journal lookup.
 
-        Searches `journal` for a build event matching `bag` (by `idx` or by matching `source`/`tag`),
+        Searches `journal` (and `bag.journal()`) for a build event matching `bag` (by `idx` or by matching `source`/`tag`),
         and returns `{'paths': paths}` if valid, or `None` if invalid.
         """
         try:
             import os
             from dbx.datablocks import DatajournalEntry
 
-            if journal is None and hasattr(bag, 'journal'):
+            journals_to_check = []
+            if journal is not None and len(journal) > 0:
+                journals_to_check.append(journal)
+            if hasattr(bag, 'journal'):
                 try:
-                    journal = bag.journal()
+                    bj = bag.journal()
+                    if bj is not None and len(bj) > 0:
+                        journals_to_check.append(bj)
                 except Exception:
-                    journal = None
+                    pass
 
-            if journal is None or len(journal) == 0:
+            if not journals_to_check:
                 return None
-
-            df = journal[journal['event'] == 'build:end'] if ('event' in journal.columns and 'build:end' in journal['event'].values) else journal
 
             datapoint_tab = getattr(bag.var, 'datapoint_tab', None)
             search_keys = []
@@ -84,20 +87,26 @@ class DeepFeatureBag(DatafeatureTab):
                 search_keys.append(bag.tag)
 
             matched_entry = None
-            if idx is not None and 0 <= idx < len(df):
-                cand = df.iloc[idx]
-                cand_sig = str(cand.get('signature', cand.get('type', '')))
-                cand_tag = str(cand.get('tag', ''))
-                if any(k and (k in cand_sig or k in cand_tag) for k in search_keys):
-                    matched_entry = cand
 
-            if matched_entry is None:
+            for j in journals_to_check:
+                df = j[j['event'] == 'build:end'] if ('event' in j.columns and 'build:end' in j['event'].values) else j
+
+                if idx is not None and 0 <= idx < len(df):
+                    cand = df.iloc[idx]
+                    cand_sig = str(cand.get('signature', cand.get('type', '')))
+                    cand_tag = str(cand.get('tag', ''))
+                    if any(k and (k in cand_sig or k in cand_tag) for k in search_keys):
+                        matched_entry = cand
+                        break
+
                 for _, row in df.iloc[::-1].iterrows():
                     row_sig = str(row.get('signature', row.get('type', '')))
                     row_tag = str(row.get('tag', ''))
                     if any(k and (k in row_sig or k in row_tag) for k in search_keys):
                         matched_entry = row
                         break
+                if matched_entry is not None:
+                    break
 
             if matched_entry is not None:
                 entry = DatajournalEntry(matched_entry)
@@ -111,6 +120,7 @@ class DeepFeatureBag(DatafeatureTab):
             if hasattr(bag, 'log'):
                 bag.log.detailed(f"UNSAFE_redirect_callable failed: {e}")
             return None
+
 
     def unsafe_redirect_callable(self, idx=None, journal=None):
         return self.UNSAFE_redirect_callable(self, idx=idx, journal=journal)
