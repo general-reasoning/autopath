@@ -93,20 +93,29 @@ class DeepFeatureBag(DatafeatureTab):
 
                 if idx is not None and 0 <= idx < len(df):
                     cand = df.iloc[idx]
-                    cand_sig = str(cand.get('signature', cand.get('type', '')))
-                    cand_tag = str(cand.get('tag', ''))
-                    if any(k and (k in cand_sig or k in cand_tag) for k in search_keys):
-                        matched_entry = cand
-                        break
+                    entry = DatajournalEntry(cand)
+                    paths = entry.paths
+                    if paths:
+                        first_path = next(iter(paths.values()))
+                        if bag.valid_path(first_path):
+                            matched_entry = cand
+                            break
 
-                for _, row in df.iloc[::-1].iterrows():
-                    row_sig = str(row.get('signature', row.get('type', '')))
-                    row_tag = str(row.get('tag', ''))
-                    if any(k and (k in row_sig or k in row_tag) for k in search_keys):
-                        matched_entry = row
-                        break
+                if search_keys:
+                    for _, row in df.iloc[::-1].iterrows():
+                        row_sig = str(row.get('signature', row.get('type', '')))
+                        row_tag = str(row.get('tag', ''))
+                        if any(k and (k in row_sig or k in row_tag) for k in search_keys):
+                            entry = DatajournalEntry(row)
+                            paths = entry.paths
+                            if paths:
+                                first_path = next(iter(paths.values()))
+                                if bag.valid_path(first_path):
+                                    matched_entry = row
+                                    break
                 if matched_entry is not None:
                     break
+
 
             if matched_entry is not None:
                 entry = DatajournalEntry(matched_entry)
