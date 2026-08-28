@@ -49,9 +49,6 @@ class PancanTileBag(DatapointTab):
         self._source_dirpath = os.path.dirname(self.var.source)
         self._source_indexfile = indexfile
 
-    def fully_expanded_bag(self):
-        fespec = {f.name: getattr(self.var, f.name) for f in fields(self.var)}
-        return self.set(spec=fespec)
 
 
     def __build__(self):
