@@ -134,8 +134,7 @@ class DeepFeatureBag(Bag):
         Returns `{'paths': febag.paths()}` if valid, or `None` if invalid.
         """
         try:
-            fespec = {f.name: getattr(bag.var, f.name) for f in fields(bag.var)}
-            febag = bag.set(spec=fespec)
+            febag = bag.fully_expanded_bag()
             if febag.valid():
                 return {'paths': febag.paths()}
             return None
@@ -144,10 +143,14 @@ class DeepFeatureBag(Bag):
                 bag.log.detailed(f"UNSAFE_redirect_callable failed: {e}")
             return None
 
+    def fully_expanded_bag(self):
+        fespec = {f.name: getattr(self.var, f.name) for f in fields(self.var)}
+        febag = self.set(spec=fespec)
+        return febag
+
     def unsafe_redirect_callable(self):
-        idx = None
-        journal = None
-        return self.UNSAFE_redirect_callable(self, idx, journal=journal)
+        return self.UNSAFE_redirect_callable(self, idx=None, journal=None)
+
 
 
 
