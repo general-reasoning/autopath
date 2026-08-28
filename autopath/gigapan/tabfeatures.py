@@ -1,9 +1,11 @@
 """tabfeatures — DeepFeatureBag, DeepFeatureClip, and Bipolar variants using dbx.datafeatures."""
 
+import os
 from dataclasses import dataclass, field, fields
 import dbx
-from dbx.datablocks import Datablock
+from dbx.datablocks import Datablock, DatajournalEntry
 from dbx.datapoints import DatapointTab, DatapointTable, DIRTOPIC, SLICETOPIC
+
 from dbx.datafeatures import (
     Datacollator,
     DatafeatureTab,
@@ -57,10 +59,8 @@ class DeepFeatureBag(DatafeatureTab):
         and returns `{'paths': paths}` if valid, or `None` if invalid.
         """
         try:
-            import os
-            from dbx.datablocks import DatajournalEntry
-
             journals_to_check = []
+
             if journal is not None and len(journal) > 0:
                 journals_to_check.append(journal)
             if hasattr(bag, 'journal'):

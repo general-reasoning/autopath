@@ -23,8 +23,10 @@ import dbx
 from tqdm import tqdm
 from dbx import (
     Datablock,
+    DatajournalEntry,
     Datastack,
 )
+
 
 from streaming import MDSWriter, Stream, StreamingDataset
 
@@ -133,10 +135,8 @@ class DeepFeatureBag(Bag):
         and returns `{'paths': paths}` if valid, or `None` if invalid.
         """
         try:
-            import os
-            from dbx.datablocks import DatajournalEntry
-
             journals_to_check = []
+
             if journal is not None and len(journal) > 0:
                 journals_to_check.append(journal)
             if hasattr(bag, 'journal'):
