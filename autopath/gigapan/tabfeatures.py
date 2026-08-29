@@ -1,6 +1,7 @@
 """tabfeatures — DeepFeatureBag, DeepFeatureClip, and Bipolar variants using dbx.datafeatures."""
 
 from dataclasses import dataclass, field, fields
+import json
 import os
 
 import dbx
@@ -78,6 +79,22 @@ class DeepFeatureBag(DatafeatureTab):
 
             matched_entry = None
 
+            def is_valid_paths(paths):
+                if not paths or not isinstance(paths, dict):
+                    return False
+                for p in paths.values():
+                    if not p or not bag.fs.exists(p):
+                        return False
+                    idx_p = os.path.join(p, 'index.json')
+                    if bag.fs.exists(idx_p):
+                        try:
+                            content = bag.fs.cat(idx_p)
+                            if not json.loads(content).get('shards'):
+                                return False
+                        except Exception:
+                            return False
+                return True
+
             for j in journals_to_check:
                 df = j[j['event'] == 'build:end'] if ('event' in j.columns and 'build:end' in j['event'].values) else j
 
@@ -88,11 +105,9 @@ class DeepFeatureBag(DatafeatureTab):
                     if dp_tag in cand_sig or dp_tag in cand_tag:
                         entry = DatajournalEntry(cand)
                         paths = entry.paths
-                        if paths:
-                            first_path = next(iter(paths.values()))
-                            if bag.valid_path(first_path):
-                                matched_entry = cand
-                                break
+                        if is_valid_paths(paths):
+                            matched_entry = cand
+                            break
 
                 for _, row in df.iloc[::-1].iterrows():
                     row_sig = str(row.get('signature', row.get('type', '')))
@@ -100,22 +115,19 @@ class DeepFeatureBag(DatafeatureTab):
                     if dp_tag in row_sig or dp_tag in row_tag:
                         entry = DatajournalEntry(row)
                         paths = entry.paths
-                        if paths:
-                            first_path = next(iter(paths.values()))
-                            if bag.valid_path(first_path):
-                                matched_entry = row
-                                break
+                        if is_valid_paths(paths):
+                            matched_entry = row
+                            break
                 if matched_entry is not None:
                     break
 
             if matched_entry is not None:
                 entry = DatajournalEntry(matched_entry)
                 paths = entry.paths
-                if paths:
-                    first_path = next(iter(paths.values()))
-                    if bag.valid_path(first_path):
-                        return {'paths': paths}
+                if is_valid_paths(paths):
+                    return {'paths': paths}
             return None
+
         except Exception as e:
             if hasattr(bag, 'log'):
                 bag.log.detailed(f"UNSAFE_redirector failed: {e}")
