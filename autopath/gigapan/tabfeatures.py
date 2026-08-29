@@ -65,13 +65,14 @@ class DeepFeatureBag(DatafeatureTab):
             journals_to_check = []
             if journal is not None and len(journal) > 0:
                 journals_to_check.append(journal)
-            if hasattr(bag, 'journal'):
+            elif hasattr(bag, 'journal'):
                 try:
                     bj = bag.journal()
                     if bj is not None and len(bj) > 0:
                         journals_to_check.append(bj)
                 except Exception:
                     pass
+
 
             if not journals_to_check:
                 return None
