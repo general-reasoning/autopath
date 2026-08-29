@@ -1,21 +1,19 @@
 """tabfeatures — DeepFeatureBag, DeepFeatureClip, and Bipolar variants using dbx.datafeatures."""
 
-import os
 from dataclasses import dataclass, field, fields
+import os
+
 import dbx
 from dbx.datablocks import Datablock, DatajournalEntry
-from dbx.datapoints import DatapointTab, DatapointTable, DIRTOPIC, SLICETOPIC
-
 from dbx.datafeatures import (
+    BipolarDatafeatureTab,
+    BipolarDatafeatureTable,
     Datacollator,
     DatafeatureTab,
     DatafeatureTable,
-    BipolarDatafeatureTab,
-    BipolarDatafeatureTable,
 )
-
-
 from dbx.datamodels import DatamodelEvaluatorFactory
+from dbx.datapoints import DIRTOPIC, SLICETOPIC, DatapointTab, DatapointTable
 
 
 class TileCollator(Datacollator):
@@ -125,9 +123,6 @@ class DeepFeatureBag(DatafeatureTab):
 
     def unsafe_redirector(self, idx=None, journal=None):
         return self.UNSAFE_redirector(self, idx=idx, journal=journal)
-
-
-
 
 
 class DeepFeatureClip(DatafeatureTable):

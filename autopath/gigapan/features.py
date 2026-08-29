@@ -203,23 +203,8 @@ class DeepFeatureBag(Bag):
         return self.UNSAFE_redirector(self, idx=idx, journal=journal)
 
 
-
-
-
-
-
-    def unsafe_redirector_callable(self, idx=None, journal=None):
-        return self.UNSAFE_redirector_callable(self, idx=idx, journal=journal)
-
-
-
-
-
-
-
-
-
     # ── Build ───────────────────────────────────────────────────────
+
 
     def __build__(self, evaluator=None, tilebag=None):
         if evaluator is None:
