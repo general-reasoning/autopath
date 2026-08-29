@@ -52,7 +52,8 @@ class DeepFeatureBag(DatafeatureTab):
         shard_size: int = 1024
 
     @staticmethod
-    def UNSAFE_redirector(bag, idx=None, *, journal=None):
+    def UNSAFE_redirector_callable(bag, idx=None, *, journal=None):
+
         """Redirect callable that maps a bag to its built paths via journal lookup.
 
         Matches journal build events against `bag.var.datapoint_tab.tag`.
@@ -133,8 +134,9 @@ class DeepFeatureBag(DatafeatureTab):
             return None
 
 
-    def unsafe_redirector(self, idx=None, journal=None):
-        return self.UNSAFE_redirector(self, idx=idx, journal=journal)
+    def unsafe_redirector_callable(self, idx=None, journal=None):
+        return self.UNSAFE_redirector_callable(self, idx=idx, journal=journal)
+
 
 
 
