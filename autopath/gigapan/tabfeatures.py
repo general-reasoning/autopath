@@ -73,7 +73,6 @@ class DeepFeatureBag(DatafeatureTab):
                 except Exception:
                     pass
 
-
             if not journals_to_check:
                 return None
 
