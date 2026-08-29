@@ -52,8 +52,7 @@ class DeepFeatureBag(DatafeatureTab):
         shard_size: int = 1024
 
     @staticmethod
-    def UNSAFE_redirector_callable(bag, idx=None, *, journal=None):
-
+    def UNSAFE_redirector(bag, idx=None, *, journal=None):
         """Redirect callable that maps a bag to its built paths via journal lookup.
 
         Matches journal build events against `bag.var.datapoint_tab.tag`.
@@ -79,19 +78,7 @@ class DeepFeatureBag(DatafeatureTab):
             if not journals_to_check:
                 return None
 
-            def _filter_circular(entry_paths):
-                if not entry_paths or not isinstance(entry_paths, dict):
-                    return None
-                res = {}
-                for topic, rpath in entry_paths.items():
-                    own_p = bag.__path__(topic) if hasattr(bag, '__path__') else None
-                    if rpath and own_p and os.path.normpath(str(rpath)) == os.path.normpath(str(own_p)):
-                        continue
-                    res[topic] = rpath
-                return res if res else None
-
             matched_entry = None
-            matched_paths = None
 
             for j in journals_to_check:
                 df = j[j['event'] == 'build:end'] if ('event' in j.columns and 'build:end' in j['event'].values) else j
@@ -102,12 +89,11 @@ class DeepFeatureBag(DatafeatureTab):
                     cand_tag = str(cand.get('tag', ''))
                     if dp_tag in cand_sig or dp_tag in cand_tag:
                         entry = DatajournalEntry(cand)
-                        paths = _filter_circular(entry.paths)
+                        paths = entry.paths
                         if paths:
                             first_path = next(iter(paths.values()))
                             if bag.valid_path(first_path):
                                 matched_entry = cand
-                                matched_paths = paths
                                 break
 
                 for _, row in df.iloc[::-1].iterrows():
@@ -115,28 +101,30 @@ class DeepFeatureBag(DatafeatureTab):
                     row_tag = str(row.get('tag', ''))
                     if dp_tag in row_sig or dp_tag in row_tag:
                         entry = DatajournalEntry(row)
-                        paths = _filter_circular(entry.paths)
+                        paths = entry.paths
                         if paths:
                             first_path = next(iter(paths.values()))
                             if bag.valid_path(first_path):
                                 matched_entry = row
-                                matched_paths = paths
                                 break
                 if matched_entry is not None:
                     break
 
-            if matched_entry is not None and matched_paths:
-                return {'paths': matched_paths}
+            if matched_entry is not None:
+                entry = DatajournalEntry(matched_entry)
+                paths = entry.paths
+                if paths:
+                    first_path = next(iter(paths.values()))
+                    if bag.valid_path(first_path):
+                        return {'paths': paths}
             return None
         except Exception as e:
             if hasattr(bag, 'log'):
-                bag.log.detailed(f"UNSAFE_redirector_callable failed: {e}")
+                bag.log.detailed(f"UNSAFE_redirector failed: {e}")
             return None
 
-
-    def unsafe_redirector_callable(self, idx=None, journal=None):
-        return self.UNSAFE_redirector_callable(self, idx=idx, journal=journal)
-
+    def unsafe_redirector(self, idx=None, journal=None):
+        return self.UNSAFE_redirector(self, idx=idx, journal=journal)
 
 
 
