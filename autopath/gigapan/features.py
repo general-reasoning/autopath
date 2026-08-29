@@ -128,7 +128,8 @@ class DeepFeatureBag(Bag):
         return super().validtopic(topic)
 
     @staticmethod
-    def UNSAFE_redirect_callable(bag, idx=None, *, journal=None):
+    def UNSAFE_redirector_callable(bag, idx=None, *, journal=None):
+
         """Redirect callable that maps a bag to its built paths via journal lookup.
 
         Matches journal build events against `bag.var.datapoint_tab.tag`.
@@ -203,8 +204,9 @@ class DeepFeatureBag(Bag):
 
 
 
-    def unsafe_redirect_callable(self, idx=None, journal=None):
-        return self.UNSAFE_redirect_callable(self, idx=idx, journal=journal)
+    def unsafe_redirector_callable(self, idx=None, journal=None):
+        return self.UNSAFE_redirector_callable(self, idx=idx, journal=journal)
+
 
 
 
