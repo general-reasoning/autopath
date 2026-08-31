@@ -450,7 +450,7 @@ def gigapath_deep_feature_clip_dataloader_samples(
 """
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    'GIGAPATH_DEEP_CPTAC_9802_TEST', \
     var_layer='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
@@ -492,26 +492,18 @@ def gigapath_deep_feature_stats_probe(
 
 
 """
-### CPTAC 60/20/20 — no normalization
+### CPTAC 9802 — no normalization
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    'GIGAPATH_DEEP_CPTAC_9802_TEST', \
     var_layer='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
 ).build()"
+### CPTAC 9802 — L2-normalised features
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    var_layer='final', \
-    var_cls_token_only=True, \
-    var_shard_size=64, \
-).build()"
-
-### CPTAC 60/20/20 — L2-normalised features
-dbx.pprint "\
-autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    'GIGAPATH_DEEP_CPTAC_9802_TEST', \
     var_layer='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
