@@ -27,6 +27,7 @@ from autopath.gigapan.tabfeatures import (
 )
 from autopath.gigapan.tabprobes import (
     DeepFeatureStatsProbe,
+    DeepFeatureAffineLogisticProbe,
 )
 from autopath.pancan.tabpipelines import (
     pancan_tile_bag,
@@ -485,6 +486,117 @@ def gigapath_deep_feature_stats_probe(
         spec=dict(
             feature_table=dbx.quote(clip),
             collator=collator_spec,
+            normalization=var_normalize,
+        ),
+    )
+
+
+"""
+### CPTAC 60/20/20 — no normalization
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+).build()"
+
+### CPTAC 60/20/20 — L2-normalised features
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    var_normalize='l2', \
+).build()"
+"""
+def gigapath_deep_feature_affine_logistic_probe(
+    name: str,
+    *,
+    var_layer: str = 'final',
+    var_fit_intercept: bool = True,
+    var_evaluation_fraction: float = 0.8,
+    var_normalize: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_final: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
+    url: str | None = None,
+    filter_built_tabs: bool = False,
+) -> DeepFeatureAffineLogisticProbe:
+    """Create a `DeepFeatureAffineLogisticProbe` on a named clip.
+
+    Fits a logistic regression classifier on sample-level features
+    for the specified layer, persisting the fitted model's
+    `coef_`, `intercept_`, and `classes_` arrays.
+
+    Parameters
+    ----------
+    name : str
+        Named configuration — same values accepted by `gigapath_deep_feature_clip`
+        (e.g. `"GIGAPATH_DEEP_CPTAC_602020_TRAIN"`).
+    var_layer : str
+        Which capture key to probe (e.g. `"final"`, `"B_0_norm1"`).
+    var_fit_intercept : bool
+        Whether to fit an intercept term in the logistic regression.
+    var_evaluation_fraction : float
+        Fraction of samples used for training (rest for evaluation).
+    var_normalize : str | None
+        Feature normalization mode: `None` (raw), `'l2'`, `'corner-l1'`,
+        `'corner-l2'`, or `'corner-linfty'`.
+    var_capture_blocks, var_capture_layers, var_capture_final, var_cls_token_only
+        Forwarded to `gigapath_deep_feature_clip` to identify the underlying clip.
+    var_shard_size : int
+        Forwarded to `gigapath_deep_feature_clip`.
+    url : str | None
+        Datablock URL.
+    filter_built_tabs : bool
+        Whether to filter built tabs.
+
+    Examples
+    --------
+    Build on the CPTAC 60/20/20 train fold with no normalization:
+
+        probe = gigapath_deep_feature_affine_logistic_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            var_layer='final',
+            var_cls_token_only=True,
+            var_shard_size=64,
+        )
+        probe.build()
+
+    With L2 normalization:
+
+        probe = gigapath_deep_feature_affine_logistic_probe(
+            'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            var_layer='final',
+            var_cls_token_only=True,
+            var_shard_size=64,
+            var_normalize='l2',
+        )
+        probe.build()
+    """
+    clip = gigapath_deep_feature_clip(
+        name,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_final=var_capture_final,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
+        url=url,
+        filter_built_tabs=filter_built_tabs,
+    )
+    collator = getattr(clip.var, 'collator', None) or tile_collator()
+    collator_spec = collator.quote() if hasattr(collator, 'quote') else dbx.quote(collator)
+    return DeepFeatureAffineLogisticProbe(
+        url=url,
+        spec=dict(
+            feature_table=dbx.quote(clip),
+            collator=collator_spec,
+            fit_intercept=var_fit_intercept,
+            evaluation_fraction=var_evaluation_fraction,
             normalization=var_normalize,
         ),
     )
