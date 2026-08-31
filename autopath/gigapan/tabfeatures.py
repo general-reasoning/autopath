@@ -29,9 +29,29 @@ class TileCollator(Datacollator):
         length: int | None = None
 
 
-def tile_collator() -> TileCollator:
+class TileAnnotationCollator(Datacollator):
+    """Default collator for tile datasets, extracting signal ('tiles', 'tile') and 
+        ('annotations', {annotation}), defaulting ot ('annotations', 'cohort')."""
+
+    VERSION = 1
+
+    @dataclass
+    class VAR(Datablock.VAR):
+        signals: list = field(default_factory=lambda: [('tiles', 'tile')])
+        labels: list = field(default_factory=lambda: [('annotations', 'cohort')])
+        length: int | None = None
+
+
+def tile_annotation_collator(annotation: str) -> TileCollator:
     """Constructor for the default tile collator."""
-    return TileCollator()
+    return TileCollator(
+        spec=dict(labels=[('annotations', annotation)])
+    )
+
+
+def tile_annotation_collator(label: str) -> TileAnnotationCollator:
+    """Constructor for the default tile-annotation collator."""
+    return TileAnnotationCollator()
 
 
 class DeepFeatureBag(DatafeatureTab):
@@ -149,7 +169,6 @@ class DeepFeatureBag(DatafeatureTab):
                     return False
         return True
         
-
 
 class DeepFeatureClip(DatafeatureTable):
     """Deep feature clip storing multi-layer activations across bags."""

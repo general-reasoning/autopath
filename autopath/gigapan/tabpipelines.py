@@ -24,6 +24,7 @@ from autopath.gigapan.tabfeatures import (
     DeepFeatureClip,
     BipolarDeepFeatureClip,
     tile_collator,
+    tile_annotation_collator,
 )
 from autopath.gigapan.tabprobes import (
     DeepFeatureStatsProbe,
@@ -451,7 +452,6 @@ def gigapath_deep_feature_clip_dataloader_samples(
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
     'GIGAPATH_DEEP_CPTAC_9802_TEST', \
-    var_layer='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
 ).build()"
@@ -459,7 +459,6 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
 def gigapath_deep_feature_stats_probe(
     name: str,
     *,
-    var_layer: str = 'final',
     var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
@@ -479,32 +478,31 @@ def gigapath_deep_feature_stats_probe(
         url=url,
         filter_built_tabs=filter_built_tabs,
     )
-    collator = getattr(clip.var, 'collator', None) or tile_collator()
-    collator_spec = collator.quote() if hasattr(collator, 'quote') else dbx.quote(collator)
+    collator = tile_collator()
     return DeepFeatureStatsProbe(
         url=url,
         spec=dict(
             feature_table=dbx.quote(clip),
-            collator=collator_spec,
+            collator=dbx.quote(collator),
             normalization=var_normalize,
         ),
     )
 
 
 """
-### CPTAC 9802 — no normalization
+### CPTAC 9802: cohort — no normalization
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_9802_TEST', \
-    var_layer='final', \
+    var_annotation='cohort', \
     var_cls_token_only=True, \
     var_shard_size=64, \
 ).build()"
-### CPTAC 9802 — L2-normalised features
+### CPTAC 9802: cohort — L2-normalised features
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_9802_TEST', \
-    var_layer='final', \
+    var_annotation='cohort', \
     var_cls_token_only=True, \
     var_shard_size=64, \
     var_normalize='l2', \
@@ -513,7 +511,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
 def gigapath_deep_feature_affine_logistic_probe(
     name: str,
     *,
-    var_layer: str = 'final',
+    var_annotation: tuple, # column chosen from upstream TAB.TOPICS['annotations']
     var_fit_intercept: bool = True,
     var_evaluation_fraction: float = 0.8,
     var_normalize: str | None = None,
@@ -536,8 +534,6 @@ def gigapath_deep_feature_affine_logistic_probe(
     name : str
         Named configuration — same values accepted by `gigapath_deep_feature_clip`
         (e.g. `"GIGAPATH_DEEP_CPTAC_602020_TRAIN"`).
-    var_layer : str
-        Which capture key to probe (e.g. `"final"`, `"B_0_norm1"`).
     var_fit_intercept : bool
         Whether to fit an intercept term in the logistic regression.
     var_evaluation_fraction : float
@@ -560,7 +556,6 @@ def gigapath_deep_feature_affine_logistic_probe(
 
         probe = gigapath_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            var_layer='final',
             var_cls_token_only=True,
             var_shard_size=64,
         )
@@ -570,7 +565,6 @@ def gigapath_deep_feature_affine_logistic_probe(
 
         probe = gigapath_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
-            var_layer='final',
             var_cls_token_only=True,
             var_shard_size=64,
             var_normalize='l2',
@@ -587,13 +581,12 @@ def gigapath_deep_feature_affine_logistic_probe(
         url=url,
         filter_built_tabs=filter_built_tabs,
     )
-    collator = getattr(clip.var, 'collator', None) or tile_collator()
-    collator_spec = collator.quote() if hasattr(collator, 'quote') else dbx.quote(collator)
+    collator = tile_annotation_collator(var_annotation)
     return DeepFeatureAffineLogisticProbe(
         url=url,
         spec=dict(
             feature_table=dbx.quote(clip),
-            collator=collator_spec,
+            collator=dbx.quote(collator),
             fit_intercept=var_fit_intercept,
             evaluation_fraction=var_evaluation_fraction,
             normalization=var_normalize,
