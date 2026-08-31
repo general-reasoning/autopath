@@ -406,7 +406,6 @@ def gigapath_deep_feature_clip_dataloader_samples(
     var_shard_size: int = 1024,
     batch_size: int = 4,
     shuffle: bool = False,
-    skip_invalid_bags: bool = False,
     return_last: bool = True,
     filter_built_tabs: bool = False,
     **dataloader_kwargs,
