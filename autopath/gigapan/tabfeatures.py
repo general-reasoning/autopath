@@ -51,7 +51,7 @@ class DeepFeatureBag(DatafeatureTab):
         shard_size: int = 1024
 
     @staticmethod
-    def UNSAFE_redirector(bag, idx=None, *, journal=None):
+    def UNSAFE_redirector(bag, idx=None, stack=None, *, journal=None):
         """Redirect callable that maps a bag to its built paths via journal lookup.
 
         Matches journal build events against `bag.var.datapoint_tab.tag`.
@@ -133,8 +133,22 @@ class DeepFeatureBag(DatafeatureTab):
                 bag.log.detailed(f"UNSAFE_redirector failed: {e}")
             return None
 
-    def unsafe_redirector(self, idx=None, journal=None):
-        return self.UNSAFE_redirector(self, idx=idx, journal=journal)
+    def unsafe_redirector(self, idx=None, stack=None, *, journal=None):
+        return self.UNSAFE_redirector(self, idx=idx, stack=stack, journal=journal)
+
+    def __validate__(self, **kwargs):
+        feature_paths = self.paths()
+        point_paths = self.var.datapoint_tab.paths()
+        for feature_key, feature_path in feature_paths.items():
+            if self.tag not in feature_path:
+                self.log.warning(f"Tag {self.tag} not in feature path for topic {feature_key}: {feature_path}")
+                return False
+        for point_key, point_path in point_paths.items():
+                if self.tag not in point_path:
+                    self.log.warning(f"Tag {self.tag} not in point path for topic {point_key}: {point_path}")
+                    return False
+        return True
+        
 
 
 class DeepFeatureClip(DatafeatureTable):
