@@ -495,6 +495,13 @@ def gigapath_deep_feature_stats_probe(
 ### CPTAC 60/20/20 — no normalization
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_layer='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+).build()"
+dbx.pprint "\
+autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
     var_layer='final', \
     var_cls_token_only=True, \
