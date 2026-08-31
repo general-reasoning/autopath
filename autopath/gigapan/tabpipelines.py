@@ -478,14 +478,17 @@ def gigapath_deep_feature_stats_probe(
         url=url,
         filter_built_tabs=filter_built_tabs,
     )
+    collator = getattr(clip.var, 'collator', None) or tile_collator()
+    collator_spec = collator.quote() if hasattr(collator, 'quote') else dbx.quote(collator)
     return DeepFeatureStatsProbe(
         url=url,
         spec=dict(
-            clip=dbx.quote(clip),
-            layer=var_layer,
-            normalize=var_normalize,
+            feature_table=dbx.quote(clip),
+            collator=collator_spec,
+            normalization=var_normalize,
         ),
     )
+
 
 
 """
