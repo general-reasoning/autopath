@@ -14,7 +14,7 @@ import tqdm
 import torch
 
 import dbx
-from dbx import Logger
+from dbx import Logger, Datacollator
 
 from autopath.gigapath.backbone import (
     GigapathDeepBackboneEvaluatorFactory,
@@ -453,12 +453,16 @@ dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
     'GIGAPATH_DEEP_CPTAC_9802_TEST', \
     var_cls_token_only=True, \
+    var_signals=[('features', feature_final')], \
+    var_labels=[('annotations', 'cohort')], \
     var_shard_size=64, \
 ).build()"
 """
 def gigapath_deep_feature_stats_probe(
     name: str,
     *,
+    var_signals: str | list,
+    var_labels:  str | list, 
     var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
@@ -478,7 +482,7 @@ def gigapath_deep_feature_stats_probe(
         url=url,
         filter_built_tabs=filter_built_tabs,
     )
-    collator = tile_collator()
+    collator = Datacollator(spec=dict(signals=var_signals))
     return DeepFeatureStatsProbe(
         url=url,
         spec=dict(
@@ -494,24 +498,17 @@ def gigapath_deep_feature_stats_probe(
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_9802_TEST', \
-    var_annotation='cohort', \
+    var_signals=[('features', feature_final')], \
+    var_labels=[('annotations', 'cohort')], \
     var_cls_token_only=True, \
     var_shard_size=64, \
-).build()"
-### CPTAC 9802: cohort — L2-normalised features
-dbx.pprint "\
-autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
-    'GIGAPATH_DEEP_CPTAC_9802_TEST', \
-    var_annotation='cohort', \
-    var_cls_token_only=True, \
-    var_shard_size=64, \
-    var_normalize='l2', \
 ).build()"
 """
 def gigapath_deep_feature_affine_logistic_probe(
     name: str,
     *,
-    var_annotation: tuple, # column chosen from upstream TAB.TOPICS['annotations']
+    var_signals: list,
+    var_labels:  list, 
     var_fit_intercept: bool = True,
     var_evaluation_fraction: float = 0.8,
     var_normalize: str | None = None,
@@ -581,7 +578,7 @@ def gigapath_deep_feature_affine_logistic_probe(
         url=url,
         filter_built_tabs=filter_built_tabs,
     )
-    collator = tile_annotation_collator(var_annotation)
+    collator = Datacollator(spec=dict(signals=var_signals, labels=var_labels))
     return DeepFeatureAffineLogisticProbe(
         url=url,
         spec=dict(
