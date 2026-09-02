@@ -23,6 +23,7 @@ from autopath.tools import read_mds_samples
 
 
 class PancanTileBag(DatapointTab):
+    LEGACY_TYPING = True
     VERSION = 1
 
     TOPICS = {
@@ -177,6 +178,7 @@ class PancanTileBag(DatapointTab):
 
 
 class PancanTileClip(DatapointTable):
+    LEGACY_TYPING = True
     VERSION = 1
     TAB = PancanTileBag
 
