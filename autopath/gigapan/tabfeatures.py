@@ -42,11 +42,9 @@ class TileAnnotationCollator(Datacollator):
         length: int | None = None
 
 
-def tile_annotation_collator(annotation: str) -> TileCollator:
+def tile_collator() -> TileCollator:
     """Constructor for the default tile collator."""
-    return TileCollator(
-        spec=dict(labels=[('annotations', annotation)])
-    )
+    return TileCollator()
 
 
 def tile_annotation_collator(label: str) -> TileAnnotationCollator:
