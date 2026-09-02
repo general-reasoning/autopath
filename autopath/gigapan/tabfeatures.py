@@ -54,10 +54,9 @@ def tile_annotation_collator(label: str) -> TileAnnotationCollator:
 
 class DeepFeatureBag(DatafeatureTab):
     """Deep feature bag storing multi-layer activations."""
-
+    LEGACY_SIGNATURE = True
     VERSION = 1
     TOPICS = {'features': SLICETOPIC}
-    LEGACY_SIGNATURE = True
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -170,11 +169,11 @@ class DeepFeatureBag(DatafeatureTab):
 
 class DeepFeatureClip(DatafeatureTable):
     """Deep feature clip storing multi-layer activations across bags."""
-
+    LEGACY_SIGNATURE = True
     VERSION = 1
     TAB = DeepFeatureBag
     TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
-    LEGACY_SIGNATURE = True
+    
 
     @dataclass
     class VAR(Datablock.VAR):
