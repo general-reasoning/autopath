@@ -19,7 +19,8 @@ from dbx.datapoints import DIRTOPIC, SLICETOPIC, DatapointTab, DatapointTable
 
 class TileCollator(Datacollator):
     """Default collator for tile datasets, extracting signal ('tiles', 'tile')."""
-
+    LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
     VERSION = 1
 
     @dataclass
@@ -32,7 +33,8 @@ class TileCollator(Datacollator):
 class TileAnnotationCollator(Datacollator):
     """Default collator for tile datasets, extracting signal ('tiles', 'tile') and 
         ('annotations', {annotation}), defaulting ot ('annotations', 'cohort')."""
-
+    LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
     VERSION = 1
 
     @dataclass
@@ -55,6 +57,7 @@ def tile_annotation_collator(label: str) -> TileAnnotationCollator:
 class DeepFeatureBag(DatafeatureTab):
     """Deep feature bag storing multi-layer activations."""
     LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
     VERSION = 1
     TOPICS = {'features': SLICETOPIC}
 
@@ -170,6 +173,7 @@ class DeepFeatureBag(DatafeatureTab):
 class DeepFeatureClip(DatafeatureTable):
     """Deep feature clip storing multi-layer activations across bags."""
     LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
     VERSION = 1
     TAB = DeepFeatureBag
     TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
@@ -187,10 +191,10 @@ class DeepFeatureClip(DatafeatureTable):
 
 class BipolarDeepFeatureBag(BipolarDatafeatureTab):
     """Bipolar-encoded deep feature bag."""
-
+    LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
     VERSION = 1
     TOPICS = {'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC}
-    LEGACY_SIGNATURE = True
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -202,7 +206,8 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
 
 class BipolarDeepFeatureClip(BipolarDatafeatureTable):
     """Bipolar-encoded deep feature clip across bags."""
-
+    LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
     VERSION = 1
     TAB = BipolarDeepFeatureBag
     TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}

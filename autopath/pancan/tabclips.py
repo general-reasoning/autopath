@@ -23,7 +23,6 @@ from autopath.tools import read_mds_samples
 
 
 class PancanTileBag(DatapointTab):
-    LEGACY_TYPING = True
     VERSION = 1
 
     TOPICS = {
@@ -49,8 +48,6 @@ class PancanTileBag(DatapointTab):
         indexfile = tilesfile.split('.')[0] + '.index.npz'
         self._source_dirpath = os.path.dirname(self.var.source)
         self._source_indexfile = indexfile
-
-
 
     def __build__(self):
         """Read tiles from source TFRecord and repack as MDS shards."""
@@ -178,7 +175,6 @@ class PancanTileBag(DatapointTab):
 
 
 class PancanTileClip(DatapointTable):
-    LEGACY_TYPING = True
     VERSION = 1
     TAB = PancanTileBag
 
@@ -272,7 +268,8 @@ class PancanTileClip(DatapointTable):
 
 class PancanTilePartition(DatapointPartition):
     VERSION = 1
-
+    LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
     @dataclass
     class VAR(Datablock.VAR):
         clip: DatapointTable = None
@@ -292,6 +289,8 @@ class PancanTilePartition(DatapointPartition):
 
 class PancanTileFold(DatapointFold):
     VERSION = 1
+    LEGACY_SIGNATURE = True
+    LEGACY_TYPING = True
 
     @dataclass
     class VAR(Datablock.VAR):
