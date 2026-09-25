@@ -159,6 +159,7 @@ def gigapath_deep_feature_bag(
 
 
 """
+#### 602020
 ### CPTAC: FINAL-ONLY|CLS-ONLY
 ## 1 device
 dbx.pprint "\
@@ -451,18 +452,16 @@ def gigapath_deep_feature_clip_dataloader_samples(
 """
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
-    'GIGAPATH_DEEP_CPTAC_9802_TEST', \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
     var_cls_token_only=True, \
     var_signals=[('features', feature_final')], \
-    var_labels=[('annotations', 'cohort')], \
     var_shard_size=64, \
 ).build()"
 """
 def gigapath_deep_feature_stats_probe(
     name: str,
     *,
-    var_signals: str | list,
-    var_labels:  str | list, 
+    var_signals: str | list, 
     var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
