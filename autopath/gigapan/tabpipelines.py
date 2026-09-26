@@ -454,7 +454,7 @@ dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
     var_cls_token_only=True, \
-    var_signals=[('features', 'feature_final')], \
+    var_signals=[('features', 'final')], \
     var_shard_size=64, \
 ).build()"
 """
