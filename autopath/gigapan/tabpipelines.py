@@ -520,7 +520,9 @@ def gigapath_deep_feature_affine_logistic_probe(
     var_signals: list,
     var_labels:  list, 
     var_fit_intercept: bool = True,
-    var_evaluation_fraction: float = 0.8,
+    var_training_fraction: float = 0.8,
+    var_evaluation_fraction: float | None = None,
+    var_aggregation: str | None = None,
     var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
@@ -529,6 +531,9 @@ def gigapath_deep_feature_affine_logistic_probe(
     var_shard_size: int = 64,
     url: str | None = None,
     filter_built_tabs: bool = False,
+    n_workers: int = 1,
+    parallelization: str | None = None,
+    work_stealing: bool = False,
 ) -> DeepFeatureAffineLogisticProbe:
     """Create a `DeepFeatureAffineLogisticProbe` on a named clip.
 
@@ -541,10 +546,16 @@ def gigapath_deep_feature_affine_logistic_probe(
     name : str
         Named configuration — same values accepted by `gigapath_deep_feature_clip`
         (e.g. `"GIGAPATH_DEEP_CPTAC_602020_TRAIN"`).
+    var_signals : list
+        Signal (slice, column) pairs for probe features.
+    var_labels : list
+        Label (slice, column) pairs for probe targets.
     var_fit_intercept : bool
         Whether to fit an intercept term in the logistic regression.
-    var_evaluation_fraction : float
+    var_training_fraction : float
         Fraction of samples used for training (rest for evaluation).
+    var_aggregation : str | None
+        Feature aggregation mode across tiles (e.g. `'mean'` or `None`).
     var_normalize : str | None
         Feature normalization mode: `None` (raw), `'l2'`, `'corner-l1'`,
         `'corner-l2'`, or `'corner-linfty'`.
@@ -556,6 +567,12 @@ def gigapath_deep_feature_affine_logistic_probe(
         Datablock URL.
     filter_built_tabs : bool
         Whether to filter built tabs.
+    n_workers : int
+        Number of workers for parallel execution.
+    parallelization : str | None
+        Parallelization strategy (`'multiprocessing'`, `'multithreading'`, or `'inline'`).
+    work_stealing : bool
+        Whether to enable work-stealing scheduling.
 
     Examples
     --------
@@ -563,6 +580,8 @@ def gigapath_deep_feature_affine_logistic_probe(
 
         probe = gigapath_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            var_signals=[('features', 'final')],
+            var_labels=[('annotations', 'cohort')],
             var_cls_token_only=True,
             var_shard_size=64,
         )
@@ -572,12 +591,19 @@ def gigapath_deep_feature_affine_logistic_probe(
 
         probe = gigapath_deep_feature_affine_logistic_probe(
             'GIGAPATH_DEEP_CPTAC_602020_TRAIN',
+            var_signals=[('features', 'final')],
+            var_labels=[('annotations', 'cohort')],
             var_cls_token_only=True,
             var_shard_size=64,
             var_normalize='l2',
         )
         probe.build()
     """
+    if parallelization is None and n_workers > 1:
+        parallelization = 'multiprocessing'
+
+    frac = var_evaluation_fraction if var_evaluation_fraction is not None else var_training_fraction
+
     clip = gigapath_deep_feature_clip(
         name,
         var_capture_blocks=var_capture_blocks,
@@ -595,9 +621,13 @@ def gigapath_deep_feature_affine_logistic_probe(
             feature_table=dbx.quote(clip),
             collator=dbx.quote(collator),
             fit_intercept=var_fit_intercept,
-            evaluation_fraction=var_evaluation_fraction,
+            training_fraction=frac,
+            aggregation=var_aggregation,
             normalization=var_normalize,
         ),
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
     )
 
 
