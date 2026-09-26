@@ -456,6 +456,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_stats_probe( \
     var_cls_token_only=True, \
     var_signals=[('features', 'final')], \
     var_shard_size=64, \
+    parallelization='multiprocessing', n_workers=8, \
 ).build()"
 """
 def gigapath_deep_feature_stats_probe(
@@ -470,7 +471,13 @@ def gigapath_deep_feature_stats_probe(
     var_shard_size: int = 64,
     url: str | None = None,
     filter_built_tabs: bool = False,
+    n_workers: int = 1,
+    parallelization: str | None = None,
+    work_stealing: bool = False,
 ) -> DeepFeatureStatsProbe:
+    if parallelization is None and n_workers > 1:
+        parallelization = 'multiprocessing'
+
     clip = gigapath_deep_feature_clip(
         name,
         var_capture_blocks=var_capture_blocks,
@@ -489,7 +496,11 @@ def gigapath_deep_feature_stats_probe(
             collator=dbx.quote(collator),
             normalization=var_normalize,
         ),
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
     )
+
 
 
 """
