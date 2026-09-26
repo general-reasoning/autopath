@@ -508,7 +508,7 @@ def gigapath_deep_feature_stats_probe(
 dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_9802_TEST', \
-    var_signals=[('features', feature_final')], \
+    var_signals=[('features', 'final')], \
     var_labels=[('annotations', 'cohort')], \
     var_cls_token_only=True, \
     var_shard_size=64, \
