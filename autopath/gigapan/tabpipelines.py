@@ -509,11 +509,11 @@ dbx.pprint "\
 autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
     'GIGAPATH_DEEP_CPTAC_9802_TEST', \
     var_signals=[('features', 'final')], \
-    var_labels=[('annotations', 'cohort')], \
+    var_labels=[('annotations', 'annotations', 'cohort')], \
     var_cls_token_only=True, \
     var_shard_size=64, \
-    parallelization='multiprocessing', n_workers=16, \
-).build()"
+    parallelization='multiprocessing', n_workers=16, work_stealing=True, \
+).build_tree()"
 """
 def gigapath_deep_feature_affine_logistic_probe(
     name: str,
