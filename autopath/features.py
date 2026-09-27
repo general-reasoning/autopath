@@ -15,6 +15,7 @@ import torch
 
 import dbx
 from dbx import (
+    DATAFILE,
     Datablock, 
     Datastack,
     TorchMultithreadingDatablocksBuilder,
@@ -71,12 +72,23 @@ class BipolarFeatureBagMaker:
 
 class FeatureBag(Bag):
     VERSION = 1
-    LEGACY_NORM = True
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'features': 'features.npy'},
+            legacy=True,
+            UNSAFE_redirect_all_topics=True,
+            note='Legacy pre-marker build',
+        )
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         tilebag: TileBag
         extractor: Callable
+
+    CONFIG = VAR
 
     def __init__(self, *args, device_batch_size: int = 16, **kwargs):
         Datablock.__init__(self, 
@@ -86,28 +98,12 @@ class FeatureBag(Bag):
 
     def __post_init__(self):
         self.TOPICS = {
-            'features': 'features.npy',
+            'features': DATAFILE('features.npy'),
         }
         if self.has_sideband:
             for layer in self.cfg.extractor.sideband_layers:
-                self.TOPICS[f'sideband_{layer}' ] = \
-                    f'sideband_{layer}.npy'
+                self.TOPICS[f'sideband_{layer}'] = DATAFILE(f'sideband_{layer}.npy')
         return self
-
-    def __len__(self):
-        return len(self.labels)
-    
-    @property
-    def has_sideband(self):
-        return hasattr(self.cfg.extractor, 'sideband_layers')
-    
-    @property
-    def name(self):
-        return self.cfg.tilebag.name
-    
-    @property
-    def label(self):
-        return self.cfg.tilebag.label
 
     def __build__(self, extractor=None):
         if extractor is None:
@@ -170,8 +166,26 @@ class FeatureBag(Bag):
         self._len = n_tiles
         return self
 
-    def read(self, topic):
+    def __read__(self, topic: str):
         return dbx.read_tensor(self.path(topic))
+
+    def read(self, topic: str):
+        return self.__read__(topic)
+
+    def __len__(self):
+        return len(self.labels)
+
+    @property
+    def has_sideband(self):
+        return hasattr(self.cfg.extractor, 'sideband_layers')
+
+    @property
+    def name(self):
+        return self.cfg.tilebag.name
+
+    @property
+    def label(self):
+        return self.cfg.tilebag.label
 
     @functools.cached_property
     def features(self):
@@ -201,12 +215,24 @@ class FeatureBag(Bag):
 
 class FeatureBagClip(Clip):
     VERSION = 1
-    LEGACY_NORM = True
-    TOPICS = {"bag_lens": "bag_lens.npy"}
+
+    TOPICS = {"bag_lens": DATAFILE("bag_lens.npy")}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={"bag_lens": "bag_lens.npy"},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
+
     @dataclass
-    class CONFIG:
+    class VAR(Datablock.VAR):
         tilebagclip: Clip
         extractor: Callable
+
+    CONFIG = VAR
 
     class FeatureBagLengthComputer:
         def __init__(self, featurebag):
@@ -410,17 +436,28 @@ class BipolarFeatureBag(Bag):
     from autopath.probes import BipolarFeatureBagProbe
 
     VERSION = 1
-    LEGACY_NORM = True
+
     TOPICS = {
-        'bipolar_features': 'bipolar_features.npy',
+        'bipolar_features': DATAFILE('bipolar_features.npy'),
     }
 
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'bipolar_features': 'bipolar_features.npy'},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
+
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         from autopath.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
         bag_index: int
         featurebag: FeatureBag
+
+    CONFIG = VAR
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -487,14 +524,24 @@ class BipolarFeatureBag(Bag):
 
 class BipolarFeatureBagClip(Clip):
     VERSION = 3
-    LEGACY_NORM = True
 
-    TOPICS = {'bag_lens': 'bag_lens.npy'}
+    TOPICS = {'bag_lens': DATAFILE('bag_lens.npy')}
     
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'bag_lens': 'bag_lens.npy'},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
+
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         from autopath.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
+
+    CONFIG = VAR
 
     def __init__(self, 
                  *args, 
@@ -627,15 +674,25 @@ class BipolarSingleFeatureBagClip(Clip):
     from autopath.probes import BipolarFeatureBagProbe
 
     VERSION = 1
-    LEGACY_NORM = True
 
-    TOPICS = {'bag_lens': 'bag_lens.npy'}
+    TOPICS = {'bag_lens': DATAFILE('bag_lens.npy')}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'bag_lens': 'bag_lens.npy'},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         from autopath.probes import BipolarFeatureBagProbe
         probe: BipolarFeatureBagProbe
         idx: int
+
+    CONFIG = VAR
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -711,11 +768,11 @@ class SphericalFeatureBagMaker:
 
 
 class SphericalFeatureBag(Bag):
-    """A ``Bag`` that stores L2-normalised (unit-sphere) tile features.
+    """A `Bag` that stores L2-normalised (unit-sphere) tile features.
 
     Each tile feature vector is divided by its L2 norm so that it lies
     on the unit hypersphere.  The raw (un-normalised) features remain
-    accessible via the underlying ``FeatureBag``.
+    accessible via the underlying `FeatureBag`.
 
     Persisted topics:
 
@@ -723,12 +780,22 @@ class SphericalFeatureBag(Bag):
     """
 
     TOPICS = {
-        'features': 'features.npy',
+        'features': DATAFILE('features.npy'),
     }
 
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'features': 'features.npy'},
+            note='Legacy pre-marker build',
+        )
+    ]
+
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         featurebag: FeatureBag
+
+    CONFIG = VAR
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -780,21 +847,31 @@ class SphericalFeatureBag(Bag):
 
 
 class SphericalFeatureBagClip(Clip):
-    """A ``Clip`` of L2-normalised feature bags.
+    """A `Clip` of L2-normalised feature bags.
 
-    Wraps a ``FeatureBagClip`` and materialises one ``SphericalFeatureBag``
-    per source ``FeatureBag``.  Each bag independently L2-normalises its
+    Wraps a `FeatureBagClip` and materialises one `SphericalFeatureBag`
+    per source `FeatureBag`.  Each bag independently L2-normalises its
     tile features during ``build()``.
     """
 
     VERSION = 1
-    LEGACY_NORM = True
 
-    TOPICS = {'bag_lens': 'bag_lens.npy'}
+    TOPICS = {'bag_lens': DATAFILE('bag_lens.npy')}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'bag_lens': 'bag_lens.npy'},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         featurebagclip: FeatureBagClip
+
+    CONFIG = VAR
 
     def __init__(self,
                  *args,
@@ -953,12 +1030,44 @@ class SpectralFeatureBag(Bag):
     """
 
     VERSION = 1
-    LEGACY_NORM = True
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={f'spectrum_block_{b}': f'spectrum_block_{b}.npz' for b in (0, 10, 20, 30)},
+            legacy=True,
+            UNSAFE_redirect_all_topics=True,
+            note='Legacy pre-marker 4-block build',
+        ),
+        Datablock.Specialization(
+            spec={},
+            topics={f'spectrum_block_{b}': f'spectrum_block_{b}.npz' for b in (0, 20, 39)},
+            legacy=True,
+            UNSAFE_redirect_all_topics=True,
+            note='Legacy pre-marker 3-block build',
+        ),
+        Datablock.Specialization(
+            spec={},
+            topics={f'spectrum_block_{b}': f'spectrum_block_{b}.npz' for b in (0, 10, 20, 30, 39)},
+            legacy=True,
+            UNSAFE_redirect_all_topics=True,
+            note='Legacy pre-marker 5-block build',
+        ),
+        Datablock.Specialization(
+            spec={},
+            topics={f'spectrum_block_{b}': f'spectrum_block_{b}.npz' for b in range(40)},
+            legacy=True,
+            UNSAFE_redirect_all_topics=True,
+            note='Legacy pre-marker 40-block build',
+        ),
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         tilebag: TileBag
         extractor: Callable   # must be a SpectralBackboneEvaluator
+
+    CONFIG = VAR
 
     def __init__(self, *args, device_batch_size: int = 16, **kwargs):
         Datablock.__init__(self, *args, device_batch_size=device_batch_size, **kwargs)
@@ -966,31 +1075,12 @@ class SpectralFeatureBag(Bag):
     def __post_init__(self):
         self.TOPICS = {}
         for b in self.cfg.extractor.spectral_probe_blocks:
-            self.TOPICS[f'spectrum_block_{b}'] = f'spectrum_block_{b}.npz'
+            self.TOPICS[f'spectrum_block_{b}'] = DATAFILE(f'spectrum_block_{b}.npz')
         # Composed Jacobian topic (first → last probed block).
         # Always CLS-based, independent of per-block spectral_mode.
         if len(self.TOPICS) >= 2:
-            self.TOPICS['spectrum_composed'] = 'spectrum_composed.npz'
+            self.TOPICS['spectrum_composed'] = DATAFILE('spectrum_composed.npz')
         return self
-
-    @property
-    def spectral_mode(self):
-        return self.cfg.extractor.spectral_mode
-
-    @property
-    def probe_blocks(self):
-        return self.cfg.extractor.spectral_probe_blocks
-
-    @property
-    def name(self):
-        return self.cfg.tilebag.name
-
-    @property
-    def label(self):
-        return self.cfg.tilebag.label
-
-    def __len__(self):
-        return len(self.cfg.tilebag.tiles)
 
     def __build__(self, extractor=None):
         if extractor is None:
@@ -1084,6 +1174,25 @@ class SpectralFeatureBag(Bag):
             npz_keys = list(np.load(f, allow_pickle=True).keys())
         return read_npz(path, *npz_keys)
 
+    @property
+    def spectral_mode(self):
+        return self.cfg.extractor.spectral_mode
+
+    @property
+    def probe_blocks(self):
+        return self.cfg.extractor.spectral_probe_blocks
+
+    @property
+    def name(self):
+        return self.cfg.tilebag.name
+
+    @property
+    def label(self):
+        return self.cfg.tilebag.label
+
+    def __len__(self):
+        return len(self.cfg.tilebag.tiles)
+
     def spectrum(self, block_idx: int):
         """Read the stored spectrum for a given block index."""
         return self.read(f'spectrum_block_{block_idx}')
@@ -1102,13 +1211,24 @@ class SpectralFeatureBagClip(Clip):
     """
 
     VERSION = 1
-    LEGACY_NORM = True
-    TOPICS = {"bag_lens": "bag_lens.npy"}
+
+    TOPICS = {"bag_lens": DATAFILE("bag_lens.npy")}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={"bag_lens": "bag_lens.npy"},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
 
     @dataclass
-    class CONFIG:
+    class VAR(Datablock.VAR):
         tilebagclip: Clip
         extractor: Callable   # must be a SpectralBackboneEvaluator
+
+    CONFIG = VAR
 
     def __init__(self, *, tag: str | None = None, n_workers: int = 1,
                  devices: list[str] = ["cuda"],
