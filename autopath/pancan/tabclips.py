@@ -215,10 +215,17 @@ class PancanTileClip(DatapointTable):
     SPECIALIZATIONS = [
         Datablock.Specialization(
             spec={},
+            topics={'tabs': DIR, 'done': DATAFILE('done'), 'bag_lens': DATAFILE('bag_lens.npz')},
+            BLOCK=None,
+            note='Pre-BLOCK tabular build',
+        ),
+        Datablock.Specialization(
+            spec={},
             topics={'tabs': DIRTOPIC, 'done': 'done', 'bag_lens': 'bag_lens.npz'},
             version=1,
+            BLOCK=None,
             note='Sentinel-era clip declaration',
-        )
+        ),
     ]
 
     @dataclass
@@ -313,6 +320,15 @@ class PancanTilePartition(DatapointPartition):
 
 class PancanTileFold(DatapointFold):
     VERSION = 1
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'tabs': DIR, 'done': DATAFILE('done'), 'bag_lens': DATAFILE('bag_lens.npz')},
+            BLOCK=None,
+            note='Pre-BLOCK tabular fold build',
+        ),
+    ]
 
     # 2. Accessors ───────────────────────────────────────────────────
 
