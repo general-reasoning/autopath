@@ -512,6 +512,7 @@ autopath.gigapan.tabpipelines.gigapath_deep_feature_affine_logistic_probe( \
     var_labels=[('annotations', 'cohort')], \
     var_cls_token_only=True, \
     var_shard_size=64, \
+    parallelization='multiprocessing', n_workers=16, \
 ).build()"
 """
 def gigapath_deep_feature_affine_logistic_probe(
