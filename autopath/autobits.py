@@ -17,6 +17,7 @@ from torch.utils.data import Dataset
 
 import dbx
 from dbx import (
+    DATAFILE,
     Datablock,
     Datastack,
     DatamodelEvaluator,
@@ -61,24 +62,21 @@ class TileBag(Bag):
 
 
 class Clip(Datastack):
-    """Abstract clip of bags, built in parallel via :class:`Datastack`.
+    """Abstract clip of bags, built in parallel via `Datastack`.
 
     Subclasses must implement:
 
     * ``n_blocks``  — number of bags (property)
-    * ``__block__(idx)`` — return the :class:`Bag` at *idx*
+    * ``__block__(idx)`` — return the `Bag` at *idx*
 
-    After all bags are built in parallel, :meth:`__stack__` persists
+    After all bags are built in parallel, `__stack__()` persists
     ``bag_lens.npz`` so that lengths can be read back without
     materializing bags.
     """
 
     v2 = True
     
-    TOPICS = {"bag_lens": "bag_lens.npz"}
-
-    def __len__(self):
-        return sum(self.bag_lens)
+    TOPICS = {"bag_lens": DATAFILE("bag_lens.npz")}
 
     def __stack__(self, results=None):
         """Persist bag lengths after all bags have been built."""
@@ -90,6 +88,9 @@ class Clip(Datastack):
     def __read__(self):
         bag_lens = dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
         return bag_lens
+
+    def __len__(self):
+        return sum(self.bag_lens)
 
     @functools.cached_property
     def bag_lens(self):
@@ -131,14 +132,28 @@ class Clip(Datastack):
     
 
 class Partition(Datablock):
-    TOPICS = {"bag_indices": "bag_indices.npz", 
-                  "bag_lens":    "bag_lens.npz",
+    TOPICS = {
+        "bag_indices": DATAFILE("bag_indices.npz"), 
+        "bag_lens":    DATAFILE("bag_lens.npz"),
     }
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={
+                "bag_indices": "bag_indices.npz",
+                "bag_lens": "bag_lens.npz",
+            },
+        )
+    ]
+
     @dataclass
-    class CONFIG:
+    class VAR(Datablock.VAR):
         clip: Clip
         fold_fractions: list[float]
         seed: int = 42
+
+    CONFIG = VAR
 
     def __post_init__(self):
         assert sum(self.cfg.fold_fractions) == 1.0, f"Fold fractions must sum to 1.0, got {self.cfg.fold_fractions}"
@@ -176,13 +191,11 @@ class Partition(Datablock):
         dict = dbx.read_npz(self.path(topic), *keys)
         return dict
 
-    def _resolve_fold(self, fold):
-        """Resolve fold key, supporting negative indices like Python lists."""
-        n = len(self.cfg.fold_fractions)
-        idx = int(fold)
-        if idx < 0:
-            idx = n + idx
-        return str(idx)
+    def n_bags(self, fold):
+        return len(self.bag_indices(fold))
+
+    def bag(self, fold, idx: int):
+        return self.cfg.clip.block(self.bag_indices(fold)[idx])
 
     def bags(self, fold):
         return [self.cfg.clip.block(i) for i in self.bag_indices(fold)]
@@ -195,8 +208,13 @@ class Partition(Datablock):
             return self.read("bag_indices")[self._resolve_fold(fold)]
         return self._compute_fold_indices()[self._resolve_fold(fold)]
 
-    def bag(self, fold, idx: int):
-        return self.cfg.clip.block(self.bag_indices(fold)[idx])
+    def _resolve_fold(self, fold):
+        """Resolve fold key, supporting negative indices like Python lists."""
+        n = len(self.cfg.fold_fractions)
+        idx = int(fold)
+        if idx < 0:
+            idx = n + idx
+        return str(idx)
 
     def _compute_fold_indices(self):
         """Recompute per-fold bag index arrays from config (same logic as __build__).
@@ -223,39 +241,38 @@ class Partition(Datablock):
             Klo = Khi
         return fold_indices
 
-    def n_bags(self, fold):
-        return len(self.bag_indices(fold))
-
 
 class Fold(Clip):
     @dataclass
-    class CONFIG:
+    class VAR(Datablock.VAR):
         partition: Partition
         fold: Union[str, int]
+
+    CONFIG = VAR
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def __post_init__(self):
         return self
-    
+
+    def __split_v2__(self, *args, **kwargs):
+        """Bags are managed by the Partition — no parallel work needed."""
+        return [], dict()
+
+    def __block__(self, idx: int):
+        return self.cfg.partition.bag(self.cfg.fold, idx)
+
+    def __stack_v2__(self, results):
+        """Persist bag_lens after (vacuous) parallel phase."""
+        return super().__stack__(results)
+
     def valid(self):
         return self.cfg.partition.valid()
 
     @property
     def n_blocks(self):
         return self.cfg.partition.n_bags(self.cfg.fold)
-
-    def __block__(self, idx: int):
-        return self.cfg.partition.bag(self.cfg.fold, idx)
-
-    def __split_v2__(self, *args, **kwargs):
-        """Bags are managed by the Partition — no parallel work needed."""
-        return [], dict()
-
-    def __stack_v2__(self, results):
-        """Persist bag_lens after (vacuous) parallel phase."""
-        return super().__stack__(results)
 
     @functools.cached_property
     def bag_lens(self):
@@ -276,7 +293,7 @@ DeepBackboneEvaluatorFactory = DataformerEvaluatorFactory
 
 
 class ZipStreamingDataset(Dataset):
-    """Pairs multiple :class:`StreamingDataset` objects by index.
+    """Pairs multiple `StreamingDataset` objects by index.
 
     All datasets must have the same length.  ``__getitem__`` merges
     the sample dicts from all datasets into a single dict.
@@ -324,8 +341,8 @@ class ZipStreamingDataset(Dataset):
 class ValidateTileFeatureZipStreamingDataset:
     """Validate that a zipped tile+feature dataset is consistent.
 
-    Takes a :class:`ZipStreamingDataset` (pairing tiles with stored
-    features) and a :class:`DeepBackboneEvaluator`, re-runs the
+    Takes a `ZipStreamingDataset` (pairing tiles with stored
+    features) and a `DeepBackboneEvaluator`, re-runs the
     evaluator on the tiles, and compares the result against the stored
     feature columns.
 
@@ -485,7 +502,7 @@ class ValidateTileFeatureZipStreamingDataset:
         return out
 
     def validate(self):
-        """Run validation and return a :class:`ValidationResult`."""
+        """Run validation and return a `ValidationResult`."""
         n_total = len(self.dataset)
         n_to_check = n_total if self.n_samples is None else min(self.n_samples, n_total)
 
@@ -646,7 +663,7 @@ def sanitize_collate(batch):
     1. Union all keys across the batch (some shards may omit optional
        columns entirely).
     2. Fill missing keys with ``None``.
-    3. Recursively replace ``None`` with ``{}`` via :func:`_sanitize`.
+    3. Recursively replace ``None`` with ``{}`` via `_sanitize()`.
     4. Delegate to ``default_collate``.
     """
     from torch.utils.data._utils.collate import default_collate
