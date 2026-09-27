@@ -29,7 +29,7 @@ class DeepFeatureStatsProbe(FeatureStatsProbe):
             spec={},
             topics={'count': 'count.npz'},
             version=1,
-            all_recorded=True,
+            UNSAFE_redirect_all_topics=True,
             note='Pre-instance topics build',
         )
     ]
