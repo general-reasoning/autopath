@@ -5,7 +5,7 @@ import json
 import os
 
 import dbx
-from dbx.datablocks import Datablock, DatajournalEntry
+from dbx.datablocks import DATAFILE, DATADIR, Datablock, DatajournalEntry
 from dbx.datafeatures import (
     BipolarDatafeatureTab,
     BipolarDatafeatureTable,
@@ -14,13 +14,17 @@ from dbx.datafeatures import (
     DatafeatureTable,
 )
 from dbx.datamodels import DatamodelEvaluatorFactory
-from dbx.datapoints import DIRTOPIC, SLICETOPIC, DatapointTab, DatapointTable
+from dbx.datapoints import (
+    DATASLICE,
+    DIRTOPIC,
+    SLICETOPIC,
+    DatapointTab,
+    DatapointTable,
+)
 
 
 class TileCollator(Datacollator):
     """Default collator for tile datasets, extracting signal ('tiles', 'tile')."""
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
     VERSION = 1
 
     @dataclass
@@ -33,8 +37,6 @@ class TileCollator(Datacollator):
 class TileAnnotationCollator(Datacollator):
     """Default collator for tile datasets, extracting signal ('tiles', 'tile') and 
         ('annotations', {annotation}), defaulting ot ('annotations', 'cohort')."""
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
     VERSION = 1
 
     @dataclass
@@ -56,10 +58,17 @@ def tile_annotation_collator(label: str) -> TileAnnotationCollator:
 
 class DeepFeatureBag(DatafeatureTab):
     """Deep feature bag storing multi-layer activations."""
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
     VERSION = 1
-    TOPICS = {'features': SLICETOPIC}
+    TOPICS = {'features': DATASLICE}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'features': SLICETOPIC},
+            legacy=True,
+            note='Legacy sentinel-era build',
+        )
+    ]
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -172,12 +181,18 @@ class DeepFeatureBag(DatafeatureTab):
 
 class DeepFeatureClip(DatafeatureTable):
     """Deep feature clip storing multi-layer activations across bags."""
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
     VERSION = 1
     TAB = DeepFeatureBag
-    TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
-    
+    TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
+            legacy=True,
+            note='Legacy sentinel-era build',
+        )
+    ]
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -191,10 +206,20 @@ class DeepFeatureClip(DatafeatureTable):
 
 class BipolarDeepFeatureBag(BipolarDatafeatureTab):
     """Bipolar-encoded deep feature bag."""
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
     VERSION = 1
-    TOPICS = {'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC}
+    TOPICS = {
+        'bipolar_features': DATASLICE(bipolar_features='ndarray:int8'),
+        'tab_bipolar_features': DATASLICE(tab_bipolar_features='ndarray:int8'),
+    }
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC},
+            legacy=True,
+            note='Legacy sentinel-era build',
+        )
+    ]
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -206,11 +231,18 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
 
 class BipolarDeepFeatureClip(BipolarDatafeatureTable):
     """Bipolar-encoded deep feature clip across bags."""
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
     VERSION = 1
     TAB = BipolarDeepFeatureBag
-    TOPICS = {'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'}
+    TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
+            legacy=True,
+            note='Legacy sentinel-era build',
+        )
+    ]
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -218,3 +250,4 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
         layer: str = 'final'
         threshold: float = 0.5
         ternarize: bool = False
+
