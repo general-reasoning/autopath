@@ -1,7 +1,7 @@
 """Deep feature bags and clips for multi-layer activation capture.
 
-Provides :class:`DeepFeatureBag` and :class:`DeepFeatureClip` for storing
-multi-layer activations captured by a :class:`DeepBackboneEvaluator`,
+Provides `DeepFeatureBag` and `DeepFeatureClip` for storing
+multi-layer activations captured by a `DeepBackboneEvaluator`,
 plus spherical and corner (bipolar) encoding variants.
 
 Storage uses `MDS shards <https://docs.mosaicml.com/projects/streaming>`_
@@ -23,6 +23,9 @@ from torch.utils.data import Dataset
 import dbx
 from tqdm import tqdm
 from dbx import (
+    DATADIR,
+    DATAFILE,
+    DIRTOPIC,
     Datablock,
     DatajournalEntry,
     Datastack,
@@ -59,15 +62,25 @@ class DeepFeatureBag(Bag):
     """
 
     VERSION = 8
-    LEGACY_NORM = True
 
-    TOPICS = ['shards']
+    TOPICS = {'shards': DATADIR}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'shards': DIRTOPIC},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         tilebag: TileBag
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024    # samples per MDS shard
+
+    CONFIG = VAR
 
     def __init__(self, *args, device_batch_size: int = 64, device: str = "cuda", **kwargs):
         Datablock.__init__(self, *args, device_batch_size=device_batch_size, device=device, **kwargs)
@@ -97,127 +110,7 @@ class DeepFeatureBag(Bag):
             self._feature_names = []
         return self
 
-    # ── Properties ──────────────────────────────────────────────────
-
-    @property
-    def tilebag(self):
-        """The source TileBag."""
-        return self.cfg.tilebag
-
-    @property
-    def feature_names(self):
-        """Ordered list of captured feature keys."""
-        return list(self._feature_names)
-
-    @property
-    def _is_local_fs(self):
-        """True when this bag's storage is on a local filesystem."""
-        protocol = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
-        return protocol in ('file', 'local', '')
-
-    def __len__(self):
-        return len(self.cfg.tilebag)
-
-    # ── Validity ────────────────────────────────────────────────────
-
-    def validtopic(self, topic=None):
-        if topic == 'shards':
-            # MDS directory is valid when index.json has been written.
-            return self.fs.exists(
-                os.path.join(self.path('shards'), 'index.json')
-            )
-        return super().validtopic(topic)
-
-    @staticmethod
-    def UNSAFE_redirector(bag, idx=None, *, journal=None):
-        """Redirect callable that maps a bag to its built paths via journal lookup.
-
-        Matches journal build events against `bag.var.datapoint_tab.tag`.
-        Returns `{'paths': paths}` if valid, or `None` if invalid.
-        """
-        try:
-            datapoint_tab = getattr(bag.var, 'datapoint_tab', None)
-            dp_tag = getattr(datapoint_tab, 'tag', None)
-            if not dp_tag:
-                return None
-
-            journals_to_check = []
-            if journal is not None and len(journal) > 0:
-                journals_to_check.append(journal)
-            elif hasattr(bag, 'journal'):
-                try:
-                    bj = bag.journal()
-                    if bj is not None and len(bj) > 0:
-                        journals_to_check.append(bj)
-                except Exception:
-                    pass
-
-
-            if not journals_to_check:
-                return None
-
-            matched_entry = None
-
-            def is_valid_paths(paths):
-                if not paths or not isinstance(paths, dict):
-                    return False
-                for p in paths.values():
-                    if not p or not bag.fs.exists(p):
-                        return False
-                    idx_p = os.path.join(p, 'index.json')
-                    if bag.fs.exists(idx_p):
-                        try:
-                            content = bag.fs.cat(idx_p)
-                            if not json.loads(content).get('shards'):
-                                return False
-                        except Exception:
-                            return False
-                return True
-
-            for j in journals_to_check:
-                df = j[j['event'] == 'build:end'] if ('event' in j.columns and 'build:end' in j['event'].values) else j
-
-                if idx is not None and 0 <= idx < len(df):
-                    cand = df.iloc[idx]
-                    cand_sig = str(cand.get('signature', cand.get('type', '')))
-                    cand_tag = str(cand.get('tag', ''))
-                    if dp_tag in cand_sig or dp_tag in cand_tag:
-                        entry = DatajournalEntry(cand)
-                        paths = entry.paths
-                        if is_valid_paths(paths):
-                            matched_entry = cand
-                            break
-
-                for _, row in df.iloc[::-1].iterrows():
-                    row_sig = str(row.get('signature', row.get('type', '')))
-                    row_tag = str(row.get('tag', ''))
-                    if dp_tag in row_sig or dp_tag in row_tag:
-                        entry = DatajournalEntry(row)
-                        paths = entry.paths
-                        if is_valid_paths(paths):
-                            matched_entry = row
-                            break
-                if matched_entry is not None:
-                    break
-
-            if matched_entry is not None:
-                entry = DatajournalEntry(matched_entry)
-                paths = entry.paths
-                if is_valid_paths(paths):
-                    return {'paths': paths}
-            return None
-
-        except Exception as e:
-            if hasattr(bag, 'log'):
-                bag.log.detailed(f"UNSAFE_redirector failed: {e}")
-            return None
-
-    def unsafe_redirector(self, idx=None, journal=None):
-        return self.UNSAFE_redirector(self, idx=idx, journal=journal)
-
-
-    # ── Build ───────────────────────────────────────────────────────
-
+    # ── Protocol Methods ─────────────────────────────────────────────
 
     def __build__(self, evaluator=None, tilebag=None):
         if evaluator is None:
@@ -326,25 +219,46 @@ class DeepFeatureBag(Bag):
         self._len = n_tiles
         return self
 
-    # ── Read ────────────────────────────────────────────────────────
-
     def __read__(self, topic):
         if topic == 'shards':
             return self.fs.ls(self.path('shards'))
         raise ValueError(f"Unknown topic: {topic!r}")
 
+    def validtopic(self, topic=None):
+        if topic == 'shards':
+            # MDS directory is valid when index.json has been written.
+            return self.fs.exists(
+                os.path.join(self.path('shards'), 'index.json')
+            )
+        return super().validtopic(topic)
+
+    # ── Properties and Accessors ────────────────────────────────────
+
+    @property
+    def tilebag(self):
+        """The source TileBag."""
+        return self.cfg.tilebag
+
+    @property
+    def feature_names(self):
+        """Ordered list of captured feature keys."""
+        return list(self._feature_names)
+
+    def __len__(self):
+        return len(self.cfg.tilebag)
+
     def data(self):
         """Bulk-read all MDS samples as a list of dicts.
 
-        Uses :class:`MDSReader` (plain file I/O) rather than
-        :class:`StreamingDataset` to avoid shared-memory leaks
+        Uses `MDSReader` (plain file I/O) rather than
+        `StreamingDataset` to avoid shared-memory leaks
         when reading many bags.
         """
         return list(read_mds_samples(self.path('shards')))
 
     @contextlib.contextmanager
     def dataset(self, *, shuffle: bool = False):
-        """Yield a :class:`StreamingDataset` over this bag's MDS shards.
+        """Yield a `StreamingDataset` over this bag's MDS shards.
 
         Use as a context manager to ensure shared-memory file
         descriptors are released promptly::
@@ -355,8 +269,8 @@ class DeepFeatureBag(Bag):
         Each sample is a dict with keys ``features_{name}`` (ndarray).
 
         .. note::
-            For bulk reads prefer :meth:`layer_features` or
-            :meth:`annotations`, which use :class:`MDSReader`
+            For bulk reads prefer `layer_features()` or
+            `annotations()`, which use `MDSReader`
             and avoid shared-memory overhead entirely.
         """
         if self._is_local_fs:
@@ -369,12 +283,11 @@ class DeepFeatureBag(Bag):
             del ds
             gc.collect()
 
-
     def layer_features(self, layer: str):
         """Read the full feature tensor for a single layer from MDS shards.
 
-        Uses :class:`MDSReader` (plain file I/O) rather than
-        :class:`StreamingDataset` to avoid shared-memory leaks
+        Uses `MDSReader` (plain file I/O) rather than
+        `StreamingDataset` to avoid shared-memory leaks
         when reading many bags.
 
         Parameters
@@ -424,17 +337,111 @@ class DeepFeatureBag(Bag):
         """All layer features as ``{feature_name: Tensor}``."""
         return {name: self.layer_features(name) for name in self.feature_names}
 
+    # ── Private and Utility Methods ─────────────────────────────────
+
+    @property
+    def _is_local_fs(self):
+        """True when this bag's storage is on a local filesystem."""
+        protocol = self.fs.protocol if isinstance(self.fs.protocol, str) else self.fs.protocol[0]
+        return protocol in ('file', 'local', '')
+
+    @staticmethod
+    def UNSAFE_redirector(bag, idx=None, *, journal=None):
+        """Redirect callable that maps a bag to its built paths via journal lookup.
+
+        Matches journal build events against `bag.var.datapoint_tab.tag`.
+        Returns `{'paths': paths}` if valid, or `None` if invalid.
+        """
+        try:
+            datapoint_tab = getattr(bag.var, 'datapoint_tab', None)
+            dp_tag = getattr(datapoint_tab, 'tag', None)
+            if not dp_tag:
+                return None
+
+            journals_to_check = []
+            if journal is not None and len(journal) > 0:
+                journals_to_check.append(journal)
+            elif hasattr(bag, 'journal'):
+                try:
+                    bj = bag.journal()
+                    if bj is not None and len(bj) > 0:
+                        journals_to_check.append(bj)
+                except Exception:
+                    pass
+
+            if not journals_to_check:
+                return None
+
+            matched_entry = None
+
+            def is_valid_paths(paths):
+                if not paths or not isinstance(paths, dict):
+                    return False
+                for p in paths.values():
+                    if not p or not bag.fs.exists(p):
+                        return False
+                    idx_p = os.path.join(p, 'index.json')
+                    if bag.fs.exists(idx_p):
+                        try:
+                            content = bag.fs.cat(idx_p)
+                            if not json.loads(content).get('shards'):
+                                return False
+                        except Exception:
+                            return False
+                return True
+
+            for j in journals_to_check:
+                df = j[j['event'] == 'build:end'] if ('event' in j.columns and 'build:end' in j['event'].values) else j
+
+                if idx is not None and 0 <= idx < len(df):
+                    cand = df.iloc[idx]
+                    cand_sig = str(cand.get('signature', cand.get('type', '')))
+                    cand_tag = str(cand.get('tag', ''))
+                    if dp_tag in cand_sig or dp_tag in cand_tag:
+                        entry = DatajournalEntry(cand)
+                        paths = entry.paths
+                        if is_valid_paths(paths):
+                            matched_entry = cand
+                            break
+
+                for _, row in df.iloc[::-1].iterrows():
+                    row_sig = str(row.get('signature', row.get('type', '')))
+                    row_tag = str(row.get('tag', ''))
+                    if dp_tag in row_sig or dp_tag in row_tag:
+                        entry = DatajournalEntry(row)
+                        paths = entry.paths
+                        if is_valid_paths(paths):
+                            matched_entry = row
+                            break
+                if matched_entry is not None:
+                    break
+
+            if matched_entry is not None:
+                entry = DatajournalEntry(matched_entry)
+                paths = entry.paths
+                if is_valid_paths(paths):
+                    return {'paths': paths}
+            return None
+
+        except Exception as e:
+            if hasattr(bag, 'log'):
+                bag.log.detailed(f"UNSAFE_redirector failed: {e}")
+            return None
+
+    def unsafe_redirector(self, idx=None, journal=None):
+        return self.UNSAFE_redirector(self, idx=idx, journal=journal)
+
 
 class DeepFeatureClip(Clip):
-    """A clip of :class:`DeepFeatureBag` blocks built in parallel via Datastack.
+    """A clip of `DeepFeatureBag` blocks built in parallel via Datastack.
 
-    Orchestrates building one :class:`DeepFeatureBag` per tile-bag in the
+    Orchestrates building one `DeepFeatureBag` per tile-bag in the
     source ``tilebagclip``, using the configured
-    :class:`DeepBackboneEvaluatorFactory`.
+    `DeepBackboneEvaluatorFactory`.
 
-    Uses the v2 :class:`Datastack` API: :meth:`__split_v2__` returns
-    device-assigned :class:`BlockMaker` callables and shared state as
-    ``callable_kwargs``; :meth:`__stack_v2__` persists bag lengths.
+    Uses the v2 `Datastack` API: `__split_v2__()` returns
+    device-assigned `BlockMaker` callables and shared state as
+    ``callable_kwargs``; `__stack_v2__()` persists bag lengths.
 
     All shared state (evaluator, tilebags, evaluator factory) flows
     through ``callable_kwargs`` — never as side-effected ``self``
@@ -443,29 +450,31 @@ class DeepFeatureClip(Clip):
 
     v2 = True
     VERSION = 5
-    LEGACY_NORM = True
 
-    # Inherits TOPICS = {"bag_lens": "bag_lens.npz"} from Clip.
-    # Do NOT also declare TOPICS — the presence of both causes path()
-    # to take the TOPICS branch (appending the filename) while
-    # callers assumed the TOPICS branch (directory-only), resulting in
-    # a doubled "bag_lens.npz/bag_lens.npz" path.
+    TOPICS = {'bag_lens': DATAFILE('bag_lens.npz')}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'bag_lens': 'bag_lens.npz'},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         tilebagclip: Clip
         evaluator_factory: DeepBackboneEvaluatorFactory
         shard_size: int = 1024
+
+    CONFIG = VAR
 
     def __init__(self, *args, device_batch_size: int = 64,
                  devices: list = None, **kwargs):
         self._devices = devices or ["cuda"]
         kwargs.pop('v2', None)
         super().__init__(*args, device_batch_size=device_batch_size, **kwargs)
-
-    @property
-    def n_blocks(self) -> int:
-        return self.cfg.tilebagclip.n_blocks
 
     class BlockMaker(Datastack.BlockMaker):
         """Build a single block using shared state from ``callable_kwargs``.
@@ -590,6 +599,10 @@ class DeepFeatureClip(Clip):
     def bag_lens(self):
         return self.read('bag_lens')
 
+    @property
+    def n_blocks(self) -> int:
+        return self.cfg.tilebagclip.n_blocks
+
     def _ensure_precomputed_tilebags(self):
         """Precompute the tilebag list to avoid re-forming the source clip."""
         if not hasattr(self, '_precomputed_tilebags'):
@@ -613,7 +626,7 @@ class DeepFeatureClip(Clip):
         """Return a unified, labeled dataset over all bags.
 
         Uses the MDS multi-stream API to create a **single**
-        :class:`StreamingDataset` backed by one :class:`Stream` per bag.
+        `StreamingDataset` backed by one `Stream` per bag.
         This avoids opening hundreds of separate shared-memory segments.
 
         Each sample dict contains:
@@ -629,13 +642,13 @@ class DeepFeatureClip(Clip):
             been built yet instead of raising.  The number of skipped
             bags is reported at the end.
         batch_size : int | None
-            Passed to :class:`StreamingDataset` for deterministic
+            Passed to `StreamingDataset` for deterministic
             resumption.  Should match the DataLoader batch size.
 
         Returns
         -------
         Dataset
-            A :class:`torch.utils.data.Dataset` over all bags.
+            A `torch.utils.data.Dataset` over all bags.
         """
         streams = []
         n_skipped = 0
@@ -670,7 +683,7 @@ class DeepFeatureClip(Clip):
         validate_zipping: bool = False,
         **streaming_kwargs,
     ):
-        """Return a :class:`ZipStreamingDataset` aligning features with tiles.
+        """Return a `ZipStreamingDataset` aligning features with tiles.
 
         Iterates ``self.bags`` and for each valid bag creates both a
         feature stream and a tile stream (from ``bag.tilebag``) in the
@@ -686,7 +699,7 @@ class DeepFeatureClip(Clip):
             If ``True``, silently skip bags whose feature blocks have
             not been built yet.
         batch_size : int | None
-            Passed to both :class:`StreamingDataset` instances.
+            Passed to both `StreamingDataset` instances.
         validate_zipping : bool
             If ``True``, attach a per-sample validator that checks
             ``bag_name`` and ``tile_index`` consistency between the
@@ -874,11 +887,11 @@ class DeepFeatureClip(Clip):
 
 
 class BipolarDeepFeatureBag(Bag):
-    """Median-thresholded bipolar encoding of a :class:`DeepFeatureBag`.
+    """Median-thresholded bipolar encoding of a `DeepFeatureBag`.
 
     For each tile, maps its feature vector to ``{-1, +1}^d`` via
     ``sign(features - median)`` where the median is obtained from a
-    pre-built :class:`DeepFeatureStatsProbe`.
+    pre-built `DeepFeatureStatsProbe`.
 
     Also computes a bag-level bipolar feature by averaging the
     tile-level bipolars and thresholding:
@@ -897,47 +910,37 @@ class BipolarDeepFeatureBag(Bag):
     """
 
     VERSION = 6
-    LEGACY_NORM = True
 
-    TOPICS = ['shards']
+    TOPICS = {'shards': DATADIR}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics=['shards'],
+            legacy=True,
+            note='Legacy pre-marker build with list TOPICS',
+        )
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         deep_feature_bag: DeepFeatureBag
         layer: str = 'final'
         bag_aggregation_threshold: float = 0.5
         ternarize_tiles: bool = False
 
+    CONFIG = VAR
+
+    # ── Datablock Protocol Methods ──────────────────────────────────
+
     def __init__(self, *args, **kwargs):
         Datablock.__init__(self, *args, **kwargs)
-
-    @property
-    def tilebag(self):
-        """The source TileBag (delegated through the underlying bag)."""
-        return self.cfg.deep_feature_bag.tilebag
-
-    def __len__(self):
-        return len(self.cfg.deep_feature_bag)
-
-    # ── Validity ────────────────────────────────────────────────────
-
-    def validtopic(self, topic=None):
-        if topic == 'shards':
-            return self.fs.exists(
-                os.path.join(self.path('shards'), 'index.json')
-            )
-        return super().validtopic(topic)
-
-    def valid(self):
-        return self.validtopics(reduce=True)
-
-    # ── Build ───────────────────────────────────────────────────────
 
     def __build__(self, median):
         """Build bipolar features for this bag.
 
         Reads tile-level features from the underlying
-        :class:`DeepFeatureBag`, computes tile-level and bag-level
+        `DeepFeatureBag`, computes tile-level and bag-level
         bipolar encodings, and writes them into MDS shards.
 
         Columns written:
@@ -1020,12 +1023,30 @@ class BipolarDeepFeatureBag(Bag):
         )
         return self
 
-    # ── Read ────────────────────────────────────────────────────────
-
     def __read__(self, topic):
         if topic == 'shards':
             return self.fs.ls(self.path('shards'))
         raise ValueError(f"Unknown topic: {topic!r}")
+
+    def valid(self):
+        return self.validtopics(reduce=True)
+
+    def validtopic(self, topic=None):
+        if topic == 'shards':
+            return self.fs.exists(
+                os.path.join(self.path('shards'), 'index.json')
+            )
+        return super().validtopic(topic)
+
+    # ── Properties and Accessors ────────────────────────────────────
+
+    @property
+    def tilebag(self):
+        """The source TileBag (delegated through the underlying bag)."""
+        return self.cfg.deep_feature_bag.tilebag
+
+    def __len__(self):
+        return len(self.cfg.deep_feature_bag)
 
     @functools.cached_property
     def bipolar_features(self):
@@ -1049,10 +1070,10 @@ class BipolarDeepFeatureBag(Bag):
     def layer_features(self, layer: str = None):
         """Read tile-level bipolar features as a float32 tensor.
 
-        Implements the same API as :meth:`DeepFeatureBag.layer_features`
+        Implements the same API as `DeepFeatureBag.layer_features()`
         so that bipolar bags can be used with
-        :class:`DeepFeatureAffineLogisticProbe` and
-        :class:`DeepFeatureStatsProbe`.
+        `DeepFeatureAffineLogisticProbe` and
+        `DeepFeatureStatsProbe`.
 
         The ``layer`` argument is accepted for API compatibility but
         ignored — bipolar bags contain only one feature set.
@@ -1067,12 +1088,12 @@ class BipolarDeepFeatureBag(Bag):
         )
 
     def annotations(self, i=0) -> dict | None:
-        """Delegate annotations to the underlying :class:`DeepFeatureBag`."""
+        """Delegate annotations to the underlying `DeepFeatureBag`."""
         return self.cfg.deep_feature_bag.annotations(i=i)
 
     @contextlib.contextmanager
     def dataset(self, *, shuffle: bool = False):
-        """Yield a :class:`StreamingDataset` over this bag's MDS shards.
+        """Yield a `StreamingDataset` over this bag's MDS shards.
 
         Use as a context manager to ensure shared-memory file
         descriptors are released promptly::
@@ -1096,12 +1117,12 @@ class BipolarDeepFeatureBag(Bag):
 
 
 class BipolarDeepFeatureClip(Clip):
-    """Clip of :class:`BipolarDeepFeatureBag` blocks built in parallel.
+    """Clip of `BipolarDeepFeatureBag` blocks built in parallel.
 
-    CONFIG has two main params:
+    VAR has two main params:
 
-    * ``clip`` — the :class:`DeepFeatureClip` whose bags are bipolarized.
-    * ``stats_probe`` — a :class:`DeepFeatureStatsProbe` that provides
+    * ``clip`` — the `DeepFeatureClip` whose bags are bipolarized.
+    * ``stats_probe`` — a `DeepFeatureStatsProbe` that provides
       the per-dimension median for thresholding.  This can (and often
       should) come from a *different* fold (e.g. CALIBRATE) to avoid
       data leakage.
@@ -1112,42 +1133,33 @@ class BipolarDeepFeatureClip(Clip):
 
     v2 = True
     VERSION = 6
-    LEGACY_NORM = True
+
+    TOPICS = {'bag_lens': DATAFILE('bag_lens.npz')}
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'bag_lens': 'bag_lens.npz'},
+            legacy=True,
+            note='Legacy pre-marker build',
+        )
+    ]
 
     @dataclass
-    class CONFIG(Datablock.CONFIG):
+    class VAR(Datablock.VAR):
         clip: object              # DeepFeatureClip
         stats_probe: object       # DeepFeatureStatsProbe
         layer: str = 'final'
         bag_aggregation_threshold: float = 0.5
         ternarize_tiles: bool = False
 
+    CONFIG = VAR
+
+    # ── Datablock Protocol Methods ──────────────────────────────────
+
     def __init__(self, *args, **kwargs):
         kwargs.pop('v2', None)
         super().__init__(*args, **kwargs)
-
-    @property
-    def feature_clip(self):
-        """The underlying :class:`DeepFeatureClip`."""
-        return self.cfg.clip
-
-    @property
-    def n_blocks(self) -> int:
-        return self.feature_clip.n_blocks
-
-    def __block__(self, idx: int, deep_feature_bag=None):
-        if deep_feature_bag is None:
-            deep_feature_bag = self.feature_clip.bag(idx)
-        return BipolarDeepFeatureBag(
-            url=self.url,
-            spec=dict(
-                deep_feature_bag=dbx.quote(deep_feature_bag),
-                layer=self.cfg.layer,
-                bag_aggregation_threshold=self.cfg.bag_aggregation_threshold,
-                ternarize_tiles=self.cfg.ternarize_tiles,
-            ),
-            tag=deep_feature_bag.tag,
-        )
 
     class BlockMaker(Datastack.BlockMaker):
         """Build a single bipolar bag block."""
@@ -1175,10 +1187,19 @@ class BipolarDeepFeatureClip(Clip):
         makers = [self.BlockMaker(idx) for idx in range(self.n_blocks)]
         return makers, callable_kwargs
 
-    def __read__(self, topic):
-        if topic == 'bag_lens':
-            return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
-        raise ValueError(f"Unknown topic: {topic!r}")
+    def __block__(self, idx: int, deep_feature_bag=None):
+        if deep_feature_bag is None:
+            deep_feature_bag = self.feature_clip.bag(idx)
+        return BipolarDeepFeatureBag(
+            url=self.url,
+            spec=dict(
+                deep_feature_bag=dbx.quote(deep_feature_bag),
+                layer=self.cfg.layer,
+                bag_aggregation_threshold=self.cfg.bag_aggregation_threshold,
+                ternarize_tiles=self.cfg.ternarize_tiles,
+            ),
+            tag=deep_feature_bag.tag,
+        )
 
     def __stack__(self, results=None):
         """Persist bag_lens after parallel build."""
@@ -1189,6 +1210,25 @@ class BipolarDeepFeatureClip(Clip):
         dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         self.log.info(f"Build complete: {self.__class__.__name__}")
         return self
+
+    def __read__(self, topic):
+        if topic == 'bag_lens':
+            return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
+        raise ValueError(f"Unknown topic: {topic!r}")
+
+    def valid(self):
+        return self.validtopics(reduce=True)
+
+    # ── Properties and Accessors ────────────────────────────────────
+
+    @property
+    def feature_clip(self):
+        """The underlying `DeepFeatureClip`."""
+        return self.cfg.clip
+
+    @property
+    def n_blocks(self) -> int:
+        return self.feature_clip.n_blocks
 
     def dataset(
         self,
@@ -1205,7 +1245,7 @@ class BipolarDeepFeatureClip(Clip):
 
         To also include tile images, zip this dataset with the
         corresponding tile clip's dataset using
-        :class:`ZipStreamingDataset`::
+        `ZipStreamingDataset`::
 
             bipolar_ds = bipolar_clip.dataset(...)
             tile_ds = bipolar_clip.cfg.clip.cfg.tilebagclip.dataset(...)
@@ -1219,7 +1259,7 @@ class BipolarDeepFeatureClip(Clip):
             If ``True``, silently skip bags whose MDS shards have not
             been built yet instead of raising.
         batch_size : int | None
-            Passed to :class:`StreamingDataset` for deterministic
+            Passed to `StreamingDataset` for deterministic
             resumption.
         """
         streams = []
@@ -1245,5 +1285,3 @@ class BipolarDeepFeatureClip(Clip):
             sd_kwargs['batch_size'] = batch_size
         return StreamingDataset(**sd_kwargs)
 
-    def valid(self):
-        return self.validtopics(reduce=True)
