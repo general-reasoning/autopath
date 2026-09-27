@@ -1,10 +1,10 @@
 """Deep feature probes — logistic regression, statistics, and spectral analysis.
 
-Provides :class:`DeepFeatureAffineLogisticProbe` (logistic probe with model
-persistence), :class:`DeepFeatureStatsProbe` (tile/bag-level statistics),
-:class:`DeepFeatureSpectralProber` (model-agnostic Jacobian SVD engine),
-:class:`DeepBackboneSpectralEvaluator` (runtime evaluator with spectral probing),
-and :class:`DeepFeatureSpectralProbe` (persistent spectral probe Datablock)
+Provides `DeepFeatureAffineLogisticProbe` (logistic probe with model
+persistence), `DeepFeatureStatsProbe` (tile/bag-level statistics),
+`DeepFeatureSpectralProber` (model-agnostic Jacobian SVD engine),
+`DeepBackboneSpectralEvaluator` (runtime evaluator with spectral probing),
+and `DeepFeatureSpectralProbe` (persistent spectral probe Datablock)
 for deep feature clips and multi-layer activations.
 """
 
@@ -27,6 +27,7 @@ from sklearn.linear_model import LogisticRegression
 import dbx
 from dbx import (
     Datablock,
+    DATAFILE,
     write_tensor,
     read_tensor,
     write_npz,
@@ -43,12 +44,12 @@ from autopath.autobits import DeepBackboneEvaluator
 # ═══════════════════════════════════════════════════════════════════════
 
 def _extract_bag_label(bag, annotation_key: str | None) -> str:
-    """Extract a label string for a :class:`DeepFeatureBag`.
+    """Extract a label string for a `DeepFeatureBag`.
 
     Parameters
     ----------
     bag : DeepFeatureBag
-        Must expose ``.tilebag`` (a :class:`PancanTileBag`).
+        Must expose ``.tilebag`` (a `PancanTileBag`).
     annotation_key : str | None
         If ``None``, returns ``bag.tilebag.label`` (the cohort-level
         cancer-type string).  Otherwise, reads the first sample from
@@ -79,7 +80,7 @@ def _extract_bag_label(bag, annotation_key: str | None) -> str:
 def _extract_bag_annotations(bag) -> dict | None:
     """Read the bag-level annotation dict from the first MDS tile sample.
 
-    Delegates to :meth:`DeepFeatureBag.annotations`, which handles
+    Delegates to `DeepFeatureBag.annotations()`, which handles
     dataset lifecycle (shared-memory cleanup).
 
     Returns ``None`` when the tilebag has no ``annotations`` column or
@@ -151,12 +152,12 @@ class DeepFeatureAffineLogisticProber:
     """Standalone logistic regression evaluator for deep features.
 
     Provides static ``evaluate_features`` and ``evaluate_features2``
-    helpers that train/test a :class:`~sklearn.linear_model.LogisticRegression`
-    and return :func:`~sklearn.metrics.classification_report` strings.
+    helpers that train/test a `LogisticRegression`
+    and return `classification_report` strings.
 
-    Unlike the legacy :class:`LogisticFeatureBagProber`, this class is
+    Unlike the legacy `LogisticFeatureBagProber`, this class is
     intended to be used as an **attribute** (or called directly), not
-    as a superclass of a :class:`Datablock`.
+    as a superclass of a `Datablock`.
     """
 
     def __init__(self, log=dbx.Logger()):
@@ -185,7 +186,7 @@ class DeepFeatureAffineLogisticProber:
         fraction : float
             Fraction used for training.
         fit_intercept : bool
-            Forwarded to :class:`LogisticRegression`.
+            Forwarded to `LogisticRegression`.
 
         Returns
         -------
@@ -240,7 +241,7 @@ class DeepFeatureAffineLogisticProber:
 class DeepFeatureAffineLogisticProbe(Datablock):
     """Fit a logistic classifier on bag-level deep features for a single layer.
 
-    Adapted from :class:`~autopath.probes.AffineLogisticFeatureBagProbe`
+    Adapted from `AffineLogisticFeatureBagProbe`
     for the deep feature clip architecture.  Persists the fitted
     classifier's ``coef_``, ``intercept_``, and ``classes_`` arrays so
     that the separating hyperplane can be inspected after building.
@@ -257,7 +258,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
     - ``'corner-l1'`` / ``'corner-l2'`` — snap to nearest hypercube vertex (``sign(x)``)
     - ``'corner-linfty'`` — snap to axis-aligned vertex (largest-magnitude coordinate)
 
-    The :class:`DeepFeatureAffineLogisticProber` is used as an
+    The `DeepFeatureAffineLogisticProber` is used as an
     **attribute** rather than a superclass.
 
     Persisted topics
@@ -272,20 +273,19 @@ class DeepFeatureAffineLogisticProbe(Datablock):
     """
 
     VERSION = 1
-    LEGACY_NORM = True
 
     TOPICS = {
-        'bag_labels':        'bag_labels.npz',
-        'bag_annotations':   'bag_annotations.pkl',
-        'bag_features':      'bag_features.npy',
-        'evaluation_report': 'evaluation_report.pkl',
-        'coef':              'coef.npy',
-        'intercept':         'intercept.npy',
-        'classes':           'classes.npz',
+        'bag_labels':        DATAFILE('bag_labels.npz'),
+        'bag_annotations':   DATAFILE('bag_annotations.pkl'),
+        'bag_features':      DATAFILE('bag_features.npy'),
+        'evaluation_report': DATAFILE('evaluation_report.pkl'),
+        'coef':              DATAFILE('coef.npy'),
+        'intercept':         DATAFILE('intercept.npy'),
+        'classes':           DATAFILE('classes.npz'),
     }
 
     @dataclass
-    class CONFIG:
+    class VAR(Datablock.VAR):
         clip: object        # DeepFeatureClip
         layer: str          # which capture key to probe (e.g. "B_0_norm1")
         annotation_key: str | None = None  # dotted path into annotations dict, or None for tilebag.label
@@ -293,6 +293,10 @@ class DeepFeatureAffineLogisticProbe(Datablock):
         evaluation_fraction: float = 0.8
         aggregation: str = "mean"
         normalize: str | None = None   # None, 'l2', 'corner-l1', 'corner-l2', 'corner-linfty'
+
+    CONFIG = VAR
+
+    # ── Datablock Protocol Methods ──────────────────────────────────
 
     def __post_init__(self):
         assert self.cfg.aggregation in ["mean"], \
@@ -411,7 +415,7 @@ class DeepFeatureAffineLogisticProbe(Datablock):
 # ═══════════════════════════════════════════════════════════════════════
 
 class DeepFeatureStatsProbe(Datablock):
-    """Per-layer tile/bag statistics for a :class:`DeepFeatureClip`.
+    """Per-layer tile/bag statistics for a `DeepFeatureClip`.
 
     Computes tile-level and bag-level statistics — mean, std, median,
     min, max, L2 norms, and distinct-tile counts — for a single
@@ -425,30 +429,72 @@ class DeepFeatureStatsProbe(Datablock):
     - ``'corner-linfty'`` — snap to axis-aligned vertex (largest-magnitude coordinate)
 
     Subsumes the functionality of
-    :class:`~autopath.probes.FeatureBagMedianProbe`.
+    `FeatureBagMedianProbe`.
     """
 
     VERSION = 1
-    LEGACY_NORM = True
 
     TOPICS = {
-        'tile_count':           'tile_count.npz',
-        'tile_feature_mean':    'tile_feature_mean.npz',
-        'tile_feature_std':     'tile_feature_std.npz',
-        'tile_feature_median':  'tile_feature_median.npz',
-        'tile_feature_min':     'tile_feature_min.npz',
-        'tile_feature_max':     'tile_feature_max.npz',
-        'tile_feature_norms':   'tile_feature_norms.npz',
-        'bag_feature_mean':     'bag_feature_mean.npz',
-        'bag_feature_std':      'bag_feature_std.npz',
-        'distinct_tile_count':  'distinct_tile_count.npz',
+        'tile_count':           DATAFILE('tile_count.npz'),
+        'tile_feature_mean':    DATAFILE('tile_feature_mean.npz'),
+        'tile_feature_std':     DATAFILE('tile_feature_std.npz'),
+        'tile_feature_median':  DATAFILE('tile_feature_median.npz'),
+        'tile_feature_min':     DATAFILE('tile_feature_min.npz'),
+        'tile_feature_max':     DATAFILE('tile_feature_max.npz'),
+        'tile_feature_norms':   DATAFILE('tile_feature_norms.npz'),
+        'bag_feature_mean':     DATAFILE('bag_feature_mean.npz'),
+        'bag_feature_std':      DATAFILE('bag_feature_std.npz'),
+        'distinct_tile_count':  DATAFILE('distinct_tile_count.npz'),
     }
 
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={
+                'tile_count':           'tile_count.npz',
+                'tile_feature_mean':    'tile_feature_mean.npz',
+                'tile_feature_std':     'tile_feature_std.npz',
+                'tile_feature_median':  'tile_feature_median.npz',
+                'tile_feature_min':     'tile_feature_min.npz',
+                'tile_feature_max':     'tile_feature_max.npz',
+                'tile_feature_norms':   'tile_feature_norms.npz',
+                'bag_feature_mean':     'bag_feature_mean.npz',
+                'bag_feature_std':      'bag_feature_std.npz',
+                'distinct_tile_count':  'distinct_tile_count.npz',
+            },
+            legacy=True,
+            note='Legacy pre-marker build',
+        ),
+        Datablock.Specialization(
+            spec={},
+            topics={
+                'tile_count':           'tile_count.npz',
+                'tile_feature_mean':    'tile_feature_mean.npz',
+                'tile_feature_std':     'tile_feature_std.npz',
+                'tile_feature_median':  'tile_feature_median.npz',
+                'tile_feature_min':     'tile_feature_min.npz',
+                'tile_feature_max':     'tile_feature_max.npz',
+                'tile_feature_norms':   'tile_feature_norms.npz',
+                'bag_feature_mean':     'bag_feature_mean.npz',
+                'bag_feature_std':      'bag_feature_std.npz',
+                'distinct_tile_count':  'distinct_tile_count.npz',
+            },
+            anchor='autopath.deep.probes.DeepFeatureStatsProbe',
+            version=None,
+            legacy=True,
+            note='Legacy pre-marker build under deep.probes anchor',
+        ),
+    ]
+
     @dataclass
-    class CONFIG:
+    class VAR(Datablock.VAR):
         clip: object   # DeepFeatureClip
         layer: str     # which capture key to compute stats for
         normalize: str | None = None   # None, 'l2', 'corner-l1', 'corner-l2', 'corner-linfty'
+
+    CONFIG = VAR
+
+    # ── Datablock Protocol Methods ──────────────────────────────────
 
     def __post_init__(self):
         assert self.cfg.normalize in _NORMALIZE_MODES, \
@@ -529,6 +575,8 @@ class DeepFeatureStatsProbe(Datablock):
 
     def __read__(self, topic):
         return read_npz(self.path(topic), topic)[topic]
+
+    # ── Properties and Accessors ────────────────────────────────────
 
     @functools.cached_property
     def tile_count(self):
@@ -811,20 +859,20 @@ SpectralProbe = DeepFeatureSpectralProber
 # ═══════════════════════════════════════════════════════════════════════
 
 class DeepBackboneSpectralEvaluator(DeepBackboneEvaluator):
-    """Abstract :class:`DeepBackboneEvaluator` with spectral probing.
+    """Abstract `DeepBackboneEvaluator` with spectral probing.
 
     Adds Jacobian singular-value analysis on top of the multi-layer
-    activation capture provided by :class:`DeepBackboneEvaluator`.
-    After each ``__call__``, a :class:`DeepFeatureSpectralProber`
+    activation capture provided by `DeepBackboneEvaluator`.
+    After each ``__call__``, a `DeepFeatureSpectralProber`
     is run on the captured activations.
 
     Subclasses **must** implement:
 
-    * :attr:`backbone_blocks` — property returning a ``list[nn.Module]``
+    * `backbone_blocks` — property returning a ``list[nn.Module]``
       of transformer blocks in forward-pass order.  The
-      :class:`DeepFeatureSpectralProber` uses these to compute Jacobians
+      `DeepFeatureSpectralProber` uses these to compute Jacobians
       via autograd.
-    * All abstract methods inherited from :class:`DeepBackboneEvaluator`.
+    * All abstract methods inherited from `DeepBackboneEvaluator`.
 
     Parameters
     ----------
@@ -866,7 +914,7 @@ class DeepBackboneSpectralEvaluator(DeepBackboneEvaluator):
 
     @property
     def spectral_probe(self):
-        """Lazily create the :class:`DeepFeatureSpectralProber`."""
+        """Lazily create the `DeepFeatureSpectralProber`."""
         if self._spectral_probe is None and self.spectral_probe_blocks:
             self._spectral_probe = DeepFeatureSpectralProber(
                 blocks=self.backbone_blocks,
@@ -927,12 +975,12 @@ SpectralDeepBackboneEvaluator = DeepBackboneSpectralEvaluator
 # ═══════════════════════════════════════════════════════════════════════
 
 class DeepFeatureSpectralProbe(Datablock):
-    """Persistent spectral probe for a :class:`DeepFeatureClip`.
+    """Persistent spectral probe for a `DeepFeatureClip`.
 
     Iterates over bags in a deep feature clip, loads tiles from the
-    source :class:`PancanTileBag`, runs a live forward pass through
+    source `PancanTileBag`, runs a live forward pass through
     the backbone evaluator (with ``requires_grad`` enabled for Jacobian
-    computation), and runs the :class:`DeepFeatureSpectralProber` engine
+    computation), and runs the `DeepFeatureSpectralProber` engine
     on each bag's activations.
 
     Unlike the other deep feature probes (which read persisted features
@@ -941,7 +989,7 @@ class DeepFeatureSpectralProbe(Datablock):
     ``evaluator_factory`` and loads the model at build time.
 
     Labels and annotations are extracted for each bag using the same
-    mechanism as :class:`DeepFeatureAffineLogisticProbe`.
+    mechanism as `DeepFeatureAffineLogisticProbe`.
 
     Persisted topics
     ----------------
@@ -951,15 +999,17 @@ class DeepFeatureSpectralProbe(Datablock):
     - ``summary``          — pickled per-block aggregate summary
     """
 
+    VERSION = 1
+
     TOPICS = {
-        'bag_labels':       'bag_labels.npz',
-        'bag_annotations':  'bag_annotations.pkl',
-        'spectral_results': 'spectral_results.pkl',
-        'summary':          'summary.pkl',
+        'bag_labels':       DATAFILE('bag_labels.npz'),
+        'bag_annotations':  DATAFILE('bag_annotations.pkl'),
+        'spectral_results': DATAFILE('spectral_results.pkl'),
+        'summary':          DATAFILE('summary.pkl'),
     }
 
     @dataclass
-    class CONFIG:
+    class VAR(Datablock.VAR):
         clip: object                   # DeepFeatureClip
         evaluator_factory: object      # DeepBackboneEvaluatorFactory
         probe_blocks: list             # list[int] — transformer block indices to probe
@@ -968,6 +1018,10 @@ class DeepFeatureSpectralProbe(Datablock):
         k: int = 10                    # top/bottom-k for full mode
         device_batch_size: int = 64       # tiles per forward pass
         n_sample_bags: int | None = None  # probe only first N bags (None = all)
+
+    CONFIG = VAR
+
+    # ── Datablock Protocol Methods ──────────────────────────────────
 
     def __init__(self, *args, device: str = "cuda", **kwargs):
         Datablock.__init__(self, *args, device=device, **kwargs)
@@ -1105,6 +1159,36 @@ class DeepFeatureSpectralProbe(Datablock):
         )
         return self
 
+    def __read__(self, topic):
+        if topic == 'bag_labels':
+            return read_npz(self.path('bag_labels'), 'bag_labels')['bag_labels']
+        elif topic == 'bag_annotations':
+            return read_pickle(self.path('bag_annotations'))
+        elif topic == 'spectral_results':
+            return read_pickle(self.path('spectral_results'))
+        elif topic == 'summary':
+            return read_pickle(self.path('summary'))
+        else:
+            raise ValueError(f"Unknown topic: {topic!r}")
+
+    # ── Properties and Accessors ────────────────────────────────────
+
+    @functools.cached_property
+    def spectral_results(self):
+        """Per-bag spectral results: ``{bag_idx: {block_idx: result_dict}}``."""
+        return self.read('spectral_results')
+
+    @functools.cached_property
+    def summary(self):
+        """Per-block aggregate summary: ``{block_idx: summary_dict}``."""
+        return self.read('summary')
+
+    @functools.cached_property
+    def bag_labels(self):
+        return self.read('bag_labels')['bag_labels']
+
+    # ── Private and Utility Methods ─────────────────────────────────
+
     @staticmethod
     def _compute_summary(all_results: dict) -> dict:
         """Aggregate per-bag spectral results into a per-block summary.
@@ -1142,29 +1226,3 @@ class DeepFeatureSpectralProbe(Datablock):
                 summary[block_idx]['mean_condition_number'] = float(np.mean(conds))
                 summary[block_idx]['std_condition_number'] = float(np.std(conds))
         return summary
-
-    def __read__(self, topic):
-        if topic == 'bag_labels':
-            return read_npz(self.path('bag_labels'), 'bag_labels')['bag_labels']
-        elif topic == 'bag_annotations':
-            return read_pickle(self.path('bag_annotations'))
-        elif topic == 'spectral_results':
-            return read_pickle(self.path('spectral_results'))
-        elif topic == 'summary':
-            return read_pickle(self.path('summary'))
-        else:
-            raise ValueError(f"Unknown topic: {topic!r}")
-
-    @functools.cached_property
-    def spectral_results(self):
-        """Per-bag spectral results: ``{bag_idx: {block_idx: result_dict}}``."""
-        return self.read('spectral_results')
-
-    @functools.cached_property
-    def summary(self):
-        """Per-block aggregate summary: ``{block_idx: summary_dict}``."""
-        return self.read('summary')
-
-    @functools.cached_property
-    def bag_labels(self):
-        return self.read('bag_labels')['bag_labels']
