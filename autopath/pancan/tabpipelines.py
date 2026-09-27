@@ -66,36 +66,38 @@ dbx.print "autopath.pancan.tabpipelines.pancan_tile_partition('CPTAC_200179').bu
 #
 dbx.print "autopath.pancan.tabpipelines.pancan_tile_partition('CPTAC_305020').build_tree()"
 """
-def pancan_tile_partition(name=None, fold_fractions: Optional[list[float]] = None) -> PancanTilePartition:
+def pancan_tile_partition(name=None, fractions: Optional[list[float]] = None, fold_fractions: Optional[list[float]] = None) -> PancanTilePartition:
+    if fractions is None and fold_fractions is not None:
+        fractions = fold_fractions
     if name is None:
         return PancanTilePartition
     elif name == "CPTAC":
-        assert fold_fractions is not None, "fold_fractions must be specified"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=fold_fractions))   
+        assert fractions is not None, "fractions must be specified"
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=fractions, partition_slice='tiles'))   
     elif name == "CPTAC_8020":
-        assert fold_fractions is None or fold_fractions == [0.8, 0.2], "fold_fractions must be [0.8, 0.2]"   
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.8, 0.2]))
+        assert fractions is None or fractions == [0.8, 0.2], "fractions must be [0.8, 0.2]"   
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.8, 0.2], partition_slice='tiles'))
     elif name == "CPTAC_9802": 
-        assert fold_fractions is None or fold_fractions == [0.98, 0.02], "fold_fractions must be [0.98, 0.02]"  
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.98, 0.02]))
+        assert fractions is None or fractions == [0.98, 0.02], "fractions must be [0.98, 0.02]"  
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.98, 0.02], partition_slice='tiles'))
     elif name == "CPTAC_404020":
-        assert fold_fractions is None or fold_fractions == [0.4, 0.4, 0.2], "fold_fractions must be [0.4, 0.4, 0.2]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.4, 0.4, 0.2]))
+        assert fractions is None or fractions == [0.4, 0.4, 0.2], "fractions must be [0.4, 0.4, 0.2]"
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.4, 0.4, 0.2], partition_slice='tiles'))
     elif name == "CPTAC_305020":
-        assert fold_fractions is None or fold_fractions == [0.3, 0.5, 0.2], "fold_fractions must be [0.3, 0.5, 0.2]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.3, 0.5, 0.2]))
+        assert fractions is None or fractions == [0.3, 0.5, 0.2], "fractions must be [0.3, 0.5, 0.2]"
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.3, 0.5, 0.2], partition_slice='tiles'))
     elif name == "CPTAC_206020":
-        assert fold_fractions is None or fold_fractions == [0.2, 0.6, 0.2], "fold_fractions must be [0.2, 0.6, 0.2]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.2, 0.6, 0.2]))
+        assert fractions is None or fractions == [0.2, 0.6, 0.2], "fractions must be [0.2, 0.6, 0.2]"
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.2, 0.6, 0.2], partition_slice='tiles'))
     elif name == "CPTAC_602020":
-        assert fold_fractions is None or fold_fractions == [0.6, 0.2, 0.2], "fold_fractions must be [0.6, 0.2, 0.2]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.6, 0.2, 0.2]))
+        assert fractions is None or fractions == [0.6, 0.2, 0.2], "fractions must be [0.6, 0.2, 0.2]"
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.6, 0.2, 0.2], partition_slice='tiles'))
     elif name == "CPTAC_400159":
-        assert fold_fractions is None or fold_fractions == [0.4, 0.01, 0.59], "fold_fractions must be [0.4, 0.01, 0.59]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.4, 0.01, 0.59]))
+        assert fractions is None or fractions == [0.4, 0.01, 0.59], "fractions must be [0.4, 0.01, 0.59]"
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.4, 0.01, 0.59], partition_slice='tiles'))
     elif name == "CPTAC_200179":
-        assert fold_fractions is None or fold_fractions == [0.2, 0.01, 0.79], "fold_fractions must be [0.2, 0.01, 0.79]"
-        return PancanTilePartition(spec=dict(clip=dbx.quote(pancan_tile_clip, 'CPTAC'), fold_fractions=[0.2, 0.01, 0.79]))
+        assert fractions is None or fractions == [0.2, 0.01, 0.79], "fractions must be [0.2, 0.01, 0.79]"
+        return PancanTilePartition(spec=dict(datapoint_table=dbx.quote(pancan_tile_clip, 'CPTAC'), fractions=[0.2, 0.01, 0.79], partition_slice='tiles'))
     else:
         raise ValueError(f"Unknown tile_partition: {name}")
 
@@ -138,49 +140,49 @@ def pancan_tile_fold(name=None) -> PancanTileFold:
     if name is None:
         return PancanTileFold
     elif name == "CPTAC_8020_TEST":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold=-1))
     elif name == "CPTAC_8020_TRAIN":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_8020'), fold=0))
     elif name == "CPTAC_9802_TEST":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold=-1))
     elif name == "CPTAC_9802_TRAIN":   
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_9802'), fold=0))
     elif name == "CPTAC_404020_TRAIN":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_404020'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_404020'), fold=0))
     elif name == "CPTAC_404020_CALIBRATE":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_404020'), fold='1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_404020'), fold=1))
     elif name == "CPTAC_404020_TEST":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_404020'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_404020'), fold=-1))
     elif name == "CPTAC_305020_TRAIN":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_305020'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_305020'), fold=0))
     elif name == "CPTAC_305020_CALIBRATE":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_305020'), fold='1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_305020'), fold=1))
     elif name == "CPTAC_305020_TEST":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_305020'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_305020'), fold=-1))
     elif name == "CPTAC_206020_TRAIN":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_206020'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_206020'), fold=0))
     elif name == "CPTAC_206020_CALIBRATE":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_206020'), fold='1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_206020'), fold=1))
     elif name == "CPTAC_206020_TEST":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_206020'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_206020'), fold=-1))
     elif name == "CPTAC_602020_TRAIN":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_602020'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_602020'), fold=0))
     elif name == "CPTAC_602020_CALIBRATE":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_602020'), fold='1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_602020'), fold=1))
     elif name == "CPTAC_602020_TEST":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_602020'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_602020'), fold=-1))
     elif name == "CPTAC_400159_TRAIN":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_400159'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_400159'), fold=0))
     elif name == "CPTAC_400159_CALIBRATE":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_400159'), fold='1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_400159'), fold=1))
     elif name == "CPTAC_400159_TEST":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_400159'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_400159'), fold=-1))
     elif name == "CPTAC_200179_TRAIN":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_200179'), fold='0'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_200179'), fold=0))
     elif name == "CPTAC_200179_CALIBRATE":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_200179'), fold='1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_200179'), fold=1))
     elif name == "CPTAC_200179_TEST":
-        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_200179'), fold='-1'))
+        return PancanTileFold(spec=dict(partition=dbx.quote(pancan_tile_partition, 'CPTAC_200179'), fold=-1))
     else:
         raise ValueError(f"Unknown tile_fold: {name}")
 

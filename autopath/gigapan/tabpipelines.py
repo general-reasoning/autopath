@@ -1,11 +1,11 @@
 """Pipeline entrypoints for GigaPath deep feature extraction using tabular dbx blocks (tabfeatures.py).
 
 Provides declarative constructors for:
-- :class:`~autopath.gigapan.tabfeatures.DeepFeatureBag`
-- :class:`~autopath.gigapan.tabfeatures.DeepFeatureClip`
-- :class:`~autopath.gigapan.tabfeatures.BipolarDeepFeatureClip`
+- `DeepFeatureBag`
+- `DeepFeatureClip`
+- `BipolarDeepFeatureClip`
 
-Modelled on :mod:`autopath.gigapan.pipelines` using tabular blocks from :mod:`autopath.gigapan.tabfeatures`.
+Modelled on `autopath.gigapan.pipelines` using tabular blocks from `autopath.gigapan.tabfeatures`.
 """
 
 from __future__ import annotations

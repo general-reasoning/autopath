@@ -9,8 +9,6 @@ import fsspec
 import numpy as np
 import torch
 import tqdm
-from streaming import Stream, StreamingDataset
-
 import dbx
 from dbx.datablocks import DATAFILE, DIR, DIRTOPIC
 from dbx.datapoints import (
@@ -22,7 +20,6 @@ from dbx.datapoints import (
     DATASLICE,
     SLICETOPIC,
 )
-from dbx.datastreams import ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
 from autopath.pancan.annotations import extract_case_id, get_annotations
 from autopath.pancan.clips import PancanTFRecordDataset
@@ -312,108 +309,21 @@ class PancanTileClip(DatapointTable):
 
 class PancanTilePartition(DatapointPartition):
     VERSION = 1
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
-    @dataclass
-    class VAR(Datablock.VAR):
-        clip: DatapointTable = None
-        datapoint_table: DatapointTable = None
-        fold_fractions: list[float] = None
-        fractions: list[float] = None
-        partition_slice: int | str = 'tiles'
-
-    def __post_init__(self):
-        super().__post_init__()
-        clip = self.var.clip if self.var.clip is not None else self.var.datapoint_table
-        fractions = self.var.fold_fractions if self.var.fold_fractions is not None else self.var.fractions
-        object.__setattr__(self.var, 'datapoint_table', clip)
-        object.__setattr__(self.var, 'fractions', fractions)
-
 
 
 class PancanTileFold(DatapointFold):
     VERSION = 1
-    LEGACY_SIGNATURE = True
-    LEGACY_TYPING = True
 
-    @dataclass
-    class VAR(Datablock.VAR):
-        partition: DatapointPartition = None
-        fold: int = 0
-        datapoints_per_row: int = 1
+    # 2. Accessors ───────────────────────────────────────────────────
+
+    def bag(self, idx: int):
+        return self.tab(idx)
 
     @property
-    def TAB(self):
-        return getattr(self.var.partition.var.datapoint_table, 'TAB', None)
+    def bags(self):
+        return self.tabs()
 
     @property
-    def slices(self):
-        return self.var.partition.var.datapoint_table.slices
+    def n_bags(self):
+        return self.n_tabs
 
-    @property
-    def TOPICS(self):
-        return self.var.partition.var.datapoint_table.TOPICS
-
-    @functools.cached_property
-    def tab_indices(self) -> list[int]:
-        # fold may arrive as a string from the spec (e.g. '-1', '0').
-        return self.var.partition.tabs_indices(int(self.var.fold))
-
-    def dataset(self, *slices, mode='map', columns=None, shared=None, validate_shared=False, on_conflict='last', skip_none=True, zip_validator=None, **streaming_kwargs):
-        if not slices:
-            slices = self.slices
-        
-        datasets = []
-        for slice_name in slices:
-            streams = []
-            for i in range(self.n_blocks):
-                tab = self.block(i)
-                if tab.is_local_fs:
-                    streams.append(Stream(local=tab.path(slice_name)))
-                else:
-                    streams.append(Stream(remote=tab.path(slice_name)))
-            
-            ds = StreamingDataset(streams=streams, **streaming_kwargs)
-            datasets.append(ds)
-            
-        if len(datasets) == 1:
-            return datasets[0]
-            
-        if columns is not None:
-            cols = [columns.get(s) for s in slices]
-        else:
-            cols = None
-            
-        zip_kwargs = dict(
-            columns=cols,
-            shared=shared,
-            validate_shared=validate_shared,
-            on_conflict=on_conflict,
-            skip_none=skip_none,
-            zip_validator=zip_validator
-        )
-        
-        if mode == 'map':
-            return ZipStreamingDataset(*datasets, **zip_kwargs)
-        elif mode == 'iter':
-            return ZipIterableStreamingDatasets(*datasets, check_alignment=True, **zip_kwargs)
-        else:
-            raise ValueError(f"Unknown mode: {mode}")
-
-    def data(self, *slices, concat: bool = False, **kwargs):
-        if not slices:
-            slices = self.slices
-            
-        def _read_slice(slice_name):
-            samples = []
-            for i in range(self.n_blocks):
-                samples.extend(self.block(i).data(slice_name, **kwargs))
-            return samples
-            
-        if len(slices) == 1:
-            res = _read_slice(slices[0])
-            return concat_data(res) if concat else res
-        res = {name: _read_slice(name) for name in slices}
-        if concat:
-            return {name: concat_data(val) for name, val in res.items()}
-        return res
