@@ -12,8 +12,16 @@ import tqdm
 from streaming import Stream, StreamingDataset
 
 import dbx
-from dbx.datablocks import DIRTOPIC
-from dbx.datapoints import Datablock, DatapointTab, DatapointTable, DatapointPartition, DatapointFold, SLICETOPIC
+from dbx.datablocks import DATAFILE, DIR, DIRTOPIC
+from dbx.datapoints import (
+    Datablock,
+    DatapointTab,
+    DatapointTable,
+    DatapointPartition,
+    DatapointFold,
+    DATASLICE,
+    SLICETOPIC,
+)
 from dbx.datastreams import ZipStreamingDataset, ZipIterableStreamingDatasets, concat_data
 
 from autopath.pancan.annotations import extract_case_id, get_annotations
@@ -26,11 +34,34 @@ class PancanTileBag(DatapointTab):
     VERSION = 1
 
     TOPICS = {
-        'tiles': SLICETOPIC,
-        'annotations': SLICETOPIC,
-        'bag_name': SLICETOPIC,
-        'tile_index': SLICETOPIC,
+        'tiles': DATASLICE(tile='ndarray:uint8'),
+        'annotations': DATASLICE(annotations=dict(
+            case_id='str',
+            cohort='str',
+            gdc_clinical='json',
+            gdc_pathology='json',
+            gdc_exposure='json',
+            gdc_follow_up='json',
+            qupath='json',
+            mutations='json',
+        )),
+        'bag_name': DATASLICE(bag_name='str'),
+        'tile_index': DATASLICE(tile_index='int32'),
     }
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={
+                'tiles': SLICETOPIC,
+                'annotations': SLICETOPIC,
+                'bag_name': SLICETOPIC,
+                'tile_index': SLICETOPIC,
+            },
+            version=1,
+            note='Sentinel-era topic declaration',
+        )
+    ]
 
     @dataclass
     class VAR(Datablock.VAR):
@@ -178,7 +209,20 @@ class PancanTileClip(DatapointTable):
     VERSION = 1
     TAB = PancanTileBag
 
-    TOPICS = {'tabs': DIRTOPIC, 'done': 'done', 'bag_lens': 'bag_lens.npz'}
+    TOPICS = {
+        'tabs': DIR,
+        'done': DATAFILE('done'),
+        'bag_lens': DATAFILE('bag_lens.npz'),
+    }
+
+    SPECIALIZATIONS = [
+        Datablock.Specialization(
+            spec={},
+            topics={'tabs': DIRTOPIC, 'done': 'done', 'bag_lens': 'bag_lens.npz'},
+            version=1,
+            note='Sentinel-era clip declaration',
+        )
+    ]
 
     @dataclass
     class VAR(Datablock.VAR):
