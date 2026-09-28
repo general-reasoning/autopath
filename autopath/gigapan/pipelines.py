@@ -239,7 +239,7 @@ autopath.gigapan.pipelines.gigapath_deep_feature_clip( \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
-).build_tree()"
+).build_tree() #GIGAPATH_DEEP_CPTAC"
 ## 1 device, streaming
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_deep_feature_clip( \
