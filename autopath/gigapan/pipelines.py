@@ -288,7 +288,7 @@ autopath.gigapan.pipelines.gigapath_deep_feature_clip( \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
-).build_tree()"
+).build_tree(deep=True) #> GIGAPATH_DEEP_CPTAC_602020_TRAIN"
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_deep_feature_clip(\
     'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
