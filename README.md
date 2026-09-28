@@ -21,7 +21,7 @@
    - Functional datablocks, datastacks, and pipelines (`bitpath_still`, `bitconv_still`) for reproducible training and cached evaluations.
    - Support for DDP multi-GPU training via PyTorch Lightning.
 
-4. **Linear & Affine Probing Suite (`autopath.probes`)**:
+4. **Linear & Affine Probing Suite (`autopath.gigapan.probes`)**:
    - Built-in probing metrics including Accuracy, Macro/Weighted F1, and **Asphericity** (classifier intercept-to-coefficient ratio).
 
 ---
@@ -32,8 +32,6 @@
 autopath/
 ├── autopath/
 │   ├── autobits.py         # BitNet 1.58b layers (BitConv2d158, BitLinear158, RMSNorm)
-│   ├── features.py         # Deep feature extraction & caching pipeline
-│   ├── probes.py           # Linear/affine logistic probes & evaluation metrics
 │   ├── gigapath/           # Gigapath & DINOv2 backbone adapters
 │   ├── gigapan/            # Datablocks, datastacks, & distillation pipelines
 │   ├── pancan/             # CPTAC & TCGA dataset schemas & loaders

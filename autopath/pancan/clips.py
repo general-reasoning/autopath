@@ -240,7 +240,7 @@ class PancanTileClip(DatapointTable):
         return self
 
     def __read__(self, *topicpath):
-        topicpath = self._normtopic(topicpath)
+        topicpath = self._normtopic_(topicpath)
         if topicpath == ('bag_lens',):
             return dbx.read_npz(self.path('bag_lens'), 'bag_lens')['bag_lens']
         return super().__read__(*topicpath)
