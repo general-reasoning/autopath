@@ -5,18 +5,13 @@ multi-layer activation extraction from the GigaPath ViT backbone.
 
 Modules
 -------
-tabfeatures
-    `DeepFeatureBag`, `DeepFeatureClip`, and their bipolar encoding variants.
-tabprobes
-    `DeepFeatureAffineLogisticProbe`, `DeepFeatureStatsProbe`, and their bipolar variants.
 features
-    `DeepFeatureBag`, `DeepFeatureClip`, and their spherical/corner encoding variants.
+    `DeepFeatureBag`, `DeepFeatureClip`, and their bipolar encoding variants.
 probes
-    `DeepFeatureAffineLogisticProbe`, `DeepFeatureStatsProbe`, `DeepFeatureSpectralProber`,
-    `DeepBackboneSpectralEvaluator`, and `DeepFeatureSpectralProbe`.
+    `DeepFeatureAffineLogisticProbe`, `DeepFeatureStatsProbe`, and their bipolar variants.
 pipelines
     Pipeline entrypoints for GigaPath deep feature extraction.
 """
 
-from . import tabfeatures, tabprobes
+from . import features, probes
 
