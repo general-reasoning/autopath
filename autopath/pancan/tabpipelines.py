@@ -4,8 +4,8 @@ import torch
 import torchvision
 
 import dbx
-from dbx.datablocks import Datablock, SLICETOPIC, DIR, DIRTOPIC, DATAFILE
-from dbx.datatables import DatapointTable, DatapointFold
+from dbx.datablocks import Datablock, DIR, DIRTOPIC, DATAFILE
+from dbx.datapoints import SLICETOPIC, DatapointTable, DatapointFold
 
 from autopath.pancan.tabclips import PancanTileBag, PancanTileClip, PancanTilePartition, PancanTileFold
 from autopath.autobits import sanitize_collate
