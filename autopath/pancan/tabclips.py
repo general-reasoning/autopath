@@ -65,57 +65,61 @@ class PancanTileBag(DatapointTab):
 
     def __build__(self):
         """Read tiles from source TFRecord and repack as MDS shards."""
-        tiles_tensor = self._source_tensor()
-        n_tiles = tiles_tensor.shape[0]
-        tiles_np = tiles_tensor.numpy().astype(np.uint8)
-
         label = self._label
         name = self._name
 
-        # ── Resolve annotations ───────────────────────────────────
-        case_id = extract_case_id(name)
-        if case_id is not None:
-            clip_root = self._clip_source_root()
-            annotations = get_annotations(clip_root, case_id, label)
+        # Determine which declared or owed topics need to be built
+        owed = set(self.owedtopics()) if hasattr(self, 'owedtopics') else set()
+        invalid = {t for t in self.topics() if not self.valid_topic(t)}
+        needed = invalid | owed
+
+        # Only decode source TFRecord if 'tiles' is needed
+        tiles_needed = 'tiles' in needed or not self.valid_topic('tiles')
+        if tiles_needed:
+            tiles_tensor = self._source_tensor()
+            n_tiles = tiles_tensor.shape[0]
+            tiles_np = tiles_tensor.numpy().astype(np.uint8)
         else:
-            self.log.info(
-                f"Could not extract case ID from bag name {name!r}; "
-                f"annotations will be empty"
-            )
-            annotations = None
+            tiles_tensor = tiles_np = None
+            n_tiles = self.n_rows('tiles') if hasattr(self, 'n_rows') and self.valid_topic('tiles') else self._source_len()
 
-        columns = {
-            'tiles': {
-                'tile': 'ndarray:uint8',
-            },
-            'annotations': {
-                'annotations': 'json',
-            },
-            'bag_name': {
-                'bag_name': 'str',
-            },
-            'tile_index': {
-                'tile_index': 'int32',
-            }
-        }
+        # Resolve annotations if annotations is needed or doing a full build
+        annotations = None
+        if 'annotations' in needed or tiles_needed:
+            case_id = extract_case_id(name)
+            if case_id is not None:
+                clip_root = self._clip_source_root()
+                annotations = get_annotations(clip_root, case_id, label)
+            else:
+                self.log.info(
+                    f"Could not extract case ID from bag name {name!r}; "
+                    f"annotations will be empty"
+                )
 
-        with self.slice_writers(columns, flush_every=self.var.shard_size, size_limit=None) as writers:
+        # Write only the needed slices (or all slices if full build)
+        slices_to_write = list(needed) if not tiles_needed else None
+
+        with self.slice_writers(only=slices_to_write, flush_every=self.var.shard_size, size_limit=None) as writers:
             for i in range(n_tiles):
-                writers['tiles'].write({
-                    'tile': tiles_np[i],
-                })
-                writers['annotations'].write({
-                    'annotations': annotations,
-                })
-                writers['bag_name'].write({
-                    'bag_name': name,
-                })
-                writers['tile_index'].write({
-                    'tile_index': np.int32(i),
-                })
+                if 'tiles' in writers:
+                    writers['tiles'].write({
+                        'tile': tiles_np[i],
+                    })
+                if 'annotations' in writers:
+                    writers['annotations'].write({
+                        'annotations': annotations,
+                    })
+                if 'bag_name' in writers:
+                    writers['bag_name'].write({
+                        'bag_name': name,
+                    })
+                if 'tile_index' in writers:
+                    writers['tile_index'].write({
+                        'tile_index': np.int32(i),
+                    })
 
         self.log.verbose(
-            f"Wrote MDS slices: "
+            f"Wrote MDS slices {list(writers.keys())}: "
             f"{n_tiles} tiles, label={label!r}, name={name!r}, "
             f"has_annotations={annotations is not None}"
         )
@@ -197,6 +201,9 @@ class PancanTileClip(DatapointTable):
         'done': DATAFILE('done'),
         'bag_lens': DATAFILE('bag_lens.npz'),
     }
+
+    def __init__(self, *args, filter_built_tabs: bool = True, **kwargs):
+        super().__init__(*args, filter_built_tabs=filter_built_tabs, **kwargs)
 
     @dataclass
     class VAR(Datablock.VAR):
