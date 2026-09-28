@@ -22,7 +22,19 @@ PANCAN_TILE_BAG_SPECIALIZATIONS = [
         },
         version=1,
         note='Sentinel-era topic declaration',
-    )
+    ),
+    Datablock.Specialization(
+        spec={},
+        topics={
+            'tiles': SLICETOPIC,
+            'annotations': SLICETOPIC,
+            'bag_name': SLICETOPIC,
+            'tile_index': SLICETOPIC,
+        },
+        redirect_topics=['tiles', 'bag_name', 'tile_index'],
+        version=1,
+        note='Sentinel-era topic declaration (tiles only, owe annotations)',
+    ),
 ]
 
 PANCAN_TILE_CLIP_SPECIALIZATIONS = [
