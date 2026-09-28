@@ -717,7 +717,7 @@ def gigapath_bipolar_deep_feature_clip(
 
     stats_probe = gigapath_deep_feature_stats_probe(
         var_stats_probe_name,
-        var_signals=[('features', var_layer)],
+        var_layer=var_layer,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
         var_capture_final=var_capture_final,

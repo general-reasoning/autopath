@@ -186,17 +186,17 @@ class DeepFeatureClip(DatafeatureTable):
     TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
 
     SPECIALIZATIONS = [
-        Datablock.Specialization(
+        DatafeatureTable.Specialization(
             spec={},
             topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
-            BLOCK=None,
+            TAB=None,
             note='Pre-BLOCK tabular build',
         ),
-        Datablock.Specialization(
+        DatafeatureTable.Specialization(
             spec={},
             topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
             legacy=True,
-            BLOCK=None,
+            TAB=None,
             note='Legacy sentinel-era build',
         ),
     ]
@@ -243,17 +243,17 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
     TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
 
     SPECIALIZATIONS = [
-        Datablock.Specialization(
+        BipolarDatafeatureTable.Specialization(
             spec={},
             topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
-            BLOCK=None,
+            TAB=None,
             note='Pre-BLOCK tabular build',
         ),
-        Datablock.Specialization(
+        BipolarDatafeatureTable.Specialization(
             spec={},
             topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
             legacy=True,
-            BLOCK=None,
+            TAB=None,
             note='Legacy sentinel-era build',
         ),
     ]
