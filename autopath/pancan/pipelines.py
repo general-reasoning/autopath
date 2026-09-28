@@ -88,7 +88,7 @@ def pancan_tile_bag(name=None) -> PancanTileBag:
         raise ValueError(f"Unknown tile_bag: {name}")
 
 """
-dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build().valid()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC').build().valid() #>CPTAC"
 
 dbx.print "autopath.pancan.pipelines.pancan_tile_clip('CPTAC', n_workers=32, parallelization='multithreading').build().valid()"
 """
