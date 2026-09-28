@@ -232,8 +232,9 @@ class PancanTileClip(DatapointTable):
         self.log.info(f"Stacking {self.n_tabs} bags of {self.__class__.__name__}")
         super().__stack__(results)
         
-        bag_lens = [len(self.tab(i)) for i in tqdm.tqdm(range(self.n_tabs), desc="Stacking bag lens")]
-        dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
+        if 'bag_lens' in self.ownedtopics() or not self.valid_topic('bag_lens'):
+            bag_lens = [len(self.tab(i)) for i in tqdm.tqdm(range(self.n_tabs), desc="Stacking bag lens")]
+            dbx.write_npz(self.path('bag_lens', ensure_dirpath=True), bag_lens=bag_lens)
         
         self.log.info(f"Build complete: {self.__class__.__name__}")
         return self
