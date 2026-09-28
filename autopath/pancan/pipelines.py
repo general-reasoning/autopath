@@ -113,7 +113,7 @@ def pancan_tile_clip(name=None, *, n_workers: int = 1, parallelization: str | No
 
 
 """
-dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_8020').build_tree() #> CPTAC_8020"
 #
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_9802').build_tree()"
 #
@@ -121,7 +121,7 @@ dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build
 #
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
 #
-dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_602020').build_tree()"
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_602020').build_tree() #> CPTAC_602020"
 #
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
 #
