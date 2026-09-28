@@ -45,20 +45,6 @@ class PancanTileBag(DatapointTab):
         'tile_index': DATASLICE(tile_index='int32'),
     }
 
-    SPECIALIZATIONS = [
-        Datablock.Specialization(
-            spec={},
-            topics={
-                'tiles': SLICETOPIC,
-                'annotations': SLICETOPIC,
-                'bag_name': SLICETOPIC,
-                'tile_index': SLICETOPIC,
-            },
-            version=1,
-            note='Sentinel-era topic declaration',
-        )
-    ]
-
     @dataclass
     class VAR(Datablock.VAR):
         source: str
@@ -212,22 +198,6 @@ class PancanTileClip(DatapointTable):
         'bag_lens': DATAFILE('bag_lens.npz'),
     }
 
-    SPECIALIZATIONS = [
-        DatapointTable.Specialization(
-            spec={},
-            topics={'tabs': DIR, 'done': DATAFILE('done'), 'bag_lens': DATAFILE('bag_lens.npz')},
-            TAB=None,
-            note='Pre-BLOCK tabular build',
-        ),
-        DatapointTable.Specialization(
-            spec={},
-            topics={'tabs': DIRTOPIC, 'done': 'done', 'bag_lens': 'bag_lens.npz'},
-            version=1,
-            TAB=None,
-            note='Sentinel-era clip declaration',
-        ),
-    ]
-
     @dataclass
     class VAR(Datablock.VAR):
         source: str
@@ -320,15 +290,6 @@ class PancanTilePartition(DatapointPartition):
 
 class PancanTileFold(DatapointFold):
     VERSION = 1
-
-    SPECIALIZATIONS = [
-        DatapointFold.Specialization(
-            spec={},
-            topics={'tabs': DIR, 'done': DATAFILE('done'), 'bag_lens': DATAFILE('bag_lens.npz')},
-            TAB=None,
-            note='Pre-BLOCK tabular fold build',
-        ),
-    ]
 
     # 2. Accessors ───────────────────────────────────────────────────
 

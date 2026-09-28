@@ -24,16 +24,6 @@ class DeepFeatureStatsProbe(FeatureStatsProbe):
 
     VERSION = 2
 
-    SPECIALIZATIONS = [
-        Datablock.Specialization(
-            spec={},
-            topics={'count': 'count.npz'},
-            version=1,
-            UNSAFE_redirect_all_topics=True,
-            note='Pre-instance topics build',
-        )
-    ]
-
     @dataclass
     class VAR(FeatureStatsProbe.VAR):
         pass

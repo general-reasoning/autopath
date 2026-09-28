@@ -61,15 +61,6 @@ class DeepFeatureBag(DatafeatureTab):
     VERSION = 1
     TOPICS = {'features': DATASLICE}
 
-    SPECIALIZATIONS = [
-        Datablock.Specialization(
-            spec={},
-            topics={'features': SLICETOPIC},
-            legacy=True,
-            note='Legacy sentinel-era build',
-        )
-    ]
-
     @dataclass
     class VAR(Datablock.VAR):
         datapoint_tab: DatapointTab
@@ -185,22 +176,6 @@ class DeepFeatureClip(DatafeatureTable):
     TAB = DeepFeatureBag
     TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
 
-    SPECIALIZATIONS = [
-        DatafeatureTable.Specialization(
-            spec={},
-            topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
-            TAB=None,
-            note='Pre-BLOCK tabular build',
-        ),
-        DatafeatureTable.Specialization(
-            spec={},
-            topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
-            legacy=True,
-            TAB=None,
-            note='Legacy sentinel-era build',
-        ),
-    ]
-
     @dataclass
     class VAR(Datablock.VAR):
         datapoint_table: DatapointTable
@@ -219,15 +194,6 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
         'tab_bipolar_features': DATASLICE(tab_bipolar_features='ndarray:int8'),
     }
 
-    SPECIALIZATIONS = [
-        Datablock.Specialization(
-            spec={},
-            topics={'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC},
-            legacy=True,
-            note='Legacy sentinel-era build',
-        )
-    ]
-
     @dataclass
     class VAR(Datablock.VAR):
         featuretab: DatafeatureTab
@@ -241,22 +207,6 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
     VERSION = 1
     TAB = BipolarDeepFeatureBag
     TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
-
-    SPECIALIZATIONS = [
-        BipolarDatafeatureTable.Specialization(
-            spec={},
-            topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
-            TAB=None,
-            note='Pre-BLOCK tabular build',
-        ),
-        BipolarDatafeatureTable.Specialization(
-            spec={},
-            topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
-            legacy=True,
-            TAB=None,
-            note='Legacy sentinel-era build',
-        ),
-    ]
 
     @dataclass
     class VAR(Datablock.VAR):

@@ -15,6 +15,8 @@ import torch
 
 import dbx
 from dbx import Logger, Datacollator
+from dbx.datablocks import Datablock, SLICETOPIC, DIR, DIRTOPIC, DATAFILE, DATADIR
+from dbx.featuretables import DatafeatureTable, BipolarDatafeatureTable
 
 from autopath.gigapath.backbone import (
     GigapathDeepBackboneEvaluatorFactory,
@@ -36,6 +38,66 @@ from autopath.pancan.tabpipelines import (
     pancan_tile_fold,
 )
 from autopath.autobits import sanitize_collate, ZipStreamingDataset
+
+DEEP_FEATURE_BAG_SPECIALIZATIONS = [
+    Datablock.Specialization(
+        spec={},
+        topics={'features': SLICETOPIC},
+        legacy=True,
+        note='Legacy sentinel-era build',
+    )
+]
+
+DEEP_FEATURE_CLIP_SPECIALIZATIONS = [
+    DatafeatureTable.Specialization(
+        spec={},
+        topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
+        TAB=None,
+        note='Pre-BLOCK tabular build',
+    ),
+    DatafeatureTable.Specialization(
+        spec={},
+        topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
+        legacy=True,
+        TAB=None,
+        note='Legacy sentinel-era build',
+    ),
+]
+
+BIPOLAR_DEEP_FEATURE_BAG_SPECIALIZATIONS = [
+    Datablock.Specialization(
+        spec={},
+        topics={'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC},
+        legacy=True,
+        note='Legacy sentinel-era build',
+    )
+]
+
+BIPOLAR_DEEP_FEATURE_CLIP_SPECIALIZATIONS = [
+    BipolarDatafeatureTable.Specialization(
+        spec={},
+        topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
+        TAB=None,
+        note='Pre-BLOCK tabular build',
+    ),
+    BipolarDatafeatureTable.Specialization(
+        spec={},
+        topics={'tabs': DIRTOPIC, 'tab_paths': DIRTOPIC, 'done': 'done'},
+        legacy=True,
+        TAB=None,
+        note='Legacy sentinel-era build',
+    ),
+]
+
+DEEP_FEATURE_STATS_PROBE_SPECIALIZATIONS = [
+    Datablock.Specialization(
+        spec={},
+        topics={'count': 'count.npz'},
+        version=1,
+        UNSAFE_redirect_all_topics=True,
+        note='Pre-instance topics build',
+    )
+]
 
 
 log = Logger()
@@ -152,6 +214,7 @@ def gigapath_deep_feature_bag(
             collator=dbx.quote(tile_collator),
             shard_size=var_shard_size,
         ),
+        SPECIALIZATIONS=DEEP_FEATURE_BAG_SPECIALIZATIONS,
         device_batch_size=device_batch_size,
         streaming=streaming,
         dataloader_kwargs=dataloader_kwargs,
@@ -343,6 +406,8 @@ def gigapath_deep_feature_clip(
             collator=dbx.quote(tile_collator),
             shard_size=var_shard_size,
         ),
+        SPECIALIZATIONS=DEEP_FEATURE_CLIP_SPECIALIZATIONS,
+        TAB_SPECIALIZATIONS=DEEP_FEATURE_BAG_SPECIALIZATIONS,
         device_batch_size=device_batch_size,
         devices=devices,
         n_workers=len(devices),
@@ -496,6 +561,7 @@ def gigapath_deep_feature_stats_probe(
             collator=dbx.quote(collator),
             normalization=var_normalize,
         ),
+        SPECIALIZATIONS=DEEP_FEATURE_STATS_PROBE_SPECIALIZATIONS,
         n_workers=n_workers,
         parallelization=parallelization,
         work_stealing=work_stealing,
@@ -520,6 +586,7 @@ def gigapath_deep_feature_affine_logistic_probe(
     *,
     var_signals: list,
     var_labels:  list, 
+    var_skip_missing: bool = True,
     var_fit_intercept: bool = True,
     var_training_fraction: float = 0.8,
     var_evaluation_fraction: float | None = None,
@@ -551,6 +618,8 @@ def gigapath_deep_feature_affine_logistic_probe(
         Signal (slice, column) pairs for probe features.
     var_labels : list
         Label (slice, column) pairs for probe targets.
+    var_skip_missing : bool
+        Whether to skip samples/tabs missing signals or labels (default True).
     var_fit_intercept : bool
         Whether to fit an intercept term in the logistic regression.
     var_training_fraction : float
@@ -615,7 +684,7 @@ def gigapath_deep_feature_affine_logistic_probe(
         url=url,
         filter_built_tabs=filter_built_tabs,
     )
-    collator = Datacollator(spec=dict(signals=var_signals, labels=var_labels))
+    collator = Datacollator(spec=dict(signals=var_signals, labels=var_labels, skip_missing=var_skip_missing))
     return DeepFeatureAffineLogisticProbe(
         url=url,
         spec=dict(
@@ -734,6 +803,8 @@ def gigapath_bipolar_deep_feature_clip(
             threshold=var_bag_aggregation_threshold,
             ternarize=var_ternarize_tiles,
         ),
+        SPECIALIZATIONS=BIPOLAR_DEEP_FEATURE_CLIP_SPECIALIZATIONS,
+        TAB_SPECIALIZATIONS=BIPOLAR_DEEP_FEATURE_BAG_SPECIALIZATIONS,
         n_workers=n_workers,
         parallelization=parallelization,
         streaming=streaming,
