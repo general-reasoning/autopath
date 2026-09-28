@@ -49,11 +49,11 @@ def _clean_gdc_value(v: str) -> Optional[str]:
 
 # ── Case-ID extraction ─────────────────────────────────────────────
 
-_CASE_ID_RE = re.compile(r'(C\d[A-Z]-\d{5})')
+_CASE_ID_RE = re.compile(r'(C\d[A-Z]-\d{5}|\d{2}[A-Z]{2}\d{3})')
 
 
 def extract_case_id(bag_name: str) -> Optional[str]:
-    """Extract the CPTAC case ID (e.g. ``C3N-01179``) from a bag name."""
+    """Extract the CPTAC case ID (e.g. `C3N-01179` or `02OV035`) from a bag name."""
     m = _CASE_ID_RE.match(bag_name)
     return m.group(1) if m else None
 

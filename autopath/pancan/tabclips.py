@@ -74,6 +74,7 @@ class PancanTileBag(DatapointTab):
         tilesfile = os.path.basename(self.var.source)
         indexfile = tilesfile.split('.')[0] + '.index.npz'
         self._source_dirpath = os.path.dirname(self.var.source)
+        self._source_tilesfile = tilesfile
         self._source_indexfile = indexfile
 
     def __build__(self):
