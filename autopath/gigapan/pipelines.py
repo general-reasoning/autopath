@@ -239,7 +239,7 @@ autopath.gigapan.pipelines.gigapath_deep_feature_clip( \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_devices=1, device_batch_size=512, \
-).build_tree() #GIGAPATH_DEEP_CPTAC"
+).build_tree() #>GIGAPATH_DEEP_CPTAC"
 ## 1 device, streaming
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_deep_feature_clip( \
@@ -433,7 +433,7 @@ dbx.pprint "autopath.gigapan.pipelines.gigapath_deep_feature_clip_dataloader_sam
     var_cls_token_only=True, \
     var_shard_size=64,\
     n=8,\
-)"
+) #>SAMPLES: GIGAPATH_DEEP_CPTAC"
 dbx.pprint "autopath.gigapan.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_200179_TRAIN', \
     var_cls_token_only=True, \
@@ -530,7 +530,7 @@ autopath.gigapan.pipelines.gigapath_deep_feature_stats_probe( \
     var_signals=[('features', 'final')], \
     var_shard_size=64, \
     parallelization='multiprocessing', n_workers=8, \
-).build()"
+).build_tree(deep=True).valid() #>STATS: GIGAPATH_DEEP_CPTAC_602020_TEST"
 """
 def gigapath_deep_feature_stats_probe(
     name: str,
@@ -587,7 +587,7 @@ autopath.gigapan.pipelines.gigapath_deep_feature_affine_logistic_probe( \
     var_cls_token_only=True, \
     var_shard_size=64, \
     parallelization='multiprocessing', n_workers=16, work_stealing=True, \
-).build_tree()"
+).build_tree(deep=True).valid() #>LOGISTIC: GIGAPATH_DEEP_CPTAC_9802_TEST: final/cohort"
 """
 def gigapath_deep_feature_affine_logistic_probe(
     name: str,
@@ -719,7 +719,7 @@ autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_workers=8,\
-).build()"
+).build_tree(deep=True).valid() #>BIPOLAR: GIGAPATH_DEEP_CPTAC_602020_TRAIN"
 ### CPTAC 60/20/20 — bipolar features (TEST, stats from CALIBRATE)
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
@@ -829,7 +829,7 @@ autopath.gigapan.pipelines.gigapath_tile_deep_feature_clip_dataloader_samples( \
     var_shard_size=64, \
     batch_size=4, \
     n=8, \
-)"
+) #>SAMPLES: GIGAPATH_DEEP_CPTAC_602020_TRAIN"
 """
 def gigapath_tile_deep_feature_clip_dataloader_samples(
     name: str,
@@ -893,7 +893,7 @@ autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_sa
     var_shard_size=64, \
     batch_size=4, \
     n=8, \
-)"
+) #>SAMPLES: BIPOLAR: GIGAPATH_DEEP_CPTAC_602020_TRAIN"
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
