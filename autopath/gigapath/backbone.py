@@ -7,7 +7,7 @@ activation capture for the GigaPath ViT backbone) and
 the resolved capture configuration so that downstream consumers know
 the tensor shapes).
 
-Inherits from `DataformerEvaluator`;
+Inherits from `TransformerEvaluator`;
 the `gigapath.dinov2` package supplies only the raw model factory
 (`gigapath_tile_backbone()`) and
 the tile transform
@@ -25,8 +25,8 @@ import dbx
 from dbx import (
     Logger,
     Datablock,
-    DataformerEvaluator,
-    DataformerEvaluatorFactory,
+    TransformerEvaluator,
+    TransformerEvaluatorBuilder,
 )
 
 from autopath.autobits import (
@@ -80,12 +80,12 @@ def resolve_sublayer_name(sublayer: str) -> str:
     return sublayer
 
 
-class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
-    """GigaPath-specific `DataformerEvaluatorFactory`.
+class GigapathDeepBackboneEvaluatorFactory(TransformerEvaluatorBuilder):
+    """GigaPath-specific `TransformerEvaluatorBuilder`.
 
     Exists for spec-based dependency tracking in `DeepFeatureBag`
     and `DeepFeatureClip`. Call `evaluator()` to obtain a
-    ready-to-use `DataformerEvaluator`.
+    ready-to-use `TransformerEvaluator`.
     """
 
     @property
@@ -95,3 +95,6 @@ class GigapathDeepBackboneEvaluatorFactory(DataformerEvaluatorFactory):
     @property
     def transform(self):
         return dino_tile_transform()
+
+
+GigapathTransformerEvaluatorBuilder = GigapathDeepBackboneEvaluatorFactory

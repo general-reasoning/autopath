@@ -22,6 +22,8 @@ from dbx import (
     Datastack,
     DatamodelEvaluator,
     DatamodelEvaluatorFactory,
+    TransformerEvaluator,
+    TransformerEvaluatorBuilder,
     DataformerEvaluator,
     DataformerEvaluatorFactory,
     InlineCallableExecutor,
@@ -283,8 +285,9 @@ class Fold(Clip):
 #  Evaluator & Factory Aliases
 # ═══════════════════════════════════════════════════════════════════════
 
-DeepBackboneEvaluator = DataformerEvaluator
-DeepBackboneEvaluatorFactory = DataformerEvaluatorFactory
+DeepBackboneEvaluator = TransformerEvaluator
+DeepBackboneEvaluatorFactory = TransformerEvaluatorBuilder
+TransformerEvaluatorBuilderFactory = TransformerEvaluatorBuilder
 
 
 # ═══════════════════════════════════════════════════════════════════════
