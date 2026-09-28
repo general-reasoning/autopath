@@ -851,3 +851,12 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         if self.transform:
             it = map(self.transform, it)
         return it
+
+
+class PancanTFRecordDataset(TFRecordDataset):
+    def __init__(self, tfrecords_path, index_path, transform):
+        self.index = np.load(index_path)['arr_0']
+        super().__init__(tfrecords_path, self.index, transform=transform)
+
+    def __len__(self):
+        return len(self.index)

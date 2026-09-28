@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import tqdm
 import dbx
-from dbx.datablocks import DATAFILE, DIR, DIRTOPIC
+from dbx.datablocks import DATAFILE, DATADIR, DIR, DIRTOPIC
 from dbx.datapoints import (
     Datablock,
     DatapointTab,
@@ -22,8 +22,7 @@ from dbx.datapoints import (
 )
 
 from autopath.pancan.annotations import extract_case_id, get_annotations
-from autopath.pancan.clips import PancanTFRecordDataset
-from autopath.pancan.tools.tfrecord import get_tfrecord_parser
+from autopath.pancan.tools.tfrecord import PancanTFRecordDataset, get_tfrecord_parser
 from autopath.tools import read_mds_samples
 
 
@@ -207,7 +206,7 @@ class PancanTileClip(DatapointTable):
     TAB = PancanTileBag
 
     TOPICS = {
-        'tabs': DIR,
+        'tabs': DATADIR,
         'done': DATAFILE('done'),
         'bag_lens': DATAFILE('bag_lens.npz'),
     }

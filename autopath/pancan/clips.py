@@ -22,7 +22,7 @@ from dbx import Logger, Datablock, Datastack
 
 from autopath.autobits import Bag, TileBag, Clip, Partition, Fold, sanitize_collate
 from autopath.pancan.annotations import extract_case_id, get_annotations
-from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser
+from autopath.pancan.tools.tfrecord import TFRecordDataset, get_tfrecord_parser, PancanTFRecordDataset
 from autopath.tools import read_mds_samples
 
 
@@ -130,15 +130,6 @@ class TileClipDataLoaderBuilder(Datablock):
     def dataloader(self):
         self.log.debug(f"Initializing TileClipDataLoaderBuilder dataloader with kwargs: {self.dataloader_kwargs}")
         return torch.utils.data.DataLoader(dataset=self.dataset, **self.dataloader_kwargs)
-
-	
-class PancanTFRecordDataset(TFRecordDataset):
-		def __init__(self, tfrecords_path, index_path, transform):
-			self.index = np.load(index_path)['arr_0']
-			super().__init__(tfrecords_path, self.index, transform=transform)
-
-		def __len__(self):
-			return len(self.index)
 
 
 class PancanTileBag(TileBag):
