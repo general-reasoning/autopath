@@ -121,7 +121,7 @@ dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_404020').build
 #
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_206020').build_tree()"
 #
-dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_602020').build_tree() #> CPTAC_602020"
+dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_602020').build_tree().valid() #> CPTAC_602020"
 #
 dbx.print "autopath.pancan.pipelines.pancan_tile_partition('CPTAC_400159').build_tree()"
 #
