@@ -197,7 +197,7 @@ class BipolarDeepFeatureBag(BipolarDatafeatureTab):
     @dataclass
     class VAR(Datablock.VAR):
         featuretab: DatafeatureTab
-        layer: str = 'final'
+        feature: str = 'final'
         threshold: float = 0.5
         ternarize: bool = False
 
@@ -211,7 +211,7 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
     @dataclass
     class VAR(Datablock.VAR):
         featuretable: DatafeatureTable
-        layer: str = 'final'
+        feature: str = 'final'
         threshold: float = 0.5
         ternarize: bool = False
 
