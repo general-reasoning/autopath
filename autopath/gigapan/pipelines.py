@@ -33,6 +33,8 @@ from autopath.gigapan.features import (
 from autopath.gigapan.probes import (
     DeepFeatureStatsProbe,
     DeepFeatureAffineLogisticProbe,
+    BipolarDeepFeatureStatsProbe,
+    BipolarDeepFeatureAffineLogisticProbe,
 )
 from autopath.pancan.pipelines import (
     pancan_tile_bag,
@@ -860,6 +862,196 @@ def gigapath_bipolar_deep_feature_clip(
     )
     bipolar_clip.stats_probe = stats_probe
     return bipolar_clip
+
+
+"""
+### CPTAC 60/20/20 — bipolar feature stats (TRAIN, bipolar medians from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_stats_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_feature='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    parallelization='multiprocessing', n_workers=8, \
+).build_tree(deep=True).valid() #>BIPOLAR STATS: GIGAPATH_DEEP_CPTAC_602020_TRAIN"
+### CPTAC 60/20/20 — bipolar feature stats (TEST, bipolar medians from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_stats_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TEST', \
+    var_feature='final', \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    parallelization='multiprocessing', n_workers=8, \
+).build_tree(deep=True).valid() #>BIPOLAR STATS: GIGAPATH_DEEP_CPTAC_602020_TEST"
+"""
+def gigapath_bipolar_deep_feature_stats_probe(
+    name: str,
+    *,
+    var_signals: str | list | None = None,
+    var_normalize: str | None = None,
+    var_feature: str = 'final',
+    var_bag_aggregation_threshold: float = 0.5,
+    var_ternarize_tiles: bool = False,
+    var_stats_probe_name: str | None = None,
+    var_bipolar_signals: str | list | None = None,
+    var_bipolar_normalize: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_final: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
+    url: str | None = None,
+    filter_built_tabs: bool = False,
+    n_workers: int = 1,
+    parallelization: str | None = None,
+    work_stealing: bool = False,
+) -> BipolarDeepFeatureStatsProbe:
+    """Create a `BipolarDeepFeatureStatsProbe` on a named bipolar clip.
+
+    *var_signals* and *var_normalize* are this probe's own; they default to
+    the tile-level bipolar features, unnormalized. *var_bipolar_signals* and
+    *var_bipolar_normalize* are forwarded to `gigapath_bipolar_deep_feature_clip`
+    as its *var_signals* and *var_normalize* -- the upstream stats probe whose
+    medians define the bipolar encoding.
+    """
+    if parallelization is None and n_workers > 1:
+        parallelization = 'multiprocessing'
+    if var_signals is None:
+        var_signals = [('bipolar_features', 'bipolar_features')]
+
+    bipolar_clip = gigapath_bipolar_deep_feature_clip(
+        name,
+        var_feature=var_feature,
+        var_bag_aggregation_threshold=var_bag_aggregation_threshold,
+        var_ternarize_tiles=var_ternarize_tiles,
+        var_stats_probe_name=var_stats_probe_name,
+        var_signals=var_bipolar_signals,
+        var_normalize=var_bipolar_normalize,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_final=var_capture_final,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
+        url=url,
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
+        filter_built_tabs=filter_built_tabs,
+    )
+    collator = Datacollator(spec=dict(signals=var_signals))
+    return BipolarDeepFeatureStatsProbe(
+        url=url,
+        spec=dict(
+            feature_table=dbx.quote(bipolar_clip),
+            collator=dbx.quote(collator),
+            normalization=var_normalize,
+        ),
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
+    )
+
+
+"""
+### CPTAC 9802: cohort from tile-level bipolar features (bipolar medians from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_9802_TEST', \
+    var_feature='final', \
+    var_labels=[('annotations', 'annotations', 'cohort')], \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    parallelization='multiprocessing', n_workers=16, work_stealing=True, \
+).build_tree(deep=True).valid() #>BIPOLAR LOGISTIC: GIGAPATH_DEEP_CPTAC_9802_TEST: final/cohort"
+### CPTAC 60/20/20: cohort from tile-level bipolar features (TRAIN, bipolar medians from CALIBRATE)
+dbx.pprint "\
+autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_affine_logistic_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
+    var_feature='final', \
+    var_labels=[('annotations', 'annotations', 'cohort')], \
+    var_cls_token_only=True, \
+    var_shard_size=64, \
+    parallelization='multiprocessing', n_workers=16, work_stealing=True, \
+).build_tree(deep=True).valid() #>BIPOLAR LOGISTIC: GIGAPATH_DEEP_CPTAC_602020_TRAIN: final/cohort"
+"""
+def gigapath_bipolar_deep_feature_affine_logistic_probe(
+    name: str,
+    *,
+    var_labels: list,
+    var_signals: list | None = None,
+    var_skip_missing: bool = True,
+    var_fit_intercept: bool = True,
+    var_training_fraction: float = 0.8,
+    var_evaluation_fraction: float | None = None,
+    var_aggregation: str | None = None,
+    var_normalize: str | None = None,
+    var_feature: str = 'final',
+    var_bag_aggregation_threshold: float = 0.5,
+    var_ternarize_tiles: bool = False,
+    var_stats_probe_name: str | None = None,
+    var_bipolar_signals: str | list | None = None,
+    var_bipolar_normalize: str | None = None,
+    var_capture_blocks: list | None = None,
+    var_capture_layers: list | None = None,
+    var_capture_final: bool = True,
+    var_cls_token_only: bool = False,
+    var_shard_size: int = 64,
+    url: str | None = None,
+    filter_built_tabs: bool = False,
+    n_workers: int = 1,
+    parallelization: str | None = None,
+    work_stealing: bool = False,
+) -> BipolarDeepFeatureAffineLogisticProbe:
+    """Create a `BipolarDeepFeatureAffineLogisticProbe` on a named bipolar clip.
+
+    As `gigapath_deep_feature_affine_logistic_probe`, but on the bipolar
+    encoding of the clip's features. *var_signals* defaults to the tile-level
+    bipolar features; use ``[('tab_bipolar_features', 'tab_bipolar_features')]``
+    for the bag-level signature. *var_bipolar_signals* and
+    *var_bipolar_normalize* are forwarded to `gigapath_bipolar_deep_feature_clip`
+    as its *var_signals* and *var_normalize*, which define the encoding.
+    """
+    if parallelization is None and n_workers > 1:
+        parallelization = 'multiprocessing'
+    if var_signals is None:
+        var_signals = [('bipolar_features', 'bipolar_features')]
+
+    frac = var_evaluation_fraction if var_evaluation_fraction is not None else var_training_fraction
+
+    bipolar_clip = gigapath_bipolar_deep_feature_clip(
+        name,
+        var_feature=var_feature,
+        var_bag_aggregation_threshold=var_bag_aggregation_threshold,
+        var_ternarize_tiles=var_ternarize_tiles,
+        var_stats_probe_name=var_stats_probe_name,
+        var_signals=var_bipolar_signals,
+        var_normalize=var_bipolar_normalize,
+        var_capture_blocks=var_capture_blocks,
+        var_capture_layers=var_capture_layers,
+        var_capture_final=var_capture_final,
+        var_cls_token_only=var_cls_token_only,
+        var_shard_size=var_shard_size,
+        url=url,
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
+        filter_built_tabs=filter_built_tabs,
+    )
+    collator = Datacollator(spec=dict(signals=var_signals, labels=var_labels, skip_missing=var_skip_missing))
+    return BipolarDeepFeatureAffineLogisticProbe(
+        url=url,
+        spec=dict(
+            feature_table=dbx.quote(bipolar_clip),
+            collator=dbx.quote(collator),
+            fit_intercept=var_fit_intercept,
+            training_fraction=frac,
+            aggregation=var_aggregation,
+            normalization=var_normalize,
+        ),
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
+    )
 
 
 """
