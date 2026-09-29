@@ -15,8 +15,9 @@ import torch
 
 import dbx
 from dbx import Logger, Datacollator
-from dbx.datablocks import Datablock, SAME, DIR, DIRTOPIC, DATAFILE, DATADIR, DATASLICE
+from dbx.datablocks import Datablock, SAME, DIR, DIRTOPIC, DATAFILE, DATADIR
 from dbx.datapoints import SLICETOPIC
+from dbx.datatables import DATASLICE
 from dbx.featuretables import DatafeatureTable, BipolarDatafeatureTable
 
 from autopath.gigapath.backbone import (
