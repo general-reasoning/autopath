@@ -90,6 +90,7 @@ BIPOLAR_DEEP_FEATURE_CLIP_SPECIALIZATIONS = [
     BipolarDatafeatureTable.Specialization(
         spec={},
         topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
+        redirect_topics=['tab_paths', 'done'],
         redirect_vars={'feature': 'layer'},
         TAB=SAME,
         note='VAR field renamed from layer to feature',

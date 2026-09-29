@@ -174,6 +174,9 @@ class DeepFeatureClip(DatafeatureTable):
     """Deep feature clip storing multi-layer activations across bags."""
     VERSION = 1
     TAB = DeepFeatureBag
+    # 'tabs' is never written: a historical declaration kept only because it is
+    # part of this class's identity. New Featuretable subclasses should not
+    # declare it -- Datatable's own {'tab_paths', 'done'} is all a table has.
     TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
 
     @dataclass
@@ -206,6 +209,9 @@ class BipolarDeepFeatureClip(BipolarDatafeatureTable):
     """Bipolar-encoded deep feature clip across bags."""
     VERSION = 1
     TAB = BipolarDeepFeatureBag
+    # 'tabs' is never written: a historical declaration kept only because it is
+    # part of this class's identity. New Featuretable subclasses should not
+    # declare it -- Datatable's own {'tab_paths', 'done'} is all a table has.
     TOPICS = {'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')}
 
     @dataclass
