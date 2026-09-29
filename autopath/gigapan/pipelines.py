@@ -531,6 +531,15 @@ autopath.gigapan.pipelines.gigapath_deep_feature_stats_probe( \
     var_shard_size=64, \
     parallelization='multiprocessing', n_workers=8, \
 ).build_tree(deep=True).valid() #>STATS: GIGAPATH_DEEP_CPTAC_602020_TEST"
+
+dbx.pprint "\
+autopath.gigapan.pipelines.gigapath_deep_feature_stats_probe( \
+    'GIGAPATH_DEEP_CPTAC_602020_CALIBRATE', \
+    var_cls_token_only=True, \
+    var_signals=[('features', 'final')], \
+    var_shard_size=64, \
+    parallelization='multiprocessing', n_workers=8, \
+).build_tree(deep=True).valid() #>STATS: GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"
 """
 def gigapath_deep_feature_stats_probe(
     name: str,
