@@ -858,7 +858,7 @@ autopath.gigapan.pipelines.gigapath_tile_deep_feature_clip_dataloader_samples( \
 """
 def gigapath_tile_deep_feature_clip_dataloader_samples(
     name: str,
-    *,
+    *slices,
     url: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
@@ -869,6 +869,7 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
     batch_size: int | None = None,
     n: int | None = None,
     return_last: bool = True,
+    filter_built_tabs: bool = False,
     **dataloader_kwargs,
 ):
     clip = gigapath_deep_feature_clip(
@@ -878,6 +879,7 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
         var_capture_layers=var_capture_layers,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
+        filter_built_tabs=filter_built_tabs,
     )
     assert clip.valid(), (
         f"DeepFeatureClip is not valid (hash={clip.hash[:8]}). "
@@ -885,13 +887,11 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
         f"  validpaths = {clip.validpaths()}\n"
         f"  anchorkeypath = {clip.anchorkeypath}"
     )
+    requested_slices = slices or ('features', 'tiles')
     sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
     if batch_size is not None:
         sd_kwargs['batch_size'] = batch_size
-    feature_ds = clip.dataset(**sd_kwargs)
-    tilebagclip = getattr(clip.var, 'tilebagclip', None) or getattr(clip.var, 'datapoint_table', None)
-    tile_ds = tilebagclip.dataset(**sd_kwargs)
-    ds = ZipStreamingDataset(feature_ds, tile_ds)
+    ds = clip.dataset(*requested_slices, **sd_kwargs)
 
     if n is None:
         return ds
@@ -941,22 +941,28 @@ autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_sa
 """
 def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
     name: str,
-    *,
+    *slices,
     var_layer: str = 'final',
     var_bag_aggregation_threshold: float = 0.5,
     var_ternarize_tiles: bool = False,
     var_stats_probe_name: str | None = None,
+    var_signals: str | list | None = None,
+    var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
     var_capture_final: bool = True,
     var_cls_token_only: bool = False,
     var_shard_size: int = 64,
     url: str | None = None,
+    n_workers: int = 1,
+    parallelization: str | None = None,
+    work_stealing: bool = False,
     shuffle: bool = False,
     skip_invalid_bags: bool = True,
     batch_size: int | None = None,
     n: int | None = None,
     return_last: bool = True,
+    filter_built_tabs: bool = False,
     **dataloader_kwargs,
 ):
     bipolar_clip = gigapath_bipolar_deep_feature_clip(
@@ -965,12 +971,18 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
         var_bag_aggregation_threshold=var_bag_aggregation_threshold,
         var_ternarize_tiles=var_ternarize_tiles,
         var_stats_probe_name=var_stats_probe_name,
+        var_signals=var_signals,
+        var_normalize=var_normalize,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
         var_capture_final=var_capture_final,
         var_cls_token_only=var_cls_token_only,
         var_shard_size=var_shard_size,
         url=url,
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
+        filter_built_tabs=filter_built_tabs,
     )
     assert bipolar_clip.valid(), (
         f"BipolarDeepFeatureClip is not valid (hash={bipolar_clip.hash[:8]}). "
@@ -978,14 +990,11 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
         f"  validpaths = {bipolar_clip.validpaths()}\n"
         f"  anchorkeypath = {bipolar_clip.anchorkeypath}"
     )
+    requested_slices = slices or ('bipolar_features', 'tiles')
     sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
     if batch_size is not None:
         sd_kwargs['batch_size'] = batch_size
-    bipolar_ds = bipolar_clip.dataset(**sd_kwargs)
-    featuretable = getattr(bipolar_clip.var, 'featuretable', None) or getattr(bipolar_clip.var, 'clip', None)
-    tilebagclip = getattr(featuretable.var, 'tilebagclip', None) or getattr(featuretable.var, 'datapoint_table', None)
-    tile_ds = tilebagclip.dataset(**sd_kwargs)
-    ds = ZipStreamingDataset(bipolar_ds, tile_ds)
+    ds = bipolar_clip.dataset(*requested_slices, **sd_kwargs)
 
     if n is None:
         return ds
