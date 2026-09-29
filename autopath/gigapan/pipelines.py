@@ -724,7 +724,7 @@ def gigapath_deep_feature_affine_logistic_probe(
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    var_layer='final', \
+    var_feature='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_workers=8,\
@@ -733,7 +733,7 @@ autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    var_layer='final', \
+    var_feature='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_workers=8,\
@@ -742,7 +742,7 @@ autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    var_layer='final', \
+    var_feature='final', \
     var_cls_token_only=True, \
     var_ternarize_tiles=True, \
     var_shard_size=64, \
@@ -752,7 +752,7 @@ autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    var_layer='final', \
+    var_feature='final', \
     var_cls_token_only=True, \
     var_ternarize_tiles=True, \
     var_shard_size=64, \
@@ -762,7 +762,7 @@ autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
 def gigapath_bipolar_deep_feature_clip(
     name: str,
     *,
-    var_layer: str = 'final',
+    var_feature: str = 'final',
     var_bag_aggregation_threshold: float = 0.5,
     var_ternarize_tiles: bool = False,
     var_stats_probe_name: str | None = None,
@@ -798,7 +798,7 @@ def gigapath_bipolar_deep_feature_clip(
     )
 
     if var_signals is None:
-        var_signals = [('features', var_layer)]
+        var_signals = [('features', var_feature)]
     elif isinstance(var_signals, str):
         var_signals = [('features', var_signals)]
     elif isinstance(var_signals, tuple):
@@ -830,7 +830,7 @@ def gigapath_bipolar_deep_feature_clip(
         url=url,
         spec=dict(
             featuretable=dbx.quote(clip),
-            layer=var_layer,
+            feature=var_feature,
             threshold=var_bag_aggregation_threshold,
             ternarize=var_ternarize_tiles,
         ),
@@ -913,7 +913,7 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TRAIN', \
-    var_layer='final', \
+    var_feature='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
     batch_size=4, \
@@ -922,7 +922,7 @@ autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_sa
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    var_layer='final', \
+    var_feature='final', \
     var_cls_token_only=True, \
     var_shard_size=64, \
     batch_size=4, \
@@ -931,7 +931,7 @@ autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_sa
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
-    var_layer='final', \
+    var_feature='final', \
     var_cls_token_only=True, \
     var_ternarize_tiles=True, \
     var_shard_size=64, \
@@ -942,7 +942,7 @@ autopath.gigapan.pipelines.gigapath_tile_bipolar_deep_feature_clip_dataloader_sa
 def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
     name: str,
     *slices,
-    var_layer: str = 'final',
+    var_feature: str = 'final',
     var_bag_aggregation_threshold: float = 0.5,
     var_ternarize_tiles: bool = False,
     var_stats_probe_name: str | None = None,
@@ -967,7 +967,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
 ):
     bipolar_clip = gigapath_bipolar_deep_feature_clip(
         name,
-        var_layer=var_layer,
+        var_feature=var_feature,
         var_bag_aggregation_threshold=var_bag_aggregation_threshold,
         var_ternarize_tiles=var_ternarize_tiles,
         var_stats_probe_name=var_stats_probe_name,
@@ -1010,3 +1010,4 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
             break
     if return_last:
         return last
+
