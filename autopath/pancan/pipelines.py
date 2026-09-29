@@ -14,6 +14,13 @@ from autopath.env import PANCAN_CPTAC_ROOT, PANCAN_CPTAC_SAMPLE, PANCAN_CPTAC_RE
 PANCAN_TILE_BAG_SPECIALIZATIONS = [
     Datablock.Specialization(
         spec={},
+        topics=PancanTileBag.TOPICS,
+        anchor='autopath.pancan.tabclips.PancanTileBag',
+        version=1,
+        note='Pre-BLOCK tabular build',
+    ),
+    Datablock.Specialization(
+        spec={},
         topics={
             'tiles': SLICETOPIC,
             'annotations': SLICETOPIC,
