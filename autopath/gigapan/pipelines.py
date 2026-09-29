@@ -463,7 +463,7 @@ dbx.pprint "autopath.gigapan.pipelines.gigapath_deep_feature_clip_dataloader_sam
     var_cls_token_only=True, \
     var_shard_size=64, \
     n=4,\
-)"
+) #> SAMPLES: GIGAPATH_DEEP_CPTAC_602020_CALIBRATE"
 dbx.pprint "autopath.gigapan.pipelines.gigapath_deep_feature_clip_dataloader_samples( \
     'GIGAPATH_DEEP_CPTAC_602020_TEST', \
     var_cls_token_only=True, \
