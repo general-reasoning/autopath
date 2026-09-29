@@ -888,7 +888,7 @@ def gigapath_tile_deep_feature_clip_dataloader_samples(
         f"  anchorkeypath = {clip.anchorkeypath}"
     )
     requested_slices = slices or ('features', 'tiles')
-    sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+    sd_kwargs = dict(shuffle=shuffle)
     if batch_size is not None:
         sd_kwargs['batch_size'] = batch_size
     ds = clip.dataset(*requested_slices, **sd_kwargs)
@@ -991,7 +991,7 @@ def gigapath_tile_bipolar_deep_feature_clip_dataloader_samples(
         f"  anchorkeypath = {bipolar_clip.anchorkeypath}"
     )
     requested_slices = slices or ('bipolar_features', 'tiles')
-    sd_kwargs = dict(shuffle=shuffle, skip_invalid_bags=skip_invalid_bags)
+    sd_kwargs = dict(shuffle=shuffle)
     if batch_size is not None:
         sd_kwargs['batch_size'] = batch_size
     ds = bipolar_clip.dataset(*requested_slices, **sd_kwargs)
