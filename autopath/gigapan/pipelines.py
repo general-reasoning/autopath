@@ -766,6 +766,8 @@ def gigapath_bipolar_deep_feature_clip(
     var_bag_aggregation_threshold: float = 0.5,
     var_ternarize_tiles: bool = False,
     var_stats_probe_name: str | None = None,
+    var_signals: str | list | None = None,
+    var_normalize: str | None = None,
     var_capture_blocks: list | None = None,
     var_capture_layers: list | None = None,
     var_capture_final: bool = True,
@@ -774,6 +776,7 @@ def gigapath_bipolar_deep_feature_clip(
     url: str | None = None,
     n_workers: int = 1,
     parallelization: str | None = None,
+    work_stealing: bool = False,
     streaming: bool = False,
     dataloader_kwargs: dict | None = None,
     filter_built_tabs: bool = False,
@@ -794,6 +797,13 @@ def gigapath_bipolar_deep_feature_clip(
         filter_built_tabs=filter_built_tabs,
     )
 
+    if var_signals is None:
+        var_signals = [('features', var_layer)]
+    elif isinstance(var_signals, str):
+        var_signals = [('features', var_signals)]
+    elif isinstance(var_signals, tuple):
+        var_signals = [var_signals]
+
     if var_stats_probe_name is None:
         parts = name.rsplit('_', 1)
         if len(parts) == 2 and parts[1] in ('TRAIN', 'TEST', 'CALIBRATE'):
@@ -803,7 +813,8 @@ def gigapath_bipolar_deep_feature_clip(
 
     stats_probe = gigapath_deep_feature_stats_probe(
         var_stats_probe_name,
-        var_layer=var_layer,
+        var_signals=var_signals,
+        var_normalize=var_normalize,
         var_capture_blocks=var_capture_blocks,
         var_capture_layers=var_capture_layers,
         var_capture_final=var_capture_final,
@@ -811,8 +822,11 @@ def gigapath_bipolar_deep_feature_clip(
         var_shard_size=var_shard_size,
         url=url,
         filter_built_tabs=filter_built_tabs,
+        n_workers=n_workers,
+        parallelization=parallelization,
+        work_stealing=work_stealing,
     )
-    return BipolarDeepFeatureClip(
+    bipolar_clip = BipolarDeepFeatureClip(
         url=url,
         spec=dict(
             featuretable=dbx.quote(clip),
@@ -828,6 +842,8 @@ def gigapath_bipolar_deep_feature_clip(
         dataloader_kwargs=dataloader_kwargs,
         filter_built_tabs=filter_built_tabs,
     )
+    bipolar_clip.stats_probe = stats_probe
+    return bipolar_clip
 
 
 """
