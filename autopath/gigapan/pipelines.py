@@ -15,7 +15,7 @@ import torch
 
 import dbx
 from dbx import Logger, Datacollator
-from dbx.datablocks import Datablock, DIR, DIRTOPIC, DATAFILE, DATADIR
+from dbx.datablocks import Datablock, SAME, DIR, DIRTOPIC, DATAFILE, DATADIR, DATASLICE
 from dbx.datapoints import SLICETOPIC
 from dbx.featuretables import DatafeatureTable, BipolarDatafeatureTable
 
@@ -71,6 +71,13 @@ DEEP_FEATURE_CLIP_SPECIALIZATIONS = [
 BIPOLAR_DEEP_FEATURE_BAG_SPECIALIZATIONS = [
     Datablock.Specialization(
         spec={},
+        topics={'bipolar_features': DATASLICE(bipolar_features='ndarray:int8'),
+                'tab_bipolar_features': DATASLICE(tab_bipolar_features='ndarray:int8')},
+        redirect_vars={'feature': 'layer'},
+        note='VAR field renamed from layer to feature',
+    ),
+    Datablock.Specialization(
+        spec={},
         topics={'bipolar_features': SLICETOPIC, 'tab_bipolar_features': SLICETOPIC},
         anchor='autopath.gigapan.tabfeatures.BipolarDeepFeatureBag',
         legacy=True,
@@ -79,6 +86,13 @@ BIPOLAR_DEEP_FEATURE_BAG_SPECIALIZATIONS = [
 ]
 
 BIPOLAR_DEEP_FEATURE_CLIP_SPECIALIZATIONS = [
+    BipolarDatafeatureTable.Specialization(
+        spec={},
+        topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
+        redirect_vars={'feature': 'layer'},
+        TAB=SAME,
+        note='VAR field renamed from layer to feature',
+    ),
     BipolarDatafeatureTable.Specialization(
         spec={},
         topics={'tabs': DATADIR, 'tab_paths': DATADIR, 'done': DATAFILE('done')},
