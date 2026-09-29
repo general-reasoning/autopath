@@ -728,7 +728,7 @@ autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
     var_cls_token_only=True, \
     var_shard_size=64, \
     n_workers=8,\
-).build_tree(deep=True).valid() #>BIPOLAR: GIGAPATH_DEEP_CPTAC_602020_TRAIN"
+).build_tree(deep=True).valid() #>BIPOLAR: GIGAPATH_DEEP_CPTAC_602020_TRAIN/CALIBRATE"
 ### CPTAC 60/20/20 — bipolar features (TEST, stats from CALIBRATE)
 dbx.pprint "\
 autopath.gigapan.pipelines.gigapath_bipolar_deep_feature_clip( \
